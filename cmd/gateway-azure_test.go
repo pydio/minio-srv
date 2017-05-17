@@ -42,8 +42,8 @@ func TestS3ToAzureHeaders(t *testing.T) {
 }
 
 func TestAzureToS3Metadata(t *testing.T) {
-	// Just one testcase. Adding more test cases does not add value to the testcase
-	// as azureToS3Metadata() just adds a prefix.
+	// Just one testcase. Adding more test cases does not add
+	// value to the testcase as azureToS3Metadata() just adds a prefix.
 	metadata := map[string]string{
 		"First-Name": "myname",
 	}
