@@ -83,6 +83,9 @@ func configureServerHandler(endpoints EndpointList) (http.Handler, error) {
 	// Add API router.
 	registerAPIRouter(mux)
 
+	// Add STS router.
+	registerSTSRouter(mux)
+
 	// List of some generic handlers which are applied for all incoming requests.
 	var handlerFns = []HandlerFunc{
 		// Validate all the incoming paths.

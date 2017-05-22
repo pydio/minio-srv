@@ -17,13 +17,18 @@
 package cmd
 
 import (
+	"crypto/tls"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
+	"net/url"
 	"time"
 
+	"github.com/anaskhan96/soup"
 	jwtgo "github.com/dgrijalva/jwt-go"
 	jwtreq "github.com/dgrijalva/jwt-go/request"
+	"github.com/levigross/grequests"
 )
 
 const (
@@ -43,6 +48,109 @@ var (
 	errNoAuthToken          = errors.New("JWT token missing")
 )
 
+func getURL(u *url.URL) string {
+	return fmt.Sprintf("%s://%s%s", u.Scheme, u.Host, u.Path)
+}
+
+func getSAMLAssertion(username, password string, saml samlProvider) (string, error) {
+	httpSess := grequests.NewSession(nil)
+
+	u, err := url.Parse(saml.IDP)
+	if err != nil {
+		return "", err
+	}
+	v := url.Values{
+		"providerId": {saml.ProviderID},
+	}
+	u.RawQuery = v.Encode()
+
+	resp, err := httpSess.Get(u.String(), nil)
+	if err != nil {
+		return "", err
+	}
+
+	samlLogin := soup.HTMLParse(resp.String())
+	resp.Close()
+
+	payload := extractPayload(samlLogin)
+	payload["username"] = username
+	payload["password"] = password
+	resp, err = httpSess.Post(getURL(resp.RawResponse.Request.URL),
+		&grequests.RequestOptions{
+			Data:         payload,
+			UseCookieJar: true,
+		},
+	)
+	if err != nil {
+		return "", err
+	}
+
+	samlAssertion := soup.HTMLParse(resp.String())
+	resp.Close()
+
+	return extractSAMLAssertion(samlAssertion), nil
+}
+
+func authenticateJWTWithSAML(accessKey, secretKey string, expiry time.Duration, saml samlProvider) (string, error) {
+	samlAssertion, err := getSAMLAssertion(accessKey, secretKey, saml)
+	if err != nil {
+		return "", err
+	}
+
+	samlResp, err := ParseSAMLResponse(samlAssertion)
+	if err != nil {
+		return "", err
+	}
+
+	// Keep TLS config.
+	tlsConfig := &tls.Config{
+		RootCAs:            globalRootCAs,
+		InsecureSkipVerify: true,
+	}
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			DialContext: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).DialContext,
+			MaxIdleConns:          100,
+			IdleConnTimeout:       90 * time.Second,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+			TLSClientConfig:       tlsConfig,
+		},
+	}
+
+	resp, rerr := client.PostForm(samlResp.Destination, url.Values{
+		"SAMLResponse": {samlResp.origSAMLAssertion},
+	})
+	if rerr != nil {
+		return "", rerr
+	}
+
+	if resp.StatusCode >= http.StatusInternalServerError {
+		return "", errors.New(resp.Status)
+	}
+
+	expiryTime := UTCNow().Add(expiry)
+	cred, err := getNewCredentialWithExpiry(expiryTime)
+	if err != nil {
+		return "", err
+	}
+
+	utcNow := UTCNow()
+	token := jwtgo.NewWithClaims(jwtgo.SigningMethodHS512, jwtgo.MapClaims{
+		"exp": utcNow.Add(expiry).Unix(),
+		"iat": utcNow.Unix(),
+		"sub": cred.AccessKey,
+	})
+
+	serverConfig.SetCredential(cred)
+	return token.SignedString([]byte(cred.SecretKey))
+}
+
 func authenticateJWT(accessKey, secretKey string, expiry time.Duration) (string, error) {
 	passedCredential, err := createCredential(accessKey, secretKey)
 	if err != nil {
@@ -50,7 +158,6 @@ func authenticateJWT(accessKey, secretKey string, expiry time.Duration) (string,
 	}
 
 	serverCred := serverConfig.GetCredential()
-
 	if serverCred.AccessKey != passedCredential.AccessKey {
 		return "", errInvalidAccessKeyID
 	}
@@ -74,6 +181,10 @@ func authenticateNode(accessKey, secretKey string) (string, error) {
 }
 
 func authenticateWeb(accessKey, secretKey string) (string, error) {
+	saml := serverConfig.Auth.GetSAMLByID("1") // TODO: Needs to be configurable.
+	if saml.Enable {
+		return authenticateJWTWithSAML(accessKey, secretKey, defaultJWTExpiry, saml)
+	}
 	return authenticateJWT(accessKey, secretKey, defaultJWTExpiry)
 }
 

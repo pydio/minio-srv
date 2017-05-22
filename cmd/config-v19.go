@@ -51,6 +51,9 @@ type serverConfigV19 struct {
 
 	// Notification queue configuration.
 	Notify *notifier `json:"notify"`
+
+	// Authorization providers configuration.
+	Auth *authProviders `json:"auth,omitempty"`
 }
 
 // GetVersion get current config version.
@@ -152,6 +155,10 @@ func newServerConfigV19() *serverConfigV19 {
 	srvCfg.Notify.Kafka["1"] = kafkaNotify{}
 	srvCfg.Notify.Webhook = make(map[string]webhookNotify)
 	srvCfg.Notify.Webhook["1"] = webhookNotify{}
+
+	// Make sure to initialize auth providers.
+	srvCfg.Auth.SAML = make(samlProviders)
+	srvCfg.Auth.SAML["1"] = samlProvider{}
 
 	return srvCfg
 }

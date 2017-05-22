@@ -81,6 +81,10 @@ var (
 	// Set to true if credentials were passed from env, default is false.
 	globalIsEnvCreds = false
 
+	// Set to true if credentials were provided by validating SAML and STS,
+	// default is false.
+	globalIsSAMLCreds = false
+
 	// This flag is set to 'true' wen MINIO_REGION env is set.
 	globalIsEnvRegion = false
 

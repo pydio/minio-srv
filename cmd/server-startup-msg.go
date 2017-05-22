@@ -116,9 +116,24 @@ func printServerCommonMsg(apiEndpoints []string) {
 		log.Println(colorBlue("Region: ") + colorBold(fmt.Sprintf(getFormatStr(len(region), 3), region)))
 	}
 	printEventNotifiers()
+	printAuthProviders()
 
 	log.Println(colorBlue("\nBrowser Access:"))
 	log.Println(fmt.Sprintf(getFormatStr(len(apiEndpointStr), 3), apiEndpointStr))
+}
+
+// Prints auth provider configurations.
+func printAuthProviders() {
+	// Get all configured auth providers.
+	authProviders := serverConfig.Auth.GetAllAuthProviders()
+	if len(authProviders) == 0 {
+		return
+	}
+	arnMsg := colorBlue("AUTH ARNs: ")
+	for authArn := range authProviders {
+		arnMsg += colorBold(fmt.Sprintf(getFormatStr(len(authArn), 0), authArn))
+	}
+	log.Println(arnMsg)
 }
 
 // Prints bucket notification configurations.

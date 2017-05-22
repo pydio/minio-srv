@@ -62,6 +62,18 @@
 			"revisionTime": "2016-07-12T20:17:32-04:00"
 		},
 		{
+			"checksumSHA1": "UinaGJhHntMDig/gG9y3TWMMbbk=",
+			"path": "github.com/anaskhan96/soup",
+			"revision": "c376a53b30637d77e7e1721bf2c6a25ab076d1b3",
+			"revisionTime": "2017-03-29T12:27:32Z"
+		},
+		{
+			"checksumSHA1": "vJkZCTHBNTrKLZabreB3S3qfOA0=",
+			"path": "github.com/anaskhan96/soup/fetch",
+			"revision": "c376a53b30637d77e7e1721bf2c6a25ab076d1b3",
+			"revisionTime": "2017-03-29T12:27:32Z"
+		},
+		{
 			"path": "github.com/cheggaaa/pb",
 			"revision": "73ae1d68fe0bd482ab11913a9828634f795b987f",
 			"revisionTime": "2016-07-13T13:44:25+03:00"
@@ -202,6 +214,12 @@
 			"revisionTime": "2017-03-21T00:53:43Z"
 		},
 		{
+			"checksumSHA1": "p3IB18uJRs4dL2K5yx24MrLYE9A=",
+			"path": "github.com/google/go-querystring/query",
+			"revision": "53e6ce116135b80d037921a7fdd5138cf32d7a8a",
+			"revisionTime": "2017-01-11T10:11:55Z"
+		},
+		{
 			"path": "github.com/gorilla/context",
 			"revision": "aed02d124ae4a0e94fea4541c8effd05bf0c8296",
 			"revisionTime": "2016-05-25T13:33:19-07:00"
@@ -249,6 +267,12 @@
 			"revisionTime": "2016-10-28T07:13:20Z"
 		},
 		{
+			"checksumSHA1": "HQyF/udmxQQia0zz3shOIKJZw5w=",
+			"path": "github.com/levigross/grequests",
+			"revision": "48a10ca31a1f20c6c21f9bc0ce7a7c74030b8c79",
+			"revisionTime": "2017-02-19T00:57:21Z"
+		},
+		{
 			"checksumSHA1": "dNYxHiBLalTqluak2/Z8c3RsSEM=",
 			"path": "github.com/lib/pq",
 			"revision": "50761b0867bd1d9d069276790bcd4a3bccf2324a",
@@ -261,12 +285,6 @@
 			"revisionTime": "2016-08-31T22:25:20Z"
 		},
 		{
-			"checksumSHA1": "isRGvFzUCh72bNQFmw7WQaeT7xY=",
-			"path": "github.com/lox/httpcache",
-			"revision": "fff585cf25b80f4ccc4ac7be6d3f564aa9c117ff",
-			"revisionTime": "2017-01-09T03:46:36Z"
-		},
-		{
 			"path": "github.com/mattn/go-colorable",
 			"revision": "9056b7a9f2d1f2d96498d6d146acd1f9d5ed3d59",
 			"revisionTime": "2016-06-03T00:08:27+09:00"
@@ -276,12 +294,6 @@
 			"path": "github.com/mattn/go-isatty",
 			"revision": "30a891c33c7cde7b02a981314b4228ec99380cca",
 			"revisionTime": "2016-11-23T14:36:37Z"
-		},
-		{
-			"checksumSHA1": "4gphCNVXIjp5ytz3+S3SD3Dp948=",
-			"path": "github.com/minio/blake2b-simd",
-			"revision": "3f5f724cb5b182a5c278d6d3d55b40e7f8c2efb4",
-			"revisionTime": "2016-07-23T06:10:19Z"
 		},
 		{
 			"checksumSHA1": "fUWokilZyc1QDKnIgCDJE8n1S9U=",
@@ -405,12 +417,6 @@
 			"path": "github.com/pkg/profile",
 			"revision": "c78aac22bd43883fd2817833b982153dcac17b3b",
 			"revisionTime": "2016-05-18T16:56:57+10:00"
-		},
-		{
-			"checksumSHA1": "NLwKGa5B0STKAvQV+lz/ujnbzN4=",
-			"path": "github.com/rainycape/vfs",
-			"revision": "a62fd22bcf7010946a44f6a1250a82c03110a14b",
-			"revisionTime": "2015-06-11T13:38:00Z"
 		},
 		{
 			"path": "github.com/rs/cors",
@@ -538,6 +544,24 @@
 			"path": "golang.org/x/oauth2/jwt",
 			"revision": "a6bd8cefa1811bd24b86f8902872e4e8225f74c4",
 			"revisionTime": "2017-04-12T07:26:39Z"
+		},
+		{
+			"checksumSHA1": "vqc3a+oTUGX8PmD0TS+qQ7gmN8I=",
+			"path": "golang.org/x/net/html",
+			"revision": "1a26cf06691746ee35aa7113c9b37289afc7ea28",
+			"revisionTime": "2017-05-22T17:50:42Z"
+		},
+		{
+			"checksumSHA1": "00eQaGynDYrv3tL+C7l9xH0IDZg=",
+			"path": "golang.org/x/net/html/atom",
+			"revision": "1a26cf06691746ee35aa7113c9b37289afc7ea28",
+			"revisionTime": "2017-05-22T17:50:42Z"
+		},
+		{
+			"checksumSHA1": "kEO69MIsqWDxBOIs3ez1faofNSg=",
+			"path": "golang.org/x/net/publicsuffix",
+			"revision": "1a26cf06691746ee35aa7113c9b37289afc7ea28",
+			"revisionTime": "2017-05-22T17:50:42Z"
 		},
 		{
 			"checksumSHA1": "ZVZBntvdoK/qUq/6uF8YMWmuMC4=",
@@ -849,18 +873,6 @@
 			"path": "gopkg.in/check.v1",
 			"revision": "11d3bc7aa68e238947792f30573146a3231fc0f1",
 			"revisionTime": "2015-07-29T10:04:31+02:00"
-		},
-		{
-			"checksumSHA1": "lLdKOn9RPtFoTtPUNq5+sIInAiE=",
-			"path": "gopkg.in/olivere/elastic.v3/backoff",
-			"revision": "f7ae701daf3abe5dfb99f57b3f47738ec93c9c26",
-			"revisionTime": "2016-07-16T10:42:39Z"
-		},
-		{
-			"checksumSHA1": "XQg6xG6l15Ke43KolthYYnVDCYo=",
-			"path": "gopkg.in/olivere/elastic.v3/uritemplates",
-			"revision": "f7ae701daf3abe5dfb99f57b3f47738ec93c9c26",
-			"revisionTime": "2016-07-16T10:42:39Z"
 		},
 		{
 			"checksumSHA1": "ji4KugVW5dIfKLoFr1fE+3mT90A=",

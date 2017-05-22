@@ -20,6 +20,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -67,8 +68,10 @@ func isSecretKeyValid(secretKey string) bool {
 
 // credential container for access and secret keys.
 type credential struct {
-	AccessKey     string `json:"accessKey,omitempty"`
-	SecretKey     string `json:"secretKey,omitempty"`
+	AccessKey string    `xml:"AccessKeyId,omitempty" json:"accessKey,omitempty"`
+	SecretKey string    `xml:"SecretAccessKey,omitempty" json:"secretKey,omitempty"`
+	Expiry    time.Time `xml:"Expiration,omitempty" json:"expiry,omitempty"`
+
 	secretKeyHash []byte
 }
 
@@ -97,7 +100,7 @@ func (cred credential) Equal(ccred credential) bool {
 		bcrypt.CompareHashAndPassword(cred.secretKeyHash, []byte(ccred.SecretKey)) == nil)
 }
 
-func createCredential(accessKey, secretKey string) (cred credential, err error) {
+func createCredentialWithExpiry(accessKey, secretKey string, expiry time.Time) (cred credential, err error) {
 	if !isAccessKeyValid(accessKey) {
 		err = errInvalidAccessKeyLength
 	} else if !isSecretKeyValid(secretKey) {
@@ -111,16 +114,23 @@ func createCredential(accessKey, secretKey string) (cred credential, err error) 
 			cred.secretKeyHash = secretKeyHash
 		}
 	}
-
+	if !expiry.IsZero() {
+		cred.Expiry = expiry
+	}
 	return cred, err
 }
 
-// Initialize a new credential object
-func mustGetNewCredential() credential {
+func createCredential(accessKey, secretKey string) (cred credential, err error) {
+	return createCredentialWithExpiry(accessKey, secretKey, timeSentinel)
+}
+
+func getNewCredentialWithExpiry(expiry time.Time) (credential, error) {
 	// Generate access key.
 	keyBytes := make([]byte, accessKeyMaxLen)
 	_, err := rand.Read(keyBytes)
-	fatalIf(err, "Unable to generate access key.")
+	if err != nil {
+		return credential{}, err
+	}
 	for i := 0; i < accessKeyMaxLen; i++ {
 		keyBytes[i] = alphaNumericTable[keyBytes[i]%alphaNumericTableLen]
 	}
@@ -129,11 +139,20 @@ func mustGetNewCredential() credential {
 	// Generate secret key.
 	keyBytes = make([]byte, secretKeyMaxLenMinio)
 	_, err = rand.Read(keyBytes)
-	fatalIf(err, "Unable to generate secret key.")
+	if err != nil {
+		return credential{}, err
+	}
 	secretKey := string([]byte(base64.StdEncoding.EncodeToString(keyBytes))[:secretKeyMaxLenMinio])
+	cred, err := createCredentialWithExpiry(accessKey, secretKey, expiry)
+	if err != nil {
+		return credential{}, err
+	}
+	return cred, nil
+}
 
-	cred, err := createCredential(accessKey, secretKey)
+// Initialize a new credential object
+func mustGetNewCredential() credential {
+	cred, err := getNewCredentialWithExpiry(timeSentinel)
 	fatalIf(err, "Unable to generate new credential.")
-
 	return cred
 }

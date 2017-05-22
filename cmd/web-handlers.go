@@ -392,7 +392,7 @@ func (web *webAPIHandlers) SetAuth(r *http.Request, args *SetAuthArgs, reply *Se
 	}
 
 	// If creds are set through ENV disallow changing credentials.
-	if globalIsEnvCreds {
+	if globalIsEnvCreds || globalIsSAMLCreds {
 		return toJSONError(errChangeCredNotAllowed)
 	}
 
