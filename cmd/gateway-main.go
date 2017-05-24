@@ -330,6 +330,9 @@ func gatewayMain(ctx *cli.Context, backendType gatewayBackend) {
 	}
 	registerGatewayAPIRouter(router, newObject)
 
+	// Add STS router.
+	registerSTSRouter(router)
+
 	var handlerFns = []HandlerFunc{
 		// Validate all the incoming paths.
 		setPathValidityHandler,
