@@ -70,6 +70,9 @@ func init() {
 
 	// Quiet logging.
 	log.logger.Hooks = nil
+
+	// Initialize global server credentials.
+	globalServerCreds = newServerCredentials()
 }
 
 func prepareFS() (ObjectLayer, string, error) {
@@ -503,6 +506,8 @@ func newTestConfig(bucketLocation string) (rootPath string, err error) {
 	if err = serverConfig.Save(); err != nil {
 		return "", err
 	}
+
+	globalServerCreds.SetCredential(serverConfig.GetCredential())
 
 	// Return root path.
 	return rootPath, nil
@@ -1214,7 +1219,7 @@ func newWebRPCRequest(methodRPC, authorization string, body io.ReadSeeker) (*htt
 	}
 	req.Header.Set("Content-Type", "application/json")
 	if authorization != "" {
-		req.Header.Set("Authorization", "Bearer "+authorization)
+		req.Header.Set("Authorization", jwtAlgorithm+authorization)
 	}
 	// Seek back to beginning.
 	if body != nil {

@@ -20,8 +20,7 @@ package cmd
 const loginMethodName = ".Login"
 
 // AuthRPCServer RPC server authenticates using JWT.
-type AuthRPCServer struct {
-}
+type AuthRPCServer struct{}
 
 // Login - Handles JWT based RPC login.
 func (b AuthRPCServer) Login(args *LoginRPCArgs, reply *LoginRPCReply) error {

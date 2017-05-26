@@ -20,7 +20,6 @@ import (
 	"crypto/sha1"
 	"crypto/tls"
 	"encoding/base64"
-	"encoding/xml"
 	"errors"
 	"io"
 	"net"
@@ -126,33 +125,24 @@ type AssumeRoleWithSAMLResult struct {
 	SubjectType string `xml:",omitempty"`
 }
 
-// STSErrorResponse - error response format
-type STSErrorResponse struct {
-	XMLName   xml.Name `xml:"ErrorResponse" json:"-"`
-	Code      string
-	Message   string
-	RequestID string `xml:"RequestId"`
-	HostID    string `xml:"HostId"`
-}
-
 func (sts *stsAPIHandlers) AssumeRoleWithSAMLHandler(w http.ResponseWriter, r *http.Request) {
 	// This is an unauthenticated request.
 	if err := r.ParseForm(); err != nil {
-		errorIf(err, "Unable tp parse incoming data.")
-		writeErrorResponse(w, ErrMalformedPOSTRequest, r.URL)
+		errorIf(err, "Unable to parse incoming data.")
+		writeSTSErrorResponse(w, ErrSTSMalformedPolicyDocument)
 		return
 	}
 
 	if r.PostForm.Get("Version") != stsAPIVersion {
 		errorIf(errors.New("API version mismatch"), "")
-		writeErrorResponse(w, ErrMalformedPOSTRequest, r.URL)
+		writeSTSErrorResponse(w, ErrSTSMalformedPolicyDocument)
 		return
 	}
 
 	samlResp, err := ParseSAMLResponse(r.PostForm.Get("SAMLAssertion"))
 	if err != nil {
 		errorIf(err, "Unable to parse saml assertion.")
-		writeErrorResponse(w, ErrMalformedPOSTRequest, r.URL)
+		writeSTSErrorResponse(w, ErrSTSMalformedPolicyDocument)
 		return
 	}
 
@@ -182,13 +172,13 @@ func (sts *stsAPIHandlers) AssumeRoleWithSAMLHandler(w http.ResponseWriter, r *h
 	})
 	if rerr != nil {
 		errorIf(rerr, "Unable to validate saml assertion.")
-		writeErrorResponse(w, ErrInternalError, r.URL)
+		writeSTSErrorResponse(w, ErrSTSMalformedPolicyDocument)
 		return
 	}
 
 	if resp.StatusCode >= http.StatusInternalServerError {
 		errorIf(errors.New(resp.Status), "Unable to validate saml assertion.")
-		writeErrorResponse(w, ErrInternalError, r.URL)
+		writeSTSErrorResponse(w, ErrSTSIDPRejectedClaim)
 		return
 	}
 
@@ -197,7 +187,7 @@ func (sts *stsAPIHandlers) AssumeRoleWithSAMLHandler(w http.ResponseWriter, r *h
 		expirySecs, serr := strconv.ParseInt(r.PostForm.Get("DurationSeconds"), 10, 64)
 		if serr != nil {
 			errorIf(serr, "Unable to parse DurationSeconds")
-			writeErrorResponse(w, ErrMalformedPOSTRequest, r.URL)
+			writeSTSErrorResponse(w, ErrSTSMalformedPolicyDocument)
 			return
 		}
 
@@ -205,9 +195,12 @@ func (sts *stsAPIHandlers) AssumeRoleWithSAMLHandler(w http.ResponseWriter, r *h
 		// The value can range from 900 seconds (15 minutes)
 		// to 14400 seconds (4 hours). By default, the value
 		// is set to 14400 seconds.
-		if expirySecs < 900 || expirySecs > 14400 {
-			writeErrorResponse(w, ErrMalformedPOSTRequest, r.URL)
-			return
+		if expirySecs < 900 {
+			expirySecs = 900
+		}
+
+		if expirySecs > 14400 {
+			expirySecs = 14400
 		}
 
 		expiryTime = UTCNow().Add(time.Duration(expirySecs) * time.Second)
@@ -216,7 +209,7 @@ func (sts *stsAPIHandlers) AssumeRoleWithSAMLHandler(w http.ResponseWriter, r *h
 	cred, err := getNewCredentialWithExpiry(expiryTime)
 	if err != nil {
 		errorIf(err, "Failed to general new credentials with expiry.")
-		writeErrorResponse(w, ErrInternalError, r.URL)
+		writeSTSErrorResponse(w, ErrSTSMalformedPolicyDocument)
 		return
 	}
 
@@ -224,8 +217,9 @@ func (sts *stsAPIHandlers) AssumeRoleWithSAMLHandler(w http.ResponseWriter, r *h
 	io.WriteString(h, samlResp.Issuer.URL+"0000"+"myidp")
 	nq := base64.StdEncoding.EncodeToString(h.Sum(nil))
 
-	// TODO - validate credentials if they are expired.
-	serverConfig.SetCredential(cred) // Set the newly generated credentials.
+	// Set the newly generated credentials.
+	globalServerCreds.SetCredential(cred)
+
 	samlOutput := &AssumeRoleWithSAMLResult{
 		Credentials: cred,
 		// TODO
@@ -234,6 +228,7 @@ func (sts *stsAPIHandlers) AssumeRoleWithSAMLHandler(w http.ResponseWriter, r *h
 		Issuer:        samlResp.Issuer.URL,
 		NameQualifier: nq,
 	}
+
 	encodedSuccessResponse := encodeResponse(samlOutput)
 	writeSuccessResponseXML(w, encodedSuccessResponse)
 }

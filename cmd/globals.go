@@ -81,9 +81,9 @@ var (
 	// Set to true if credentials were passed from env, default is false.
 	globalIsEnvCreds = false
 
-	// Set to true if credentials were provided by validating SAML and STS,
+	// Set to true if credentials were provided by Auth.
 	// default is false.
-	globalIsSAMLCreds = false
+	globalIsAuthCreds = false
 
 	// This flag is set to 'true' wen MINIO_REGION env is set.
 	globalIsEnvRegion = false
@@ -157,6 +157,7 @@ func getGlobalInfo() (globalInfo map[string]interface{}) {
 		"isEnvBrowser":     globalIsEnvBrowser,
 		"isEnvCreds":       globalIsEnvCreds,
 		"isEnvRegion":      globalIsEnvRegion,
+		"isAuthCreds":      globalIsAuthCreds,
 		"isSSL":            globalIsSSL,
 		"serverRegion":     globalServerRegion,
 		"serverUserAgent":  globalServerUserAgent,

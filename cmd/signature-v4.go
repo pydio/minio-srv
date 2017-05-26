@@ -151,9 +151,6 @@ func doesPolicySignatureMatch(formValues http.Header) APIErrorCode {
 //     - http://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-HTTPPOSTConstructPolicy.html
 // returns ErrNone if the signature matches.
 func doesPolicySignatureV4Match(formValues http.Header) APIErrorCode {
-	// Access credentials.
-	cred := serverConfig.GetCredential()
-
 	// Server region.
 	region := serverConfig.GetRegion()
 
@@ -161,6 +158,12 @@ func doesPolicySignatureV4Match(formValues http.Header) APIErrorCode {
 	credHeader, err := parseCredentialHeader("Credential=" + formValues.Get("X-Amz-Credential"))
 	if err != ErrNone {
 		return ErrMissingFields
+	}
+
+	// Get credentials and validate if expired.
+	cred := globalServerCreds.GetCredential(credHeader.accessKey)
+	if cred.IsExpired() {
+		return ErrInvalidAccessKeyID
 	}
 
 	// Verify if the access key id matches.
@@ -193,9 +196,6 @@ func doesPolicySignatureV4Match(formValues http.Header) APIErrorCode {
 //     - http://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-query-string-auth.html
 // returns ErrNone if the signature matches.
 func doesPresignedSignatureMatch(hashedPayload string, r *http.Request, region string) APIErrorCode {
-	// Access credentials.
-	cred := serverConfig.GetCredential()
-
 	// Copy request
 	req := *r
 
@@ -203,6 +203,12 @@ func doesPresignedSignatureMatch(hashedPayload string, r *http.Request, region s
 	pSignValues, err := parsePreSignV4(req.URL.Query())
 	if err != ErrNone {
 		return err
+	}
+
+	// Get credentials and validate if expired.
+	cred := globalServerCreds.GetCredential(pSignValues.Credential.accessKey)
+	if cred.IsExpired() {
+		return ErrInvalidAccessKeyID
 	}
 
 	// Verify if the access key id matches.
@@ -312,9 +318,6 @@ func doesPresignedSignatureMatch(hashedPayload string, r *http.Request, region s
 //     - http://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html
 // returns ErrNone if signature matches.
 func doesSignatureMatch(hashedPayload string, r *http.Request, region string) APIErrorCode {
-	// Access credentials.
-	cred := serverConfig.GetCredential()
-
 	// Copy request.
 	req := *r
 
@@ -331,6 +334,12 @@ func doesSignatureMatch(hashedPayload string, r *http.Request, region string) AP
 	extractedSignedHeaders, errCode := extractSignedHeaders(signV4Values.SignedHeaders, r)
 	if errCode != ErrNone {
 		return errCode
+	}
+
+	// Access credentials.
+	cred := globalServerCreds.GetCredential(signV4Values.Credential.accessKey)
+	if cred.IsExpired() {
+		return ErrInvalidAccessKeyID
 	}
 
 	// Verify if the access key id matches.

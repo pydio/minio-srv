@@ -362,8 +362,16 @@ func gatewayMain(ctx *cli.Context, backendType gatewayBackend) {
 
 	}
 
-	apiServer := NewServerMux(ctx.String("address"), registerHandlers(router, handlerFns...))
+	// Auth providers are set.
+	if len(serverConfig.Auth.GetAllAuthProviders()) > 0 {
+		globalIsAuthCreds = true
+	}
 
+	// Initialize global server credentials.
+	globalServerCreds = newServerCredentials()
+	globalServerCreds.SetCredential(serverConfig.GetCredential())
+
+	apiServer := NewServerMux(serverAddr, registerHandlers(router, handlerFns...))
 	// Start server, automatically configures TLS if certs are available.
 	go func() {
 		cert, key := "", ""

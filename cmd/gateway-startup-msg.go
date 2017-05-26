@@ -18,6 +18,7 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"strings"
 )
 
@@ -55,4 +56,6 @@ func printGatewayCommonMsg(apiEndpoints []string) {
 
 	log.Println(colorBlue("\nBrowser Access:"))
 	log.Println(fmt.Sprintf(getFormatStr(len(apiEndpointStr), 3), apiEndpointStr))
+
+	printAuthProviders()
 }

@@ -59,7 +59,7 @@ func TestGetRequestAuthType(t *testing.T) {
 					Path:   "/",
 				},
 				Header: http.Header{
-					"Authorization": []string{"Bearer 12313123"},
+					"Authorization": []string{jwtAlgorithm + "12313123"},
 				},
 			},
 			authT: authTypeJWT,
@@ -326,13 +326,6 @@ func TestIsReqAuthenticated(t *testing.T) {
 	}
 	defer removeAll(path)
 
-	creds, err := createCredential("myuser", "mypassword")
-	if err != nil {
-		t.Fatalf("unable create credential, %s", err)
-	}
-
-	serverConfig.SetCredential(creds)
-
 	// List of test cases for validating http request authentication.
 	testCases := []struct {
 		req     *http.Request
@@ -349,9 +342,9 @@ func TestIsReqAuthenticated(t *testing.T) {
 	}
 
 	// Validates all testcases.
-	for _, testCase := range testCases {
+	for i, testCase := range testCases {
 		if s3Error := isReqAuthenticated(testCase.req, serverConfig.GetRegion()); s3Error != testCase.s3Error {
-			t.Fatalf("Unexpected s3error returned wanted %d, got %d", testCase.s3Error, s3Error)
+			t.Fatalf("Test: %d, Unexpected s3error returned wanted %d, got %d", i+1, testCase.s3Error, s3Error)
 		}
 	}
 }

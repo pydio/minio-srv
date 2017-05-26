@@ -147,6 +147,15 @@ func serverMain(ctx *cli.Context) {
 	// Init the error tracing module.
 	initError()
 
+	// Auth providers are set.
+	if len(serverConfig.Auth.GetAllAuthProviders()) > 0 {
+		globalIsAuthCreds = true
+	}
+
+	// Initialize global server credentials.
+	globalServerCreds = newServerCredentials()
+	globalServerCreds.SetCredential(serverConfig.GetCredential())
+
 	// Check and load SSL certificates.
 	var err error
 	globalPublicCerts, globalRootCAs, globalIsSSL, err = getSSLConfig()

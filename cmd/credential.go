@@ -68,9 +68,9 @@ func isSecretKeyValid(secretKey string) bool {
 
 // credential container for access and secret keys.
 type credential struct {
-	AccessKey string    `xml:"AccessKeyId,omitempty" json:"accessKey,omitempty"`
-	SecretKey string    `xml:"SecretAccessKey,omitempty" json:"secretKey,omitempty"`
-	Expiry    time.Time `xml:"Expiration,omitempty" json:"expiry,omitempty"`
+	AccessKey  string    `xml:"AccessKeyId,omitempty" json:"accessKey,omitempty"`
+	SecretKey  string    `xml:"SecretAccessKey,omitempty" json:"secretKey,omitempty"`
+	Expiration time.Time `xml:"Expiration,omitempty" json:"expiry,omitempty"`
 
 	secretKeyHash []byte
 }
@@ -78,6 +78,15 @@ type credential struct {
 // IsValid - returns whether credential is valid or not.
 func (cred credential) IsValid() bool {
 	return isAccessKeyValid(cred.AccessKey) && isSecretKeyValid(cred.SecretKey)
+}
+
+// IsExpired - returns whether credential is expired or not.
+func (cred credential) IsExpired() bool {
+	if cred.Expiration.IsZero() || cred.Expiration == timeSentinel {
+		return false
+	}
+
+	return cred.Expiration.Before(UTCNow())
 }
 
 // Equals - returns whether two credentials are equal or not.
@@ -115,7 +124,7 @@ func createCredentialWithExpiry(accessKey, secretKey string, expiry time.Time) (
 		}
 	}
 	if !expiry.IsZero() {
-		cred.Expiry = expiry
+		cred.Expiration = expiry
 	}
 	return cred, err
 }

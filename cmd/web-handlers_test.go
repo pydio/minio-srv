@@ -701,7 +701,7 @@ func testUploadWebHandler(obj ObjectLayer, instanceType string, t TestErrHandler
 		}
 
 		if token != "" {
-			req.Header.Set("Authorization", "Bearer "+authorization)
+			req.Header.Set("Authorization", jwtAlgorithm+authorization)
 		}
 		apiRouter.ServeHTTP(rec, req)
 		return rec.Code
@@ -1264,6 +1264,15 @@ func testWebSetBucketPolicyHandler(obj ObjectLayer, instanceType string, t TestE
 
 // TestWebCheckAuthorization - Test Authorization for all web handlers
 func TestWebCheckAuthorization(t *testing.T) {
+	// initialize the server and obtain the credentials and root.
+	// credentials are necessary to sign the HTTP request.
+	rootPath, err := newTestConfig(globalMinioDefaultRegion)
+	if err != nil {
+		t.Fatal("Init Test config failed", err)
+	}
+	// remove the root directory after the test ends.
+	defer removeAll(rootPath)
+
 	// Prepare XL backend
 	obj, fsDirs, err := prepareXL()
 	if err != nil {
@@ -1274,15 +1283,6 @@ func TestWebCheckAuthorization(t *testing.T) {
 
 	// Register the API end points with XL/FS object layer.
 	apiRouter := initTestWebRPCEndPoint(obj)
-	// initialize the server and obtain the credentials and root.
-	// credentials are necessary to sign the HTTP request.
-	rootPath, err := newTestConfig(globalMinioDefaultRegion)
-	if err != nil {
-		t.Fatal("Init Test config failed", err)
-	}
-	// remove the root directory after the test ends.
-	defer removeAll(rootPath)
-
 	rec := httptest.NewRecorder()
 
 	// Check if web rpc calls return unauthorized request with an incorrect token
@@ -1296,7 +1296,8 @@ func TestWebCheckAuthorization(t *testing.T) {
 	for _, rpcCall := range webRPCs {
 		args := &AuthRPCArgs{}
 		reply := &WebGenericRep{}
-		req, nerr := newTestWebRPCRequest("Web."+rpcCall, "Bearer fooauthorization", args)
+		authorization := canonicalBrowserAuth(serverConfig.GetCredential().AccessKey, "fooauthorization")
+		req, nerr := newTestWebRPCRequest("Web."+rpcCall, authorization, args)
 		if nerr != nil {
 			t.Fatalf("Test %s: Failed to create HTTP request: <ERROR> %v", rpcCall, nerr)
 		}
@@ -1307,10 +1308,9 @@ func TestWebCheckAuthorization(t *testing.T) {
 		err = getTestWebRPCResponse(rec, &reply)
 		if err == nil {
 			t.Fatalf("Test %s: Should fail", rpcCall)
-		} else {
-			if !strings.Contains(err.Error(), errAuthentication.Error()) {
-				t.Fatalf("Test %s: should fail with Unauthorized request. Found error: %v", rpcCall, err)
-			}
+		}
+		if !strings.Contains(err.Error(), errAuthentication.Error()) {
+			t.Errorf("Test %s: should fail with Unauthorized request. Found error: %v", rpcCall, err)
 		}
 	}
 
@@ -1333,7 +1333,7 @@ func TestWebCheckAuthorization(t *testing.T) {
 	// Test authorization of Web.Upload
 	content := []byte("temporary file's content")
 	req, err = http.NewRequest("PUT", "/minio/upload/bucket/object", nil)
-	req.Header.Set("Authorization", "Bearer foo-authorization")
+	req.Header.Set("Authorization", jwtAlgorithm+"foo-authorization")
 	req.Header.Set("Content-Length", strconv.Itoa(len(content)))
 	req.Header.Set("x-amz-date", "20160814T114029Z")
 	req.Header.Set("Accept", "*/*")
@@ -1417,7 +1417,7 @@ func TestWebObjectLayerNotReady(t *testing.T) {
 	// Test authorization of Web.Upload
 	content := []byte("temporary file's content")
 	req, err = http.NewRequest("PUT", "/minio/upload/bucket/object", nil)
-	req.Header.Set("Authorization", "Bearer "+authorization)
+	req.Header.Set("Authorization", jwtAlgorithm+authorization)
 	req.Header.Set("Content-Length", strconv.Itoa(len(content)))
 	req.Header.Set("x-amz-date", "20160814T114029Z")
 	req.Header.Set("Accept", "*/*")
@@ -1546,7 +1546,7 @@ func TestWebObjectLayerFaultyDisks(t *testing.T) {
 	// Test authorization of Web.Upload
 	content := []byte("temporary file's content")
 	req, err = http.NewRequest("PUT", "/minio/upload/bucket/object", nil)
-	req.Header.Set("Authorization", "Bearer "+authorization)
+	req.Header.Set("Authorization", jwtAlgorithm+authorization)
 	req.Header.Set("Content-Length", strconv.Itoa(len(content)))
 	req.Header.Set("x-amz-date", "20160814T114029Z")
 	req.Header.Set("Accept", "*/*")
