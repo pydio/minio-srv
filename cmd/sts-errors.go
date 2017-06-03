@@ -47,6 +47,7 @@ const (
 	ErrSTSIDPRejectedClaim
 	ErrSTSInvalidIdentityToken
 	ErrSTSMalformedPolicyDocument
+	ErrSTSInternalError
 )
 
 // error code to STSError structure, these fields carry respective
@@ -71,6 +72,11 @@ var stsErrCodeResponse = map[STSErrorCode]STSError{
 		Code:           "MalformedPolicyDocument",
 		Description:    "The request was rejected because the policy document was malformed.",
 		HTTPStatusCode: http.StatusBadRequest,
+	},
+	ErrSTSInternalError: {
+		Code:           "InternalError",
+		Description:    "We encountered an internal error, please try again.",
+		HTTPStatusCode: http.StatusInternalServerError,
 	},
 }
 

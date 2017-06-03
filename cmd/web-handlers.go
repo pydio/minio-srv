@@ -414,6 +414,9 @@ func (web *webAPIHandlers) SetAuth(r *http.Request, args *SetAuthArgs, reply *Se
 	if err = serverConfig.Save(); err != nil {
 		errsMap[globalMinioAddr] = err
 	}
+	if err = globalServerCreds.Save(); err != nil {
+		errsMap[globalMinioAddr] = err
+	}
 
 	// Log all the peer related error messages, and populate the
 	// PeerErrMsgs map.

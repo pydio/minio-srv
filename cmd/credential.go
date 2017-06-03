@@ -70,7 +70,7 @@ func isSecretKeyValid(secretKey string) bool {
 type credential struct {
 	AccessKey  string    `xml:"AccessKeyId,omitempty" json:"accessKey,omitempty"`
 	SecretKey  string    `xml:"SecretAccessKey,omitempty" json:"secretKey,omitempty"`
-	Expiration time.Time `xml:"Expiration,omitempty" json:"expiry,omitempty"`
+	Expiration time.Time `xml:"Expiration,omitempty" json:"expiration,omitempty"`
 
 	secretKeyHash []byte
 }
@@ -109,7 +109,7 @@ func (cred credential) Equal(ccred credential) bool {
 		bcrypt.CompareHashAndPassword(cred.secretKeyHash, []byte(ccred.SecretKey)) == nil)
 }
 
-func createCredentialWithExpiry(accessKey, secretKey string, expiry time.Time) (cred credential, err error) {
+func createCredentialWithExpiration(accessKey, secretKey string, expiration time.Time) (cred credential, err error) {
 	if !isAccessKeyValid(accessKey) {
 		err = errInvalidAccessKeyLength
 	} else if !isSecretKeyValid(secretKey) {
@@ -123,17 +123,17 @@ func createCredentialWithExpiry(accessKey, secretKey string, expiry time.Time) (
 			cred.secretKeyHash = secretKeyHash
 		}
 	}
-	if !expiry.IsZero() {
-		cred.Expiration = expiry
+	if !expiration.IsZero() {
+		cred.Expiration = expiration
 	}
 	return cred, err
 }
 
 func createCredential(accessKey, secretKey string) (cred credential, err error) {
-	return createCredentialWithExpiry(accessKey, secretKey, timeSentinel)
+	return createCredentialWithExpiration(accessKey, secretKey, timeSentinel)
 }
 
-func getNewCredentialWithExpiry(expiry time.Time) (credential, error) {
+func getNewCredentialWithExpiration(expiration time.Time) (credential, error) {
 	// Generate access key.
 	keyBytes := make([]byte, accessKeyMaxLen)
 	_, err := rand.Read(keyBytes)
@@ -152,7 +152,7 @@ func getNewCredentialWithExpiry(expiry time.Time) (credential, error) {
 		return credential{}, err
 	}
 	secretKey := string([]byte(base64.StdEncoding.EncodeToString(keyBytes))[:secretKeyMaxLenMinio])
-	cred, err := createCredentialWithExpiry(accessKey, secretKey, expiry)
+	cred, err := createCredentialWithExpiration(accessKey, secretKey, expiration)
 	if err != nil {
 		return credential{}, err
 	}
@@ -161,7 +161,7 @@ func getNewCredentialWithExpiry(expiry time.Time) (credential, error) {
 
 // Initialize a new credential object
 func mustGetNewCredential() credential {
-	cred, err := getNewCredentialWithExpiry(timeSentinel)
+	cred, err := getNewCredentialWithExpiration(timeSentinel)
 	fatalIf(err, "Unable to generate new credential.")
 	return cred
 }

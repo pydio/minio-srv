@@ -182,9 +182,9 @@ func (sts *stsAPIHandlers) AssumeRoleWithSAMLHandler(w http.ResponseWriter, r *h
 		return
 	}
 
-	expiryTime := UTCNow().Add(time.Duration(240) * time.Minute) // Defaults to 4hrs.
+	expirationTime := UTCNow().Add(time.Duration(240) * time.Minute) // Defaults to 4hrs.
 	if r.PostForm.Get("DurationSeconds") != "" {
-		expirySecs, serr := strconv.ParseInt(r.PostForm.Get("DurationSeconds"), 10, 64)
+		expirationSecs, serr := strconv.ParseInt(r.PostForm.Get("DurationSeconds"), 10, 64)
 		if serr != nil {
 			errorIf(serr, "Unable to parse DurationSeconds")
 			writeSTSErrorResponse(w, ErrSTSMalformedPolicyDocument)
@@ -195,20 +195,20 @@ func (sts *stsAPIHandlers) AssumeRoleWithSAMLHandler(w http.ResponseWriter, r *h
 		// The value can range from 900 seconds (15 minutes)
 		// to 14400 seconds (4 hours). By default, the value
 		// is set to 14400 seconds.
-		if expirySecs < 900 {
-			expirySecs = 900
+		if expirationSecs < 900 {
+			expirationSecs = 900
 		}
 
-		if expirySecs > 14400 {
-			expirySecs = 14400
+		if expirationSecs > 14400 {
+			expirationSecs = 14400
 		}
 
-		expiryTime = UTCNow().Add(time.Duration(expirySecs) * time.Second)
+		expirationTime = UTCNow().Add(time.Duration(expirationSecs) * time.Second)
 	}
 
-	cred, err := getNewCredentialWithExpiry(expiryTime)
+	cred, err := getNewCredentialWithExpiration(expirationTime)
 	if err != nil {
-		errorIf(err, "Failed to general new credentials with expiry.")
+		errorIf(err, "Failed to general new credentials with expiration.")
 		writeSTSErrorResponse(w, ErrSTSMalformedPolicyDocument)
 		return
 	}
@@ -219,6 +219,13 @@ func (sts *stsAPIHandlers) AssumeRoleWithSAMLHandler(w http.ResponseWriter, r *h
 
 	// Set the newly generated credentials.
 	globalServerCreds.SetCredential(cred)
+
+	// Save newly generated credentials to disk.
+	if err = globalServerCreds.Save(); err != nil {
+		errorIf(err, "Unable to save STS credentials")
+		writeSTSErrorResponse(w, ErrSTSInternalError)
+		return
+	}
 
 	samlOutput := &AssumeRoleWithSAMLResult{
 		Credentials: cred,

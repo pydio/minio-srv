@@ -27,8 +27,8 @@ import (
 
 // File represents safe file descriptor.
 type File struct {
+	*os.File
 	name    string
-	tmpfile *os.File
 	closed  bool
 	aborted bool
 }
@@ -46,12 +46,12 @@ func (file *File) Write(b []byte) (n int, err error) {
 
 	defer func() {
 		if err != nil {
-			os.Remove(file.tmpfile.Name())
+			os.Remove(file.File.Name())
 			file.aborted = true
 		}
 	}()
 
-	n, err = file.tmpfile.Write(b)
+	n, err = file.File.Write(b)
 	return
 }
 
@@ -59,7 +59,7 @@ func (file *File) Write(b []byte) (n int, err error) {
 func (file *File) Close() (err error) {
 	defer func() {
 		if err != nil {
-			os.Remove(file.tmpfile.Name())
+			os.Remove(file.File.Name())
 			file.aborted = true
 		}
 	}()
@@ -73,11 +73,11 @@ func (file *File) Close() (err error) {
 		return
 	}
 
-	if err = file.tmpfile.Close(); err != nil {
+	if err = file.File.Close(); err != nil {
 		return
 	}
 
-	err = os.Rename(file.tmpfile.Name(), file.name)
+	err = os.Rename(file.File.Name(), file.name)
 
 	file.closed = true
 	return
@@ -94,8 +94,8 @@ func (file *File) Abort() (err error) {
 		return
 	}
 
-	file.tmpfile.Close()
-	err = os.Remove(file.tmpfile.Name())
+	file.File.Close()
+	err = os.Remove(file.File.Name())
 	file.aborted = true
 	return
 }
@@ -130,5 +130,5 @@ func CreateFile(name string) (*File, error) {
 		return nil, err
 	}
 
-	return &File{name: name, tmpfile: tmpfile}, nil
+	return &File{name: name, File: tmpfile}, nil
 }

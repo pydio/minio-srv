@@ -131,7 +131,7 @@ func printAuthProviders() {
 	}
 	arnMsg := colorBlue("AUTH ARNs: ")
 	for authArn := range authProviders {
-		arnMsg += colorBold(fmt.Sprintf(getFormatStr(len(authArn), 0), authArn))
+		arnMsg += colorBold(fmt.Sprintf(getFormatStr(len(authArn), 0), authArn)) + " "
 	}
 	log.Println(arnMsg)
 }

@@ -136,7 +136,7 @@ func authenticateJWTWithSAML(accessKey, secretKey string, expiry time.Duration, 
 	}
 
 	expiryTime := UTCNow().Add(expiry)
-	cred, err := getNewCredentialWithExpiry(expiryTime)
+	cred, err := getNewCredentialWithExpiration(expiryTime)
 	if err != nil {
 		return "", err
 	}

@@ -181,6 +181,7 @@ func writeFile(filename string, data []byte) error {
 	if err != nil {
 		return err
 	}
+	safeFile.Sync()
 	return safeFile.Close()
 }
 

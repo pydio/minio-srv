@@ -369,7 +369,10 @@ func gatewayMain(ctx *cli.Context, backendType gatewayBackend) {
 
 	// Initialize global server credentials.
 	globalServerCreds = newServerCredentials()
+	fatalIf(globalServerCreds.Load(), "Unable to load sts credentials config.")
+
 	globalServerCreds.SetCredential(serverConfig.GetCredential())
+	fatalIf(globalServerCreds.Save(), "Unable to save sts credentials config.")
 
 	apiServer := NewServerMux(serverAddr, registerHandlers(router, handlerFns...))
 	// Start server, automatically configures TLS if certs are available.

@@ -154,7 +154,10 @@ func serverMain(ctx *cli.Context) {
 
 	// Initialize global server credentials.
 	globalServerCreds = newServerCredentials()
+	fatalIf(globalServerCreds.Load(), "Unable to load sts credentials config.")
+
 	globalServerCreds.SetCredential(serverConfig.GetCredential())
+	fatalIf(globalServerCreds.Save(), "Unable to save sts credentials config.")
 
 	// Check and load SSL certificates.
 	var err error
