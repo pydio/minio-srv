@@ -232,6 +232,10 @@ func authenticateWeb(accessKey, secretKey string) (token string, err error) {
 			token, err = authenticateJWTWithSAML(accessKey, secretKey, defaultJWTExpiry, saml)
 		}
 	}
+	// Fall back to root creds if all else fails.
+	if err != nil {
+		return authenticateJWT(accessKey, secretKey, defaultJWTExpiry)
+	}
 	return token, err
 }
 

@@ -152,103 +152,115 @@ type Status struct {
 	} `xml:"StatusCode"`
 }
 
-// TODO.
-// Assertion - contains assertions if any. if any.
-// type Assertion struct {
-// 	XMLName            xml.Name
-// 	ID                 string `xml:"ID,attr"`
-// 	Version            string `xml:"Version,attr"`
-// 	XS                 string `xml:"xmlns:xs,attr"`
-// 	XSI                string `xml:"xmlns:xsi,attr"`
-// 	SAML               string `xml:"xmlns:saml,attr"`
-// 	IssueInstant       string `xml:"IssueInstant,attr"`
-// 	Issuer             Issuer `xml:"Issuer"`
-// 	Subject            Subject
-// 	Conditions         Conditions
-// 	AuthnStatements    []AuthnStatement `xml:"AuthnStatement,omitempty"`
-// 	AttributeStatement AttributeStatement
-// }
+// Assertion - contains assertions if any.
+type Assertion struct {
+	XMLName            xml.Name
+	ID                 string `xml:"ID,attr"`
+	Version            string `xml:"Version,attr"`
+	XS                 string `xml:"xmlns:xs,attr"`
+	XSI                string `xml:"xmlns:xsi,attr"`
+	SAML               string `xml:"xmlns:saml,attr"`
+	IssueInstant       string `xml:"IssueInstant,attr"`
+	Issuer             Issuer `xml:"Issuer"`
+	Subject            Subject
+	Conditions         Conditions
+	AuthnStatements    []AuthnStatement `xml:"AuthnStatement,omitempty"`
+	AttributeStatement AttributeStatement
+}
 
-// type AuthnContextClassRef struct {
-// 	XMLName   xml.Name
-// 	SAML      string `xml:"xmlns:saml,attr"`
-// 	Transport string `xml:",innerxml"`
-// }
+// AuthnContextClassRef --
+type AuthnContextClassRef struct {
+	XMLName   xml.Name
+	SAML      string `xml:"xmlns:saml,attr"`
+	Transport string `xml:",innerxml"`
+}
 
-// type AuthnStatement struct {
-// 	XMLName             xml.Name
-// 	AuthnInstant        string       `xml:",attr"`
-// 	SessionNotOnOrAfter string       `xml:",attr,omitempty"`
-// 	SessionIndex        string       `xml:",attr,omitempty"`
-// 	AuthnContext        AuthnContext `xml:"AuthnContext"`
-// }
+// AuthnStatement --
+type AuthnStatement struct {
+	XMLName             xml.Name
+	AuthnInstant        string       `xml:",attr"`
+	SessionNotOnOrAfter string       `xml:",attr,omitempty"`
+	SessionIndex        string       `xml:",attr,omitempty"`
+	AuthnContext        AuthnContext `xml:"AuthnContext"`
+}
 
-// type AuthnContext struct {
-// 	XMLName              xml.Name
-// 	AuthnContextClassRef AuthnContextClassRef `xml:"AuthnContextClassRef"`
-// }
+// AuthnContext --
+type AuthnContext struct {
+	XMLName              xml.Name
+	AuthnContextClassRef AuthnContextClassRef `xml:"AuthnContextClassRef"`
+}
 
-// type Conditions struct {
-// 	XMLName              xml.Name
-// 	NotBefore            string                `xml:",attr"`
-// 	NotOnOrAfter         string                `xml:",attr"`
-// 	AudienceRestrictions []AudienceRestriction `xml:"AudienceRestriction,omitempty"`
-// }
+// Conditions --
+type Conditions struct {
+	XMLName              xml.Name
+	NotBefore            string                `xml:",attr"`
+	NotOnOrAfter         string                `xml:",attr"`
+	AudienceRestrictions []AudienceRestriction `xml:"AudienceRestriction,omitempty"`
+}
 
-// type AudienceRestriction struct {
-// 	XMLName   xml.Name
-// 	Audiences []Audience `xml:"Audience"`
-// }
+// AudienceRestriction --
+type AudienceRestriction struct {
+	XMLName   xml.Name
+	Audiences []Audience `xml:"Audience"`
+}
 
-// type Audience struct {
-// 	XMLName xml.Name
-// 	Value   string `xml:",innerxml"`
-// }
+// Audience --
+type Audience struct {
+	XMLName xml.Name
+	Value   string `xml:",innerxml"`
+}
 
-// type Subject struct {
-// 	XMLName             xml.Name
-// 	NameID              NameID
-// 	SubjectConfirmation SubjectConfirmation
-// }
+// Subject --
+type Subject struct {
+	XMLName             xml.Name
+	NameID              NameID
+	SubjectConfirmation SubjectConfirmation
+}
 
-// type SubjectConfirmation struct {
-// 	XMLName                 xml.Name
-// 	Method                  string `xml:",attr"`
-// 	SubjectConfirmationData SubjectConfirmationData
-// }
+// SubjectConfirmation --
+type SubjectConfirmation struct {
+	XMLName                 xml.Name
+	Method                  string `xml:",attr"`
+	SubjectConfirmationData SubjectConfirmationData
+}
 
-// type SubjectConfirmationData struct {
-// 	XMLName      xml.Name
-// 	InResponseTo string `xml:",attr"`
-// 	NotOnOrAfter string `xml:",attr"`
-// 	Recipient    string `xml:",attr"`
-// }
+// SubjectConfirmationData --
+type SubjectConfirmationData struct {
+	XMLName      xml.Name
+	InResponseTo string `xml:",attr"`
+	NotOnOrAfter string `xml:",attr"`
+	Recipient    string `xml:",attr"`
+}
 
-// type NameID struct {
-// 	XMLName         xml.Name
-// 	Format          string `xml:",attr"`
-// 	SPNameQualifier string `xml:",attr,omitempty"`
-// 	Value           string `xml:",innerxml"`
-// }
+// NameID --
+type NameID struct {
+	XMLName         xml.Name
+	Format          string `xml:",attr"`
+	SPNameQualifier string `xml:",attr,omitempty"`
+	Value           string `xml:",innerxml"`
+}
 
-// type AttributeValue struct {
-// 	XMLName xml.Name
-// 	Type    string `xml:"xsi:type,attr"`
-// 	Value   string `xml:",innerxml"`
-// }
+// AttributeValue --
+type AttributeValue struct {
+	XMLName xml.Name
+	Type    string `xml:"xsi:type,attr"`
+	Value   string `xml:",innerxml"`
+}
 
-// type Attribute struct {
-// 	XMLName         xml.Name
-// 	Name            string           `xml:",attr"`
-// 	FriendlyName    string           `xml:",attr,omitempty"`
-// 	NameFormat      string           `xml:",attr"`
-// 	AttributeValues []AttributeValue `xml:"AttributeValue"`
-// }
+// Attribute --
+type Attribute struct {
+	XMLName         xml.Name
+	Name            string           `xml:",attr"`
+	FriendlyName    string           `xml:",attr,omitempty"`
+	NameFormat      string           `xml:",attr"`
+	AttributeValues []AttributeValue `xml:"AttributeValue"`
+}
 
-// type AttributeStatement struct {
-// 	XMLName    xml.Name
-// 	Attributes []Attribute `xml:"Attribute"`
-// }
+// AttributeStatement --
+type AttributeStatement struct {
+	XMLName    xml.Name
+	Attributes []Attribute `xml:"Attribute"`
+}
 
 // Validate - validate the saml response, this is a non-exhaustive
 // check currently validates only

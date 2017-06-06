@@ -26,9 +26,7 @@ import (
 	"hash"
 	"io"
 	"math"
-	"path"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -742,113 +740,6 @@ func (l *gcsGateway) DeleteObject(bucket string, object string) error {
 	}
 
 	return nil
-}
-
-// ListMultipartUploads - lists all multipart uploads.
-func (l *gcsGateway) ListMultipartUploads(bucket string, prefix string, keyMarker string, uploadIDMarker string, delimiter string, maxUploads int) (ListMultipartsInfo, error) {
-	prefix = pathJoin(ZZZZMinioPrefix, "multipart-")
-
-	it := l.client.Bucket(bucket).Objects(l.ctx, &storage.Query{Delimiter: delimiter, Prefix: prefix, Versions: false})
-
-	nextMarker := ""
-	isTruncated := false
-
-	it.PageInfo().Token = uploadIDMarker
-
-	uploads := []uploadMetadata{}
-	for {
-		if len(uploads) >= maxUploads {
-			isTruncated = true
-			nextMarker = it.PageInfo().Token
-			break
-		}
-
-		attrs, err := it.Next()
-		if err == iterator.Done {
-			break
-		} else if err != nil {
-			return ListMultipartsInfo{}, gcsToObjectError(traceError(err), bucket)
-		}
-
-		if attrs.Prefix != "" {
-			continue
-		}
-
-		objectKey, uploadID, partID, err := fromGCSMultipartKey(attrs.Name)
-		if err != nil {
-			continue
-		} else if partID != 0 {
-			continue
-		}
-
-		nextMarker = toGCSPageToken(attrs.Name)
-
-		// we count only partID == 0
-		uploads = append(uploads, uploadMetadata{
-			Object:    objectKey,
-			UploadID:  uploadID,
-			Initiated: attrs.Created,
-		})
-
-	}
-
-	return ListMultipartsInfo{
-		Uploads:     uploads,
-		IsTruncated: isTruncated,
-
-		KeyMarker:          nextMarker,
-		UploadIDMarker:     nextMarker,
-		NextKeyMarker:      nextMarker,
-		NextUploadIDMarker: nextMarker,
-		MaxUploads:         maxUploads,
-	}, nil
-
-}
-
-func fromGCSMultipartKey(s string) (key, uploadID string, partID int, err error) {
-	// remove prefixes
-	s = path.Base(s)
-
-	parts := strings.Split(s, "-")
-	if parts[0] != "multipart" {
-		return "", "", 0, errGCSNotValidMultipartIdentifier
-	}
-
-	if len(parts) != 4 {
-		return "", "", 0, errGCSNotValidMultipartIdentifier
-	}
-
-	key = unescape(parts[1])
-
-	uploadID = parts[2]
-
-	partID, err = strconv.Atoi(parts[3])
-	if err != nil {
-		return "", "", 0, err
-	}
-
-	return
-}
-
-func unescape(s string) string {
-	s = strings.Replace(s, "%2D", "-", -1)
-	s = strings.Replace(s, "%2F", "/", -1)
-	s = strings.Replace(s, "%25", "%", -1)
-	return s
-}
-
-func escape(s string) string {
-	s = strings.Replace(s, "%", "%25", -1)
-	s = strings.Replace(s, "/", "%2F", -1)
-	s = strings.Replace(s, "-", "%2D", -1)
-	return s
-}
-
-func toGCSMultipartKey(key string, uploadID string, partID int) string {
-	// parts are allowed to be numbered from 1 to 10,000 (inclusive)
-
-	// we need to encode the key because of possible slashes
-	return pathJoin(ZZZZMinioPrefix, fmt.Sprintf("multipart-%s-%s-%05d", escape(key), uploadID, partID))
 }
 
 // NewMultipartUpload - upload object in multiple parts

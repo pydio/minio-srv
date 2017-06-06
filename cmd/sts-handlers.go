@@ -175,6 +175,7 @@ func (sts *stsAPIHandlers) AssumeRoleWithSAMLHandler(w http.ResponseWriter, r *h
 		writeSTSErrorResponse(w, ErrSTSMalformedPolicyDocument)
 		return
 	}
+	resp.Body.Close()
 
 	if resp.StatusCode >= http.StatusInternalServerError {
 		errorIf(errors.New(resp.Status), "Unable to validate saml assertion.")
