@@ -147,13 +147,21 @@ var (
 		Flags:              append(serverFlags, globalFlags...),
 		HideHelpCommand:    true,
 	}
+	pydioBackendCmd = cli.Command{
+		Name:               "pydio",
+		Usage:              "Pydio.",
+		Action:             pydioGatewayMain,
+		CustomHelpTemplate: s3GatewayTemplate,
+		Flags:              append(serverFlags, globalFlags...),
+		HideHelpCommand:    true,
+	}
 
 	gatewayCmd = cli.Command{
 		Name:            "gateway",
 		Usage:           "Start object storage gateway.",
 		Flags:           append(serverFlags, globalFlags...),
 		HideHelpCommand: true,
-		Subcommands:     []cli.Command{azureBackendCmd, s3BackendCmd, gcsBackendCmd},
+		Subcommands:     []cli.Command{azureBackendCmd, s3BackendCmd, gcsBackendCmd, pydioBackendCmd},
 	}
 )
 
@@ -164,6 +172,7 @@ const (
 	azureBackend gatewayBackend = "azure"
 	s3Backend    gatewayBackend = "s3"
 	gcsBackend   gatewayBackend = "gcs"
+	pydioBackend gatewayBackend = "pydio"
 	// Add more backends here.
 )
 
@@ -180,6 +189,8 @@ func newGatewayLayer(backendType gatewayBackend, arg string) (GatewayLayer, erro
 		return newAzureLayer(arg)
 	case s3Backend:
 		return newS3Gateway(arg)
+	case pydioBackend:
+		return newPydioGateway()
 	case gcsBackend:
 		// FIXME: The following print command is temporary and
 		// will be removed when gcs is ready for production use.
@@ -281,6 +292,12 @@ func gcsGatewayMain(ctx *cli.Context) {
 	gatewayMain(ctx, gcsBackend)
 }
 
+func pydioGatewayMain(ctx *cli.Context){
+
+	gatewayMain(ctx, pydioBackend)
+
+}
+
 // Handler for 'minio gateway'.
 func gatewayMain(ctx *cli.Context, backendType gatewayBackend) {
 	// Get quiet flag from command line argument.
@@ -377,6 +394,7 @@ func gatewayMain(ctx *cli.Context, backendType gatewayBackend) {
 
 	// Prints the formatted startup message once object layer is initialized.
 	if !quietFlag {
+		/*
 		mode := ""
 		switch gatewayBackend(backendType) {
 		case azureBackend:
@@ -389,6 +407,7 @@ func gatewayMain(ctx *cli.Context, backendType gatewayBackend) {
 
 		// Check update mode.
 		checkUpdate(mode)
+		*/
 
 		// Print gateway startup message.
 		printGatewayStartupMessage(getAPIEndpoints(apiServer.Addr), backendType)
