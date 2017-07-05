@@ -287,7 +287,19 @@ func fromPydioNodeObjectInfo(bucket string, dsName string, node *tree.Node) Obje
 // GetObjectInfo reads object info and replies back ObjectInfo
 func (l *pydioObjects) GetObjectInfo(bucket string, object string) (objInfo ObjectInfo, err error) {
 
-	dataSourceName, _ := l.prefixToDataSourceName(object)
+	log.Println("GetObjectInfo : " + object)
+
+	dataSourceName, newPrefix := l.prefixToDataSourceName(object)
+	if newPrefix == "" {
+		// This is a datasource object info
+		return ObjectInfo{
+			Bucket:          bucket,
+			Name:            object,
+			ModTime:         time.Now(),
+			Size:            0,
+		}, nil
+
+	}
 
 	treePath := strings.TrimLeft(object, "/")
 	readNodeResponse, err := l.TreeClient.ReadNode(context.Background(), &tree.ReadNodeRequest{
@@ -393,6 +405,12 @@ func (l *pydioObjects) PutObject(bucket string, object string, size int64, data 
 
 // CopyObject copies a blob from source container to destination container.
 func (l *pydioObjects) CopyObject(srcBucket string, srcObject string, destBucket string, destObject string, metadata map[string]string) (objInfo ObjectInfo, e error) {
+
+	if srcObject == destObject {
+		log.Printf("Coping %v to %v, this is a REPLACE meta directive \n", srcObject, destObject)
+		log.Println(metadata)
+		return objInfo, traceError(&NotImplemented{})
+	}
 
 	var client *minio.Core
 	var ok bool
