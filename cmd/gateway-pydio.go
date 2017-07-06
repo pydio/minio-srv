@@ -364,8 +364,11 @@ func (l *pydioObjects) GetObject(bucket string, key string, startOffset int64, l
 			return s3ToObjectError(traceError(err), bucket, key)
 		}
 
+		return nil
 	}
-	return nil
+
+	return s3ToObjectError(traceError(&BucketNotFound{}), bucket, key)
+
 }
 
 // PutObject creates a new object with the incoming data,
