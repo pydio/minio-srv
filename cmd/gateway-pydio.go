@@ -213,6 +213,17 @@ func (l * pydioObjects) ListPydioObjects(bucket string, prefix string, delimiter
 	if len(objects) > 0 && strings.Trim(prefix, "/") != ""{
 		prefixes = append(prefixes, strings.TrimLeft(prefix, "/"))
 	}
+	if len(objects) == 0{
+		log.Println("Adding fake .__pydio_folder file")
+		readFolderResponse, e := l.TreeClient.ReadNode(context.Background(), &tree.ReadNodeRequest{Node:&tree.Node{Path:treePath}})
+		if e == nil{
+			folderNode := readFolderResponse.Node
+			folderNode.Path += "/.__pydio_folder"
+			folderNode.Type = tree.Node_LEAF
+			objects = append(objects, fromPydioNodeObjectInfo(bucket, dataSourceName, folderNode))
+		}
+
+	}
 
 	return objects, prefixes, nil
 }
@@ -314,7 +325,6 @@ func (l *pydioObjects) GetObjectInfo(bucket string, object string) (objInfo Obje
 	//log.Printf("Returning a node %v", readNodeResponse.Node)
 
 	return fromPydioNodeObjectInfo(bucket, dataSourceName, readNodeResponse.Node), nil
-
 
 }
 
