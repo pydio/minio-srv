@@ -22,13 +22,13 @@ import (
 
 	"encoding/hex"
 
-	minio "github.com/minio/minio-go"
-	"time"
 	"errors"
+	minio "github.com/minio/minio-go"
 	"github.com/pydio/services/common"
 	"github.com/pydio/services/common/proto/tree"
 	"golang.org/x/net/context"
 	"strings"
+	"time"
 
 	"github.com/micro/go-plugins/client/grpc"
 	"sync"
@@ -36,7 +36,6 @@ import (
 
 // s3Objects implements gateway for Minio and S3 compatible object storage servers.
 type pydioObjects struct {
-
 	Clients     map[string]*minio.Core
 	anonClients map[string]*minio.Core
 	TreeClient  tree.NodeProviderClient
@@ -55,9 +54,9 @@ func newPydioGateway() (GatewayLayer, error) {
 	api := &pydioObjects{
 		Clients:     clients,
 		anonClients: anonClients,
-		dsBuckets: dsBuckets,
-		TreeClient: tree.NewNodeProviderClient(common.SERVICE_TREE, grpc.NewClient()),
-		configMutex:&sync.Mutex{},
+		dsBuckets:   dsBuckets,
+		TreeClient:  tree.NewNodeProviderClient(common.SERVICE_TREE, grpc.NewClient()),
+		configMutex: &sync.Mutex{},
 	}
 
 	api.listDatasources()
@@ -78,7 +77,7 @@ func (l *pydioObjects) StorageInfo() (si StorageInfo) {
 	return si
 }
 
-func (l *pydioObjects) findMinioClientFor (bucket string, prefix string) (*minio.Core, bool) {
+func (l *pydioObjects) findMinioClientFor(bucket string, prefix string) (*minio.Core, bool) {
 
 	dsName, _ := l.prefixToDataSourceName(prefix)
 	if dsName == "" {
@@ -86,27 +85,27 @@ func (l *pydioObjects) findMinioClientFor (bucket string, prefix string) (*minio
 	}
 	if client, ok := l.Clients[dsName]; ok {
 		return client, true
-	}else{
+	} else {
 		return nil, false
 	}
 
 }
 
-func (l * pydioObjects) translateBucketAndPrefix(bucket string, prefix string) (clientBucket string, clientPrefix string){
+func (l *pydioObjects) translateBucketAndPrefix(bucket string, prefix string) (clientBucket string, clientPrefix string) {
 
 	dsName, newPrefix := l.prefixToDataSourceName(prefix)
-	if dsName == ""{
+	if dsName == "" {
 		return "pydio", ""
 	}
 	var ok bool
-	if clientBucket, ok = l.dsBuckets[dsName]; !ok{
+	if clientBucket, ok = l.dsBuckets[dsName]; !ok {
 		return "", ""
 	}
 	return clientBucket, newPrefix
 
 }
 
-func (l * pydioObjects) prefixToDataSourceName(prefix string) (dataSourceName string, newPrefix string){
+func (l *pydioObjects) prefixToDataSourceName(prefix string) (dataSourceName string, newPrefix string) {
 	if len(strings.Trim(prefix, "/")) == 0 {
 		return "", ""
 	}
@@ -114,7 +113,7 @@ func (l * pydioObjects) prefixToDataSourceName(prefix string) (dataSourceName st
 	dataSourceName = parts[0]
 	if len(parts) > 1 {
 		newPrefix = strings.Join(parts[1:], "/")
-	}else{
+	} else {
 		newPrefix = ""
 	}
 	return dataSourceName, newPrefix
@@ -123,7 +122,7 @@ func (l * pydioObjects) prefixToDataSourceName(prefix string) (dataSourceName st
 // GetBucketInfo gets bucket metadata..
 func (l *pydioObjects) GetBucketInfo(bucket string) (bi BucketInfo, e error) {
 
-	if bucket != "pydio"{
+	if bucket != "pydio" {
 		return bi, traceError(BucketNotFound{Bucket: bucket})
 	}
 	return BucketInfo{
@@ -132,16 +131,16 @@ func (l *pydioObjects) GetBucketInfo(bucket string) (bi BucketInfo, e error) {
 	}, nil
 
 	/*
-	if _, ok := l.Clients[bucket]; ok{
+		if _, ok := l.Clients[bucket]; ok{
 
-		return BucketInfo{
-			Name:    bucket,
-			Created: time.Now(),
-		}, nil
+			return BucketInfo{
+				Name:    bucket,
+				Created: time.Now(),
+			}, nil
 
-	}
+		}
 
-	return bi, traceError(BucketNotFound{Bucket: bucket})
+		return bi, traceError(BucketNotFound{Bucket: bucket})
 	*/
 }
 
@@ -150,32 +149,32 @@ func (l *pydioObjects) ListBuckets() ([]BucketInfo, error) {
 
 	b := make([]BucketInfo, 1)
 	b[0] = BucketInfo{
-		Name: "pydio",
+		Name:    "pydio",
 		Created: time.Now(),
 	}
 	return b, nil
 
 	/*
-	i := 0
-	for bucketName, _ := range l.Clients {
-		b[i] = BucketInfo{
-			Name:    bucketName,
-			Created: time.Now(),
+		i := 0
+		for bucketName, _ := range l.Clients {
+			b[i] = BucketInfo{
+				Name:    bucketName,
+				Created: time.Now(),
+			}
+			i++
 		}
-		i++
-	}
-	return b, nil
+		return b, nil
 	*/
 
 }
 
-func (l * pydioObjects) ListPydioObjects(bucket string, prefix string, delimiter string, maxKeys int) (objects []ObjectInfo, prefixes []string, err error){
+func (l *pydioObjects) ListPydioObjects(bucket string, prefix string, delimiter string, maxKeys int) (objects []ObjectInfo, prefixes []string, err error) {
 
 	clientBucket, _ := l.translateBucketAndPrefix(bucket, prefix)
 	if clientBucket == "pydio" {
 		// Level 0 : List datasources as folders
 		for dsName, _ := range l.Clients {
-			prefixes = append(prefixes, dsName + "/")
+			prefixes = append(prefixes, dsName+"/")
 		}
 		return objects, prefixes, nil
 	}
@@ -184,17 +183,18 @@ func (l * pydioObjects) ListPydioObjects(bucket string, prefix string, delimiter
 	dataSourceName, _ := l.prefixToDataSourceName(prefix)
 
 	lNodeClient, err := l.TreeClient.ListNodes(context.Background(), &tree.ListNodesRequest{
-		Node:&tree.Node{
-			Path:treePath,
+		Node: &tree.Node{
+			Path: treePath,
 		},
+		Limit: int64(maxKeys),
 	})
-	if err != nil{
+	if err != nil {
 		return nil, nil, s3ToObjectError(traceError(err), bucket)
 	}
 	for {
 		clientResponse, err := lNodeClient.Recv()
 
-		if clientResponse == nil{
+		if clientResponse == nil {
 			break
 		}
 
@@ -203,14 +203,14 @@ func (l * pydioObjects) ListPydioObjects(bucket string, prefix string, delimiter
 		}
 
 		objectInfo := fromPydioNodeObjectInfo(bucket, dataSourceName, clientResponse.Node)
-		if clientResponse.Node.IsLeaf(){
+		if clientResponse.Node.IsLeaf() {
 			objects = append(objects, objectInfo)
-		}else{
+		} else {
 			prefixes = append(prefixes, objectInfo.Name)
 		}
 
 	}
-	if len(objects) > 0 && strings.Trim(prefix, "/") != ""{
+	if len(objects) > 0 && strings.Trim(prefix, "/") != "" {
 		prefixes = append(prefixes, strings.TrimLeft(prefix, "/"))
 	}
 
@@ -221,7 +221,7 @@ func (l * pydioObjects) ListPydioObjects(bucket string, prefix string, delimiter
 func (l *pydioObjects) ListObjects(bucket string, prefix string, marker string, delimiter string, maxKeys int) (loi ListObjectsInfo, e error) {
 
 	objects, prefixes, err := l.ListPydioObjects(bucket, prefix, delimiter, maxKeys)
-	if err != nil{
+	if err != nil {
 		return loi, s3ToObjectError(traceError(err), bucket)
 	}
 
@@ -234,14 +234,13 @@ func (l *pydioObjects) ListObjects(bucket string, prefix string, marker string, 
 		Objects:     objects,
 	}, nil
 
-
 }
 
 // ListObjectsV2 lists all blobs in S3 bucket filtered by prefix
 func (l *pydioObjects) ListObjectsV2(bucket, prefix, continuationToken string, fetchOwner bool, delimiter string, maxKeys int) (loi ListObjectsV2Info, e error) {
 
 	objects, prefixes, err := l.ListPydioObjects(bucket, prefix, delimiter, maxKeys)
-	if err != nil{
+	if err != nil {
 		return loi, s3ToObjectError(traceError(err), bucket)
 	}
 
@@ -258,14 +257,13 @@ func (l *pydioObjects) ListObjectsV2(bucket, prefix, continuationToken string, f
 
 }
 
-
 // fromMinioClientObjectInfo converts minio ObjectInfo to gateway ObjectInfo
 func fromPydioNodeObjectInfo(bucket string, dsName string, node *tree.Node) ObjectInfo {
 	//userDefined := fromMinioClientMetadata(oi.Metadata)
 	//userDefined["Content-Type"] = oi.ContentType
 	cType := "application/octet-stream"
 	userDefined := map[string]string{
-		"Content-Type":cType,
+		"Content-Type": cType,
 	}
 
 	nodePath := dsName + "/" + strings.TrimLeft(node.Path, "/")
@@ -275,7 +273,7 @@ func fromPydioNodeObjectInfo(bucket string, dsName string, node *tree.Node) Obje
 	return ObjectInfo{
 		Bucket:          bucket,
 		Name:            nodePath,
-		ModTime:         time.Unix(0, node.MTime * int64(time.Second)),
+		ModTime:         time.Unix(0, node.MTime*int64(time.Second)),
 		Size:            node.Size,
 		ETag:            canonicalizeETag(node.Etag),
 		UserDefined:     userDefined,
@@ -293,18 +291,18 @@ func (l *pydioObjects) GetObjectInfo(bucket string, object string) (objInfo Obje
 	if newPrefix == "" {
 		// This is a datasource object info
 		return ObjectInfo{
-			Bucket:          bucket,
-			Name:            object,
-			ModTime:         time.Now(),
-			Size:            0,
+			Bucket:  bucket,
+			Name:    object,
+			ModTime: time.Now(),
+			Size:    0,
 		}, nil
 
 	}
 
 	treePath := strings.TrimLeft(object, "/")
 	readNodeResponse, err := l.TreeClient.ReadNode(context.Background(), &tree.ReadNodeRequest{
-		Node:&tree.Node{
-			Path:treePath,
+		Node: &tree.Node{
+			Path: treePath,
 		},
 	})
 
@@ -317,7 +315,6 @@ func (l *pydioObjects) GetObjectInfo(bucket string, object string) (objInfo Obje
 
 }
 
-
 // GetObjectInfo reads object info and replies back ObjectInfo
 func (l *pydioObjects) getS3ObjectInfo(client *minio.Core, bucket string, object string) (objInfo ObjectInfo, err error) {
 	r := minio.NewHeadReqHeaders()
@@ -328,8 +325,6 @@ func (l *pydioObjects) getS3ObjectInfo(client *minio.Core, bucket string, object
 
 	return fromMinioClientObjectInfo(bucket, oi), nil
 }
-
-
 
 // GetObject reads an object from S3. Supports additional
 // parameters like offset and length which are synonymous with
@@ -349,7 +344,7 @@ func (l *pydioObjects) GetObject(bucket string, key string, startOffset int64, l
 			return s3ToObjectError(traceError(err), bucket, key)
 		}
 	}
-	if client, ok := l.findMinioClientFor(bucket, key); ok{
+	if client, ok := l.findMinioClientFor(bucket, key); ok {
 
 		bucket, key = l.translateBucketAndPrefix(bucket, key)
 		objectReader, _, err := client.GetObject(bucket, key, r)
@@ -561,4 +556,3 @@ func (l *pydioObjects) CompleteMultipartUpload(bucket string, object string, upl
 
 	return l.getS3ObjectInfo(client, bucket, object)
 }
-
