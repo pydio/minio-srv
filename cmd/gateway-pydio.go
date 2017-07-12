@@ -174,8 +174,13 @@ func (l *pydioObjects) ListPydioObjects(bucket string, prefix string, delimiter 
 	if clientBucket == "pydio" {
 		// Level 0 : List datasources as folders
 		for dsName, _ := range l.Clients {
+			if dsName == common.PYDIO_THUMBSTORE_NAMESPACE {
+				continue
+			}
 			prefixes = append(prefixes, dsName+"/")
 		}
+		return objects, prefixes, nil
+	} else if clientBucket == common.PYDIO_THUMBSTORE_NAMESPACE {
 		return objects, prefixes, nil
 	}
 
@@ -288,6 +293,7 @@ func (l *pydioObjects) GetObjectInfo(bucket string, object string) (objInfo Obje
 	log.Println("GetObjectInfo : " + object)
 
 	dataSourceName, newPrefix := l.prefixToDataSourceName(object)
+	log.Println("GetObjectInfo :", dataSourceName, newPrefix)
 	if newPrefix == "" {
 		// This is a datasource object info
 		return ObjectInfo{
@@ -297,6 +303,17 @@ func (l *pydioObjects) GetObjectInfo(bucket string, object string) (objInfo Obje
 			Size:    0,
 		}, nil
 
+	}
+	if dataSourceName == common.PYDIO_THUMBSTORE_NAMESPACE {
+		// Use the thumb S3 client
+		log.Println("Should load Thumbclient")
+		if thumbClient, ok := l.findMinioClientFor(bucket, object); ok {
+			buck, obj := l.translateBucketAndPrefix(bucket, object)
+			log.Printf("Using thumbclient %v for bucket %s and object %s", thumbClient, buck, obj)
+			return l.getS3ObjectInfo(thumbClient, buck, obj)
+		} else {
+			return ObjectInfo{}, errors.New("Cannot find client for ThumbStore")
+		}
 	}
 
 	treePath := strings.TrimLeft(object, "/")
