@@ -83,7 +83,7 @@ func fromPydioNodeObjectInfo(bucket string, dsName string, node *tree.Node) Obje
 	}
 
 	nodePath := dsName + "/" + strings.TrimLeft(node.Path, "/")
-	if node.Type == tree.Node_COLLECTION {
+	if node.Type == tree.NodeType_COLLECTION {
 		nodePath += "/"
 	}
 	return ObjectInfo{
@@ -120,13 +120,19 @@ func (l *pydioObjects) ListPydioObjects(bucket string, prefix string, delimiter 
 	if delimiter == "" {
 		recursive = true
 	}
-
+	var FilterType tree.NodeType
+	if maxKeys == 1 {
+		// We probably want to get only the very first object here (for folders stats)
+		log.Println("Should get only LEAF nodes")
+		FilterType = tree.NodeType_LEAF
+	}
 	lNodeClient, err := l.TreeClient.ListNodes(context.Background(), &tree.ListNodesRequest{
 		Node: &tree.Node{
 			Path: treePath,
 		},
-		Recursive: recursive,
-		Limit:     int64(maxKeys),
+		Recursive:  recursive,
+		Limit:      int64(maxKeys),
+		FilterType: FilterType,
 	})
 	if err != nil {
 		return nil, nil, s3ToObjectError(traceError(err), bucket)
@@ -165,7 +171,7 @@ func (l *pydioObjects) HeadFakeArchiveObject(bucket string, object string, dataS
 
 		n, er := l.TreeClient.ReadNode(context.Background(), &tree.ReadNodeRequest{Node: &tree.Node{Path: noext}})
 		if er == nil && n != nil {
-			n.Node.Type = tree.Node_LEAF
+			n.Node.Type = tree.NodeType_LEAF
 			n.Node.Path = object
 			n.Node.Size = -1 // This will avoid a Content-Length discrepancy
 			n.Node.SetMeta("name", filepath.Base(object))
