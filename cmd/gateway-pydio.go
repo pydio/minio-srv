@@ -77,48 +77,6 @@ func (l *pydioObjects) StorageInfo() (si StorageInfo) {
 	return si
 }
 
-func (l *pydioObjects) findMinioClientFor(bucket string, prefix string) (*minio.Core, bool) {
-
-	dsName, _ := l.prefixToDataSourceName(prefix)
-	if dsName == "" {
-		return nil, true
-	}
-	if client, ok := l.Clients[dsName]; ok {
-		return client, true
-	} else {
-		return nil, false
-	}
-
-}
-
-func (l *pydioObjects) translateBucketAndPrefix(bucket string, prefix string) (clientBucket string, clientPrefix string) {
-
-	dsName, newPrefix := l.prefixToDataSourceName(prefix)
-	if dsName == "" {
-		return "pydio", ""
-	}
-	var ok bool
-	if clientBucket, ok = l.dsBuckets[dsName]; !ok {
-		return "", ""
-	}
-	return clientBucket, newPrefix
-
-}
-
-func (l *pydioObjects) prefixToDataSourceName(prefix string) (dataSourceName string, newPrefix string) {
-	if len(strings.Trim(prefix, "/")) == 0 {
-		return "", ""
-	}
-	parts := strings.Split(strings.Trim(prefix, "/"), "/")
-	dataSourceName = parts[0]
-	if len(parts) > 1 {
-		newPrefix = strings.Join(parts[1:], "/")
-	} else {
-		newPrefix = ""
-	}
-	return dataSourceName, newPrefix
-}
-
 // GetBucketInfo gets bucket metadata..
 func (l *pydioObjects) GetBucketInfo(bucket string) (bi BucketInfo, e error) {
 
@@ -168,60 +126,6 @@ func (l *pydioObjects) ListBuckets() ([]BucketInfo, error) {
 
 }
 
-func (l *pydioObjects) ListPydioObjects(bucket string, prefix string, delimiter string, maxKeys int) (objects []ObjectInfo, prefixes []string, err error) {
-
-	clientBucket, _ := l.translateBucketAndPrefix(bucket, prefix)
-	if clientBucket == "pydio" {
-		// Level 0 : List datasources as folders
-		for dsName, _ := range l.Clients {
-			if dsName == common.PYDIO_THUMBSTORE_NAMESPACE {
-				continue
-			}
-			prefixes = append(prefixes, dsName+"/")
-		}
-		return objects, prefixes, nil
-	} else if clientBucket == common.PYDIO_THUMBSTORE_NAMESPACE {
-		return objects, prefixes, nil
-	}
-
-	treePath := strings.TrimLeft(prefix, "/")
-	dataSourceName, _ := l.prefixToDataSourceName(prefix)
-
-	lNodeClient, err := l.TreeClient.ListNodes(context.Background(), &tree.ListNodesRequest{
-		Node: &tree.Node{
-			Path: treePath,
-		},
-		Limit: int64(maxKeys),
-	})
-	if err != nil {
-		return nil, nil, s3ToObjectError(traceError(err), bucket)
-	}
-	for {
-		clientResponse, err := lNodeClient.Recv()
-
-		if clientResponse == nil {
-			break
-		}
-
-		if err != nil {
-			break
-		}
-
-		objectInfo := fromPydioNodeObjectInfo(bucket, dataSourceName, clientResponse.Node)
-		if clientResponse.Node.IsLeaf() {
-			objects = append(objects, objectInfo)
-		} else {
-			prefixes = append(prefixes, objectInfo.Name)
-		}
-
-	}
-	if len(objects) > 0 && strings.Trim(prefix, "/") != "" {
-		prefixes = append(prefixes, strings.TrimLeft(prefix, "/"))
-	}
-
-	return objects, prefixes, nil
-}
-
 // ListObjects lists all blobs in S3 bucket filtered by prefix
 func (l *pydioObjects) ListObjects(bucket string, prefix string, marker string, delimiter string, maxKeys int) (loi ListObjectsInfo, e error) {
 
@@ -230,7 +134,7 @@ func (l *pydioObjects) ListObjects(bucket string, prefix string, marker string, 
 		return loi, s3ToObjectError(traceError(err), bucket)
 	}
 
-	log.Printf("\nReturning now objects %v", objects, prefixes)
+	log.Printf("\n[ListObjects] Returning %d objects and %d prefixes (V1) for prefix ", len(objects), len(prefixes), prefix)
 
 	return ListObjectsInfo{
 		IsTruncated: false,
@@ -249,7 +153,7 @@ func (l *pydioObjects) ListObjectsV2(bucket, prefix, continuationToken string, f
 		return loi, s3ToObjectError(traceError(err), bucket)
 	}
 
-	log.Printf("\nReturning now objects (V2) %v", objects, prefixes)
+	log.Printf("\n[ListObjectsV2] Returning %d objects and %d prefixes (V2) for prefix ", len(objects), len(prefixes), prefix)
 
 	return ListObjectsV2Info{
 		IsTruncated: false,
@@ -260,31 +164,6 @@ func (l *pydioObjects) ListObjectsV2(bucket, prefix, continuationToken string, f
 		NextContinuationToken: "",
 	}, nil
 
-}
-
-// fromMinioClientObjectInfo converts minio ObjectInfo to gateway ObjectInfo
-func fromPydioNodeObjectInfo(bucket string, dsName string, node *tree.Node) ObjectInfo {
-	//userDefined := fromMinioClientMetadata(oi.Metadata)
-	//userDefined["Content-Type"] = oi.ContentType
-	cType := "application/octet-stream"
-	userDefined := map[string]string{
-		"Content-Type": cType,
-	}
-
-	nodePath := dsName + "/" + strings.TrimLeft(node.Path, "/")
-	if node.Type == tree.Node_COLLECTION {
-		nodePath += "/"
-	}
-	return ObjectInfo{
-		Bucket:          bucket,
-		Name:            nodePath,
-		ModTime:         time.Unix(0, node.MTime*int64(time.Second)),
-		Size:            node.Size,
-		ETag:            canonicalizeETag(node.Etag),
-		UserDefined:     userDefined,
-		ContentType:     cType,
-		ContentEncoding: "",
-	}
 }
 
 // GetObjectInfo reads object info and replies back ObjectInfo
@@ -306,10 +185,8 @@ func (l *pydioObjects) GetObjectInfo(bucket string, object string) (objInfo Obje
 	}
 	if dataSourceName == common.PYDIO_THUMBSTORE_NAMESPACE {
 		// Use the thumb S3 client
-		log.Println("Should load Thumbclient")
 		if thumbClient, ok := l.findMinioClientFor(bucket, object); ok {
 			buck, obj := l.translateBucketAndPrefix(bucket, object)
-			log.Printf("Using thumbclient %v for bucket %s and object %s", thumbClient, buck, obj)
 			return l.getS3ObjectInfo(thumbClient, buck, obj)
 		} else {
 			return ObjectInfo{}, errors.New("Cannot find client for ThumbStore")
@@ -324,6 +201,12 @@ func (l *pydioObjects) GetObjectInfo(bucket string, object string) (objInfo Obje
 	})
 
 	if err != nil || readNodeResponse.Node == nil {
+
+		archiveInfo, noArch := l.HeadFakeArchiveObject(bucket, object, dataSourceName)
+		if noArch == nil {
+			return archiveInfo, nil
+		}
+
 		return ObjectInfo{}, s3ToObjectError(traceError(&ObjectNotFound{}))
 	}
 	//log.Printf("Returning a node %v", readNodeResponse.Node)
@@ -350,6 +233,8 @@ func (l *pydioObjects) getS3ObjectInfo(client *minio.Core, bucket string, object
 // startOffset indicates the starting read location of the object.
 // length indicates the total length of the object.
 func (l *pydioObjects) GetObject(bucket string, key string, startOffset int64, length int64, writer io.Writer) error {
+
+	log.Println("[GetObject]", bucket, key, startOffset, length)
 	r := minio.NewGetReqHeaders()
 
 	if length < 0 && length != -1 {
@@ -363,10 +248,15 @@ func (l *pydioObjects) GetObject(bucket string, key string, startOffset int64, l
 	}
 	if client, ok := l.findMinioClientFor(bucket, key); ok {
 
-		bucket, key = l.translateBucketAndPrefix(bucket, key)
-		objectReader, _, err := client.GetObject(bucket, key, r)
+		newBucket, newKey := l.translateBucketAndPrefix(bucket, key)
+		objectReader, _, err := client.GetObject(newBucket, newKey, r)
 		if err != nil {
-			return s3ToObjectError(traceError(err), bucket, key)
+			archive, err := l.GenerateArchiveFromKey(writer, bucket, key)
+			if archive {
+				return err
+			} else {
+				return s3ToObjectError(traceError(err), bucket, key)
+			}
 		}
 
 		defer objectReader.Close()
