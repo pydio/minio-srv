@@ -134,7 +134,7 @@ func (l *pydioObjects) ListObjects(bucket string, prefix string, marker string, 
 		return loi, s3ToObjectError(traceError(err), bucket)
 	}
 
-	log.Printf("\n[ListObjects] Returning %d objects and %d prefixes (V1) for prefix ", len(objects), len(prefixes), prefix)
+	log.Printf("[ListObjects] Returning %d objects and %d prefixes (V1) for prefix\n", len(objects), len(prefixes), prefix)
 
 	return ListObjectsInfo{
 		IsTruncated: false,
@@ -153,7 +153,7 @@ func (l *pydioObjects) ListObjectsV2(bucket, prefix, continuationToken string, f
 		return loi, s3ToObjectError(traceError(err), bucket)
 	}
 
-	log.Printf("\n[ListObjectsV2] Returning %d objects and %d prefixes (V2) for prefix ", len(objects), len(prefixes), prefix)
+	log.Printf("\n[ListObjectsV2] Returning %d objects and %d prefixes (V2) for prefix\n", len(objects), len(prefixes), prefix)
 
 	return ListObjectsV2Info{
 		IsTruncated: false,
@@ -210,6 +210,9 @@ func (l *pydioObjects) GetObjectInfo(bucket string, object string) (objInfo Obje
 		return ObjectInfo{}, s3ToObjectError(traceError(&ObjectNotFound{}))
 	}
 	//log.Printf("Returning a node %v", readNodeResponse.Node)
+	if !readNodeResponse.Node.IsLeaf() {
+		return ObjectInfo{}, errors.New("S3 API Cannot send object info for folder")
+	}
 
 	return fromPydioNodeObjectInfo(bucket, dataSourceName, readNodeResponse.Node), nil
 
