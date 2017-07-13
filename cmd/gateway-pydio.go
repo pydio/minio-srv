@@ -209,7 +209,6 @@ func (l *pydioObjects) GetObjectInfo(bucket string, object string) (objInfo Obje
 
 		return ObjectInfo{}, s3ToObjectError(traceError(&ObjectNotFound{}))
 	}
-	//log.Printf("Returning a node %v", readNodeResponse.Node)
 	if !readNodeResponse.Node.IsLeaf() {
 		return ObjectInfo{}, errors.New("S3 API Cannot send object info for folder")
 	}
