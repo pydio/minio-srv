@@ -82,7 +82,7 @@ func fromPydioNodeObjectInfo(bucket string, dsName string, node *tree.Node) Obje
 		"Content-Type": cType,
 	}
 
-	nodePath := dsName + "/" + strings.TrimLeft(node.Path, "/")
+	nodePath := node.Path
 	if node.Type == tree.NodeType_COLLECTION {
 		nodePath += "/"
 	}
