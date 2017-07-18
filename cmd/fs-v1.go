@@ -461,6 +461,14 @@ func (fs fsObjects) getObjectInfo(bucket, object string) (oi ObjectInfo, e error
 	// Ignore if `fs.json` is not available, this is true for pre-existing data.
 	if err != nil && err != errFileNotFound {
 		return oi, toObjectErr(traceError(err), bucket, object)
+	} else if err != nil && err == errFileNotFound {
+		// This is probably a pre-existing data, let's create the fsMeta on-the-fly
+		testMeta, err := fs.computeFileEtag(bucket, object)
+		if err == nil {
+			if _, ok := testMeta.Meta["etag"]; ok {
+				fsMeta = testMeta
+			}
+		}
 	}
 
 	// Stat the file to get file size.
@@ -736,6 +744,38 @@ func (fs fsObjects) getObjectETag(bucket, entry string) (string, error) {
 	return extractETag(parseFSMetaMap(fsMetaBuf)), nil
 }
 
+func (fs fsObjects) computeFileEtag(bucket, object string) (fsMeta fsMetaV1, err error) {
+
+	fsMeta = newFSMetaV1()
+	fsMetaPath := pathJoin(fs.fsPath, minioMetaBucket, bucketMetaPrefix, bucket, object, fsMetaJSONFile)
+	fsObjPath := pathJoin(fs.fsPath, bucket, object)
+	reader, size, err := fsOpenFile(fsObjPath, 0)
+	if err != nil {
+		return fsMeta, err
+	}
+	defer reader.Close()
+	bufSize := int64(readSizeV1)
+	if size > 0 && bufSize > size {
+		bufSize = size
+	}
+	buf := make([]byte, int(bufSize))
+	md5Writer := md5.New()
+	io.CopyBuffer(md5Writer, reader, buf)
+	mD5Hex := hex.EncodeToString(md5Writer.Sum(nil))
+
+	log.Println("Computing Etag for unknown file : ", object)
+	fsMeta.Meta = map[string]string{"etag": mD5Hex}
+	wlk, err2 := fs.rwPool.Create(fsMetaPath)
+	if err2 != nil {
+		return fsMeta, err2
+	}
+	defer wlk.Close()
+	fsMeta.WriteTo(wlk)
+
+	return fsMeta, nil
+
+}
+
 // ListObjects - list all objects at prefix upto maxKeys., optionally delimited by '/'. Maintains the list pool
 // state for future re-entrant list requests.
 func (fs fsObjects) ListObjects(bucket, prefix, marker, delimiter string, maxKeys int) (loi ListObjectsInfo, e error) {
@@ -788,6 +828,14 @@ func (fs fsObjects) ListObjects(bucket, prefix, marker, delimiter string, maxKey
 		}
 		var etag string
 		etag, err = fs.getObjectETag(bucket, entry)
+		if etag == "" {
+			testMeta, err := fs.computeFileEtag(bucket, entry)
+			if err == nil {
+				if tag, ok := testMeta.Meta["etag"]; ok {
+					etag = tag
+				}
+			}
+		}
 		objectLock.RUnlock()
 		if err != nil {
 			return ObjectInfo{}, err
