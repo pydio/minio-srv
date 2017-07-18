@@ -36,10 +36,11 @@ import (
 
 // s3Objects implements gateway for Minio and S3 compatible object storage servers.
 type pydioObjects struct {
-	Clients     map[string]*minio.Core
-	anonClients map[string]*minio.Core
-	TreeClient  tree.NodeProviderClient
-	dsBuckets   map[string]string
+	Clients         map[string]*minio.Core
+	anonClients     map[string]*minio.Core
+	TreeClient      tree.NodeProviderClient
+	TreeClientWrite tree.NodeReceiverClient
+	dsBuckets       map[string]string
 
 	configMutex *sync.Mutex
 }
@@ -50,13 +51,15 @@ func newPydioGateway() (GatewayLayer, error) {
 	clients := make(map[string]*minio.Core)
 	anonClients := make(map[string]*minio.Core)
 	dsBuckets := make(map[string]string)
+	grpcClient := grpc.NewClient()
 
 	api := &pydioObjects{
-		Clients:     clients,
-		anonClients: anonClients,
-		dsBuckets:   dsBuckets,
-		TreeClient:  tree.NewNodeProviderClient(common.SERVICE_TREE, grpc.NewClient()),
-		configMutex: &sync.Mutex{},
+		Clients:         clients,
+		anonClients:     anonClients,
+		dsBuckets:       dsBuckets,
+		TreeClient:      tree.NewNodeProviderClient(common.SERVICE_TREE, grpcClient),
+		TreeClientWrite: tree.NewNodeReceiverClient(common.SERVICE_TREE, grpcClient),
+		configMutex:     &sync.Mutex{},
 	}
 
 	api.listDatasources()
@@ -297,10 +300,19 @@ func (l *pydioObjects) PutObject(bucket string, object string, size int64, data 
 	}
 	if client, ok := l.findMinioClientFor(bucket, object); ok {
 
+		// We create the node in the index right now, so that we can use a Uuid for other operations, and rollback if there is a Put error
+		// This is kind of similar to presigned?
+		newNode, nodeErr, onErrorFunc := l.GetOrCreatePutNode(bucket, object, size, metadata)
+		log.Println("[PreLoad or PreCreate Node in tree]", object, newNode, nodeErr)
+		if nodeErr != nil {
+			return objInfo, s3ToObjectError(traceError(nodeErr), bucket, object)
+		}
 		bucket, object = l.translateBucketAndPrefix(bucket, object)
-
 		oi, err := client.PutObject(bucket, object, size, data, md5sumBytes, sha256sumBytes, toMinioClientMetadata(metadata))
 		if err != nil {
+			if onErrorFunc != nil {
+				onErrorFunc()
+			}
 			return objInfo, s3ToObjectError(traceError(err), bucket, object)
 		}
 
@@ -324,15 +336,27 @@ func (l *pydioObjects) CopyObject(srcBucket string, srcObject string, destBucket
 	if client, ok = l.findMinioClientFor(srcBucket, srcObject); !ok {
 		return objInfo, s3ToObjectError(traceError(&BucketNotFound{}), srcBucket, srcObject)
 	}
+
+	_, nodeErr, onErrorFunc := l.GetOrCreatePutNode(destBucket, destObject, -1, metadata)
+	if nodeErr != nil {
+		return objInfo, s3ToObjectError(traceError(nodeErr), destBucket, destObject)
+	}
+
 	destBucket, destObject = l.translateBucketAndPrefix(destBucket, destObject)
 	srcBucket, srcObject = l.translateBucketAndPrefix(srcBucket, srcObject)
 	err := client.CopyObject(destBucket, destObject, path.Join(srcBucket, srcObject), minio.CopyConditions{})
 	if err != nil {
+		if onErrorFunc != nil {
+			onErrorFunc()
+		}
 		return objInfo, s3ToObjectError(traceError(err), srcBucket, srcObject)
 	}
 
 	oi, err := l.getS3ObjectInfo(client, destBucket, destObject)
 	if err != nil {
+		if onErrorFunc != nil {
+			onErrorFunc()
+		}
 		return objInfo, s3ToObjectError(traceError(err), destBucket, destObject)
 	}
 

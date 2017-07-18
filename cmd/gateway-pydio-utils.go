@@ -98,6 +98,41 @@ func fromPydioNodeObjectInfo(bucket string, dsName string, node *tree.Node) Obje
 	}
 }
 
+type onCreateErrorFunc func()
+
+// Create a temporary node before calling a Put request. If it is an update, should send back the already existing node
+// Returns the node, a flag to tell wether it is created or not, and eventually an error
+// The Put event will afterward update the index
+func (l *pydioObjects) GetOrCreatePutNode(bucket string, prefix string, size int64, metadata map[string]string) (*tree.Node, error, onCreateErrorFunc) {
+
+	ctx := context.Background()
+	treePath := strings.TrimLeft(prefix, "/")
+	existingResp, err := l.TreeClient.ReadNode(ctx, &tree.ReadNodeRequest{
+		Node: &tree.Node{
+			Path: treePath,
+		},
+	})
+	if err == nil && existingResp.Node != nil {
+		return existingResp.Node, nil, nil
+	}
+	createResp, er := l.TreeClientWrite.CreateNode(ctx, &tree.CreateNodeRequest{
+		Node: &tree.Node{
+			Path:  treePath,
+			MTime: time.Now().Unix(),
+			Size:  size,
+			Type:  tree.NodeType_LEAF,
+		},
+	})
+	if er != nil {
+		return nil, er, nil
+	}
+	errorFunc := func() {
+		l.TreeClientWrite.DeleteNode(ctx, &tree.DeleteNodeRequest{Node: createResp.Node})
+	}
+	return createResp.Node, nil, errorFunc
+
+}
+
 func (l *pydioObjects) ListPydioObjects(bucket string, prefix string, delimiter string, maxKeys int) (objects []ObjectInfo, prefixes []string, err error) {
 
 	clientBucket, _ := l.translateBucketAndPrefix(bucket, prefix)
