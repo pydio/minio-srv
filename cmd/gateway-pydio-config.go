@@ -28,6 +28,7 @@ func (l *pydioObjects) listDatasources() {
 		response, err := s3endpointClient.GetHttpURL(ctx, &object.GetHttpUrlRequest{})
 		if err == nil && response.URL != "" {
 			l.createClientsForDataSource(dataSourceName, response.URL)
+			l.dsEncrypted[dataSourceName] = response.Encrypt
 		}
 
 	}

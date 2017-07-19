@@ -40,7 +40,9 @@ type pydioObjects struct {
 	anonClients     map[string]*minio.Core
 	TreeClient      tree.NodeProviderClient
 	TreeClientWrite tree.NodeReceiverClient
+	EncryptionClient tree.FileKeyManagerClient
 	dsBuckets       map[string]string
+	dsEncrypted     map[string]bool
 
 	configMutex *sync.Mutex
 }
@@ -51,6 +53,7 @@ func newPydioGateway() (GatewayLayer, error) {
 	clients := make(map[string]*minio.Core)
 	anonClients := make(map[string]*minio.Core)
 	dsBuckets := make(map[string]string)
+	dsEncrypted := make(map[string]bool)
 	grpcClient := grpc.NewClient()
 
 	api := &pydioObjects{
@@ -59,7 +62,9 @@ func newPydioGateway() (GatewayLayer, error) {
 		dsBuckets:       dsBuckets,
 		TreeClient:      tree.NewNodeProviderClient(common.SERVICE_TREE, grpcClient),
 		TreeClientWrite: tree.NewNodeReceiverClient(common.SERVICE_TREE, grpcClient),
+		EncryptionClient:tree.NewFileKeyManagerClient(common.SERVICE_ENCRYPTION, grpcClient),
 		configMutex:     &sync.Mutex{},
+		dsEncrypted:     dsEncrypted,
 	}
 
 	api.listDatasources()
@@ -254,7 +259,25 @@ func (l *pydioObjects) GetObject(bucket string, key string, startOffset int64, l
 	if client, ok := l.findMinioClientFor(bucket, key); ok {
 
 		newBucket, newKey := l.translateBucketAndPrefix(bucket, key)
-		objectReader, _, err := client.GetObject(newBucket, newKey, r)
+		var objectReader io.ReadCloser
+		var err error
+		if l.clientRequiresEncryption(bucket, key) {
+			readNodeResp, rE := l.TreeClient.ReadNode(context.Background(), &tree.ReadNodeRequest{
+				Node:&tree.Node{
+					Path:strings.TrimLeft(key, "/"),
+				},
+			})
+			if rE != nil {
+				return rE
+			}
+			material, encErr := l.retrieveEncryptionMaterial(readNodeResp.Node)
+			if encErr != nil {
+				return encErr
+			}
+			objectReader, err = client.GetEncryptedObject(newBucket, newKey, material)
+		} else {
+			objectReader, _, err = client.GetObject(newBucket, newKey, r)
+		}
 		if err != nil {
 			archive, err := l.GenerateArchiveFromKey(writer, bucket, key)
 			if archive {
@@ -307,16 +330,40 @@ func (l *pydioObjects) PutObject(bucket string, object string, size int64, data 
 		if nodeErr != nil {
 			return objInfo, s3ToObjectError(traceError(nodeErr), bucket, object)
 		}
-		bucket, object = l.translateBucketAndPrefix(bucket, object)
-		oi, err := client.PutObject(bucket, object, size, data, md5sumBytes, sha256sumBytes, toMinioClientMetadata(metadata))
+		newBucket, newObject := l.translateBucketAndPrefix(bucket, object)
+ 		if l.clientRequiresEncryption(bucket, object) {
+
+			material, encErr := l.retrieveEncryptionMaterial(newNode)
+			if encErr != nil {
+				return objInfo, encErr
+			}
+			log.Println("Successfully received a material stuff, sending to PutEncrypted", material)
+			size, err := client.PutEncryptedObject(newBucket, newObject, data, material, toMinioClientMetadata(metadata), nil)
+			if err != nil {
+				return objInfo, err
+			}
+			objInfo = ObjectInfo{
+				Bucket:newBucket,
+				Name:object,
+				Size:size,
+			}
+		} else {
+
+			oi, err := client.PutObject(newBucket, newObject, size, data, md5sumBytes, sha256sumBytes, toMinioClientMetadata(metadata))
+			if err != nil {
+				return objInfo, err
+			}
+			objInfo = fromMinioClientObjectInfo(newBucket, oi)
+		}
+
 		if err != nil {
 			if onErrorFunc != nil {
 				onErrorFunc()
 			}
-			return objInfo, s3ToObjectError(traceError(err), bucket, object)
+			return objInfo, s3ToObjectError(traceError(err), newBucket, newObject)
 		}
 
-		return fromMinioClientObjectInfo(bucket, oi), nil
+		return objInfo, nil
 	}
 	return ObjectInfo{}, s3ToObjectError(traceError(err), bucket, object)
 }
