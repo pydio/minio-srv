@@ -296,7 +296,7 @@ func gcsGatewayMain(ctx *cli.Context) {
 	gatewayMain(ctx, gcsBackend)
 }
 
-func pydioGatewayMain(ctx *cli.Context){
+func pydioGatewayMain(ctx *cli.Context) {
 
 	gatewayMain(ctx, pydioBackend)
 
@@ -403,18 +403,18 @@ func gatewayMain(ctx *cli.Context, backendType gatewayBackend) {
 	// Prints the formatted startup message once object layer is initialized.
 	if !quietFlag {
 		/*
-		mode := ""
-		switch gatewayBackend(backendType) {
-		case azureBackend:
-			mode = globalMinioModeGatewayAzure
-		case gcsBackend:
-			mode = globalMinioModeGatewayGCS
-		case s3Backend:
-			mode = globalMinioModeGatewayS3
-		}
+			mode := ""
+			switch gatewayBackend(backendType) {
+			case azureBackend:
+				mode = globalMinioModeGatewayAzure
+			case gcsBackend:
+				mode = globalMinioModeGatewayGCS
+			case s3Backend:
+				mode = globalMinioModeGatewayS3
+			}
 
-		// Check update mode.
-		checkUpdate(mode)
+			// Check update mode.
+			checkUpdate(mode)
 		*/
 
 		// Print gateway startup message.
