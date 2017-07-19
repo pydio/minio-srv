@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"encoding/json"
-	"github.com/micro/config-srv/proto/config"
 	"github.com/micro/go-micro/registry"
 	"github.com/micro/go-plugins/client/grpc"
 	"github.com/minio/minio-go"
@@ -11,6 +9,7 @@ import (
 	"golang.org/x/net/context"
 	"path/filepath"
 	"strings"
+	"github.com/pydio/services/workers/jobs/images"
 )
 
 func (l *pydioObjects) listDatasources() {
@@ -37,31 +36,16 @@ func (l *pydioObjects) listDatasources() {
 
 func (l *pydioObjects) createThumbStoreClient() {
 
-	microClient := grpc.NewClient()
-	configClient := go_micro_srv_config_config.NewConfigClient(common.SERVICE_CONFIG, microClient)
-	resp, err := configClient.Read(context.Background(), &go_micro_srv_config_config.ReadRequest{
-		Id:   "services/pydio.thumbs_store",
-		Path: "service",
-	})
-	if err == nil && resp.GetChange() != nil {
-		stringData := resp.GetChange().GetChangeSet().Data
-		log.Println(stringData)
-		config := make(map[string]interface{})
-		json.Unmarshal([]byte(stringData), &config)
-		ds := config["datasource"].(string)
-		bucket := config["bucket"].(string)
-		var ok bool
-		if _, ok = l.Clients[ds]; !ok {
-			s3endpointClient := object.NewS3EndpointClient(common.SERVICE_OBJECTS_+ds, microClient)
-			response, err := s3endpointClient.GetHttpURL(context.Background(), &object.GetHttpUrlRequest{})
-			if err == nil && response.URL != "" {
-				l.createClientsForDataSource(ds, response.URL, common.PYDIO_THUMBSTORE_NAMESPACE)
-			}
-		} else {
-			l.Clients[common.PYDIO_THUMBSTORE_NAMESPACE] = l.Clients[ds]
-			l.anonClients[common.PYDIO_THUMBSTORE_NAMESPACE] = l.anonClients[ds]
-		}
+	url, bucket, apiKey, apiSecret, err := images.GetThumbStoreClientConfig(context.Background())
+	if err == nil {
+		l.configMutex.Lock()
+		defer l.configMutex.Unlock()
 		l.dsBuckets[common.PYDIO_THUMBSTORE_NAMESPACE] = bucket
+
+		client, e := minio.NewCore(url, apiKey, apiSecret, false)
+		if e == nil {
+			l.Clients[common.PYDIO_THUMBSTORE_NAMESPACE] = client
+		}
 	}
 
 }
