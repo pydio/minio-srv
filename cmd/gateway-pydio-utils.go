@@ -29,6 +29,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"github.com/minio/minio-go/pkg/encrypt"
 )
 
 func (l *pydioObjects) findMinioClientFor(bucket string, prefix string) (*minio.Core, bool) {
@@ -42,6 +43,40 @@ func (l *pydioObjects) findMinioClientFor(bucket string, prefix string) (*minio.
 	} else {
 		return nil, false
 	}
+
+}
+
+func (l *pydioObjects) clientRequiresEncryption(bucket string, prefix string) bool {
+
+	dsName, _ := l.prefixToDataSourceName(prefix)
+	if dsName == "" {
+		return false
+	}
+	if requires, exists := l.dsEncrypted[dsName]; exists {
+		return requires
+	} else  {
+		return false
+	}
+
+}
+
+func (l *pydioObjects) retrieveEncryptionMaterial(node *tree.Node) (encrypt.Materials, error) {
+
+	encResp, encErr := l.EncryptionClient.GetEncryptionKey(context.Background(), &tree.GetEncryptionKeyRequest{
+		Node:node,
+		Create:true,
+		User:"bob",
+		Password:"bobsecret",
+	})
+	if encErr != nil {
+		return nil, encErr
+	}
+	symmetricKey := encrypt.NewSymmetricKey(encResp.Key)
+	material, encErr2 := encrypt.NewCBCSecureMaterials(symmetricKey)
+	if encErr2 != nil {
+		return nil, encErr2
+	}
+	return material, nil
 
 }
 
