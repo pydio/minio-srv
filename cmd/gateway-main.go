@@ -355,7 +355,11 @@ func gatewayMain(ctx *cli.Context, backendType gatewayBackend) {
 	if globalIsBrowserEnabled {
 		fatalIf(registerWebRouter(router), "Unable to configure web browser")
 	}
-	registerGatewayAPIRouter(router, newObject)
+	if backendType == pydioBackend {
+		registerGatewayPydioAPIRouter(router, newObject)
+	} else {
+		registerGatewayAPIRouter(router, newObject)
+	}
 
 	var handlerFns = []HandlerFunc{
 		// Validate all the incoming paths.
@@ -384,6 +388,10 @@ func gatewayMain(ctx *cli.Context, backendType gatewayBackend) {
 		setAuthHandler,
 		// Add new handlers here.
 
+	}
+
+	if backendType == pydioBackend {
+		handlerFns = append(handlerFns, setPydioAuthHandler)
 	}
 
 	globalHTTPServer = miniohttp.NewServer([]string{gatewayAddr}, registerHandlers(router, handlerFns...), globalTLSCertificate)
