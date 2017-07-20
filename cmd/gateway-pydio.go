@@ -325,13 +325,16 @@ func (l *pydioObjects) PutObject(bucket string, object string, size int64, data 
 
 		// We create the node in the index right now, so that we can use a Uuid for other operations, and rollback if there is a Put error
 		// This is kind of similar to presigned?
+		var newNode *tree.Node
+		/*
 		newNode, nodeErr, onErrorFunc := l.GetOrCreatePutNode(bucket, object, size, metadata)
 		log.Println("[PreLoad or PreCreate Node in tree]", object, newNode, nodeErr)
 		if nodeErr != nil {
 			return objInfo, s3ToObjectError(traceError(nodeErr), bucket, object)
 		}
+		*/
 		newBucket, newObject := l.translateBucketAndPrefix(bucket, object)
- 		if l.clientRequiresEncryption(bucket, object) {
+ 		if newNode != nil && l.clientRequiresEncryption(bucket, object) {
 
 			material, encErr := l.retrieveEncryptionMaterial(newNode)
 			if encErr != nil {
@@ -357,9 +360,11 @@ func (l *pydioObjects) PutObject(bucket string, object string, size int64, data 
 		}
 
 		if err != nil {
+			/*
 			if onErrorFunc != nil {
 				onErrorFunc()
 			}
+			*/
 			return objInfo, s3ToObjectError(traceError(err), newBucket, newObject)
 		}
 
@@ -384,26 +389,32 @@ func (l *pydioObjects) CopyObject(srcBucket string, srcObject string, destBucket
 		return objInfo, s3ToObjectError(traceError(&BucketNotFound{}), srcBucket, srcObject)
 	}
 
+	/*
 	_, nodeErr, onErrorFunc := l.GetOrCreatePutNode(destBucket, destObject, -1, metadata)
 	if nodeErr != nil {
 		return objInfo, s3ToObjectError(traceError(nodeErr), destBucket, destObject)
 	}
+	*/
 
 	destBucket, destObject = l.translateBucketAndPrefix(destBucket, destObject)
 	srcBucket, srcObject = l.translateBucketAndPrefix(srcBucket, srcObject)
 	err := client.CopyObject(destBucket, destObject, path.Join(srcBucket, srcObject), minio.CopyConditions{})
 	if err != nil {
+		/*
 		if onErrorFunc != nil {
 			onErrorFunc()
 		}
+		*/
 		return objInfo, s3ToObjectError(traceError(err), srcBucket, srcObject)
 	}
 
 	oi, err := l.getS3ObjectInfo(client, destBucket, destObject)
 	if err != nil {
+		/*
 		if onErrorFunc != nil {
 			onErrorFunc()
 		}
+		*/
 		return objInfo, s3ToObjectError(traceError(err), destBucket, destObject)
 	}
 
