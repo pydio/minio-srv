@@ -26,13 +26,42 @@ import (
 	minio "github.com/minio/minio-go"
 	"github.com/pydio/services/common"
 	"github.com/pydio/services/common/proto/tree"
-	"golang.org/x/net/context"
+//	"golang.org/x/net/context"
 	"strings"
 	"time"
 
 	"github.com/micro/go-plugins/client/grpc"
 	"sync"
+	"context"
 )
+
+type PydioGateway interface {
+	GatewayLayer
+	GetBucketInfoWithContext(ctx context.Context, bucket string) (bi BucketInfo, e error)
+	ListBucketsWithContext(ctx context.Context) ([]BucketInfo, error)
+	ListObjectsWithContext(ctx context.Context, bucket string, prefix string, marker string, delimiter string, maxKeys int) (loi ListObjectsInfo, e error)
+	ListObjectsV2WithContext(ctx context.Context, bucket, prefix, continuationToken string, fetchOwner bool, delimiter string, maxKeys int) (loi ListObjectsV2Info, e error)
+	GetObjectInfoWithContext(ctx context.Context, bucket string, object string) (objInfo ObjectInfo, err error)
+	GetObjectWithContext(ctx context.Context, bucket string, key string, startOffset int64, length int64, writer io.Writer) error
+	PutObjectWithContext(ctx context.Context, bucket string, object string, size int64, data io.Reader, metadata map[string]string, sha256sum string) (objInfo ObjectInfo, e error)
+	CopyObjectWithContext(ctx context.Context, srcBucket string, srcObject string, destBucket string, destObject string, metadata map[string]string) (objInfo ObjectInfo, e error)
+	DeleteObjectWithContext(ctx context.Context, bucket string, object string) error
+	ListMultipartUploadsWithContext(ctx context.Context, bucket string, prefix string, keyMarker string, uploadIDMarker string, delimiter string, maxUploads int) (lmi ListMultipartsInfo, e error)
+	NewMultipartUploadWithContext(ctx context.Context, bucket string, object string, metadata map[string]string) (uploadID string, err error)
+	CopyObjectPartWithContext(ctx context.Context, srcBucket string, srcObject string, destBucket string, destObject string, uploadID string, partID int, startOffset int64, length int64) (info PartInfo, err error)
+	PutObjectPartWithContext(ctx context.Context, bucket string, object string, uploadID string, partID int, size int64, data io.Reader, md5Hex string, sha256sum string) (pi PartInfo, e error)
+	ListObjectPartsWithContext(ctx context.Context, bucket string, object string, uploadID string, partNumberMarker int, maxParts int) (lpi ListPartsInfo, e error)
+	AbortMultipartUploadWithContext(ctx context.Context, bucket string, object string, uploadID string) error
+	CompleteMultipartUploadWithContext(ctx context.Context, bucket string, object string, uploadID string, uploadedParts []completePart) (oi ObjectInfo, e error)
+}
+
+// BucketNotFound bucket does not exist.
+type ContextNotFound GenericError
+
+func (e ContextNotFound) Error() string {
+	return "Context not found. Use WithContext function."
+}
+
 
 // s3Objects implements gateway for Minio and S3 compatible object storage servers.
 type pydioObjects struct {
@@ -86,7 +115,7 @@ func (l *pydioObjects) StorageInfo() (si StorageInfo) {
 }
 
 // GetBucketInfo gets bucket metadata..
-func (l *pydioObjects) GetBucketInfo(bucket string) (bi BucketInfo, e error) {
+func (l *pydioObjects) GetBucketInfoWithContext(ctx context.Context, bucket string) (bi BucketInfo, e error) {
 
 	if bucket != "pydio" {
 		return bi, traceError(BucketNotFound{Bucket: bucket})
@@ -96,22 +125,10 @@ func (l *pydioObjects) GetBucketInfo(bucket string) (bi BucketInfo, e error) {
 		Created: time.Now(),
 	}, nil
 
-	/*
-		if _, ok := l.Clients[bucket]; ok{
-
-			return BucketInfo{
-				Name:    bucket,
-				Created: time.Now(),
-			}, nil
-
-		}
-
-		return bi, traceError(BucketNotFound{Bucket: bucket})
-	*/
 }
 
 // ListBuckets lists all S3 buckets
-func (l *pydioObjects) ListBuckets() ([]BucketInfo, error) {
+func (l *pydioObjects) ListBucketsWithContext(ctx context.Context) ([]BucketInfo, error) {
 
 	b := make([]BucketInfo, 1)
 	b[0] = BucketInfo{
@@ -120,24 +137,12 @@ func (l *pydioObjects) ListBuckets() ([]BucketInfo, error) {
 	}
 	return b, nil
 
-	/*
-		i := 0
-		for bucketName, _ := range l.Clients {
-			b[i] = BucketInfo{
-				Name:    bucketName,
-				Created: time.Now(),
-			}
-			i++
-		}
-		return b, nil
-	*/
-
 }
 
 // ListObjects lists all blobs in S3 bucket filtered by prefix
-func (l *pydioObjects) ListObjects(bucket string, prefix string, marker string, delimiter string, maxKeys int) (loi ListObjectsInfo, e error) {
+func (l *pydioObjects) ListObjectsWithContext(ctx context.Context, bucket string, prefix string, marker string, delimiter string, maxKeys int) (loi ListObjectsInfo, e error) {
 
-	objects, prefixes, err := l.ListPydioObjects(bucket, prefix, delimiter, maxKeys)
+	objects, prefixes, err := l.ListPydioObjects(ctx, bucket, prefix, delimiter, maxKeys)
 	if err != nil {
 		return loi, s3ToObjectError(traceError(err), bucket)
 	}
@@ -154,9 +159,9 @@ func (l *pydioObjects) ListObjects(bucket string, prefix string, marker string, 
 }
 
 // ListObjectsV2 lists all blobs in S3 bucket filtered by prefix
-func (l *pydioObjects) ListObjectsV2(bucket, prefix, continuationToken string, fetchOwner bool, delimiter string, maxKeys int) (loi ListObjectsV2Info, e error) {
+func (l *pydioObjects) ListObjectsV2WithContext(ctx context.Context, bucket, prefix, continuationToken string, fetchOwner bool, delimiter string, maxKeys int) (loi ListObjectsV2Info, e error) {
 
-	objects, prefixes, err := l.ListPydioObjects(bucket, prefix, delimiter, maxKeys)
+	objects, prefixes, err := l.ListPydioObjects(ctx, bucket, prefix, delimiter, maxKeys)
 	if err != nil {
 		return loi, s3ToObjectError(traceError(err), bucket)
 	}
@@ -175,7 +180,7 @@ func (l *pydioObjects) ListObjectsV2(bucket, prefix, continuationToken string, f
 }
 
 // GetObjectInfo reads object info and replies back ObjectInfo
-func (l *pydioObjects) GetObjectInfo(bucket string, object string) (objInfo ObjectInfo, err error) {
+func (l *pydioObjects) GetObjectInfoWithContext(ctx context.Context, bucket string, object string) (objInfo ObjectInfo, err error) {
 
 	log.Println("GetObjectInfo : " + object)
 
@@ -202,7 +207,7 @@ func (l *pydioObjects) GetObjectInfo(bucket string, object string) (objInfo Obje
 	}
 
 	treePath := strings.TrimLeft(object, "/")
-	readNodeResponse, err := l.TreeClient.ReadNode(context.Background(), &tree.ReadNodeRequest{
+	readNodeResponse, err := l.TreeClient.ReadNode(ctx, &tree.ReadNodeRequest{
 		Node: &tree.Node{
 			Path: treePath,
 		},
@@ -210,7 +215,7 @@ func (l *pydioObjects) GetObjectInfo(bucket string, object string) (objInfo Obje
 
 	if err != nil || readNodeResponse.Node == nil {
 
-		archiveInfo, noArch := l.HeadFakeArchiveObject(bucket, object, dataSourceName)
+		archiveInfo, noArch := l.HeadFakeArchiveObject(ctx, bucket, object, dataSourceName)
 		if noArch == nil {
 			return archiveInfo, nil
 		}
@@ -225,24 +230,13 @@ func (l *pydioObjects) GetObjectInfo(bucket string, object string) (objInfo Obje
 
 }
 
-// GetObjectInfo reads object info and replies back ObjectInfo
-func (l *pydioObjects) getS3ObjectInfo(client *minio.Core, bucket string, object string) (objInfo ObjectInfo, err error) {
-	r := minio.NewHeadReqHeaders()
-	oi, err := client.StatObject(bucket, object, r)
-	if err != nil {
-		return ObjectInfo{}, s3ToObjectError(traceError(err), bucket, object)
-	}
-
-	return fromMinioClientObjectInfo(bucket, oi), nil
-}
-
 // GetObject reads an object from S3. Supports additional
 // parameters like offset and length which are synonymous with
 // HTTP Range requests.
 //
 // startOffset indicates the starting read location of the object.
 // length indicates the total length of the object.
-func (l *pydioObjects) GetObject(bucket string, key string, startOffset int64, length int64, writer io.Writer) error {
+func (l *pydioObjects) GetObjectWithContext(ctx context.Context, bucket string, key string, startOffset int64, length int64, writer io.Writer) error {
 
 	log.Println("[GetObject]", bucket, key, startOffset, length)
 	r := minio.NewGetReqHeaders()
@@ -262,7 +256,7 @@ func (l *pydioObjects) GetObject(bucket string, key string, startOffset int64, l
 		var objectReader io.ReadCloser
 		var err error
 		if l.clientRequiresEncryption(bucket, key) {
-			readNodeResp, rE := l.TreeClient.ReadNode(context.Background(), &tree.ReadNodeRequest{
+			readNodeResp, rE := l.TreeClient.ReadNode(ctx, &tree.ReadNodeRequest{
 				Node:&tree.Node{
 					Path:strings.TrimLeft(key, "/"),
 				},
@@ -279,7 +273,7 @@ func (l *pydioObjects) GetObject(bucket string, key string, startOffset int64, l
 			objectReader, _, err = client.GetObject(newBucket, newKey, r)
 		}
 		if err != nil {
-			archive, err := l.GenerateArchiveFromKey(writer, bucket, key)
+			archive, err := l.GenerateArchiveFromKey(ctx, writer, bucket, key)
 			if archive {
 				return err
 			} else {
@@ -301,7 +295,8 @@ func (l *pydioObjects) GetObject(bucket string, key string, startOffset int64, l
 }
 
 // PutObject creates a new object with the incoming data,
-func (l *pydioObjects) PutObject(bucket string, object string, size int64, data io.Reader, metadata map[string]string, sha256sum string) (objInfo ObjectInfo, e error) {
+func (l *pydioObjects) PutObjectWithContext(ctx context.Context, bucket string, object string, size int64, data io.Reader, metadata map[string]string, sha256sum string) (objInfo ObjectInfo, e error) {
+
 	var sha256sumBytes []byte
 
 	var err error
@@ -334,7 +329,7 @@ func (l *pydioObjects) PutObject(bucket string, object string, size int64, data 
 		}
 		*/
 		newBucket, newObject := l.translateBucketAndPrefix(bucket, object)
- 		if newNode != nil && l.clientRequiresEncryption(bucket, object) {
+		if newNode != nil && l.clientRequiresEncryption(bucket, object) {
 
 			material, encErr := l.retrieveEncryptionMaterial(newNode)
 			if encErr != nil {
@@ -371,10 +366,11 @@ func (l *pydioObjects) PutObject(bucket string, object string, size int64, data 
 		return objInfo, nil
 	}
 	return ObjectInfo{}, s3ToObjectError(traceError(err), bucket, object)
+
 }
 
 // CopyObject copies a blob from source container to destination container.
-func (l *pydioObjects) CopyObject(srcBucket string, srcObject string, destBucket string, destObject string, metadata map[string]string) (objInfo ObjectInfo, e error) {
+func (l *pydioObjects) CopyObjectWithContext(ctx context.Context, srcBucket string, srcObject string, destBucket string, destObject string, metadata map[string]string) (objInfo ObjectInfo, e error) {
 
 	if srcObject == destObject {
 		log.Printf("Coping %v to %v, this is a REPLACE meta directive \n", srcObject, destObject)
@@ -419,10 +415,11 @@ func (l *pydioObjects) CopyObject(srcBucket string, srcObject string, destBucket
 	}
 
 	return oi, nil
+
 }
 
 // DeleteObject deletes a blob in bucket
-func (l *pydioObjects) DeleteObject(bucket string, object string) error {
+func (l *pydioObjects) DeleteObjectWithContext(ctx context.Context, bucket string, object string) error {
 
 	var client *minio.Core
 	var ok bool
@@ -437,10 +434,11 @@ func (l *pydioObjects) DeleteObject(bucket string, object string) error {
 	}
 
 	return nil
+
 }
 
 // ListMultipartUploads lists all multipart uploads.
-func (l *pydioObjects) ListMultipartUploads(bucket string, prefix string, keyMarker string, uploadIDMarker string, delimiter string, maxUploads int) (lmi ListMultipartsInfo, e error) {
+func (l *pydioObjects) ListMultipartUploadsWithContext(ctx context.Context, bucket string, prefix string, keyMarker string, uploadIDMarker string, delimiter string, maxUploads int) (lmi ListMultipartsInfo, e error) {
 
 	var client *minio.Core
 	var ok bool
@@ -455,11 +453,11 @@ func (l *pydioObjects) ListMultipartUploads(bucket string, prefix string, keyMar
 	}
 
 	return fromMinioClientListMultipartsInfo(result), nil
+
 }
 
 // NewMultipartUpload upload object in multiple parts
-func (l *pydioObjects) NewMultipartUpload(bucket string, object string, metadata map[string]string) (uploadID string, err error) {
-
+func (l *pydioObjects) NewMultipartUploadWithContext(ctx context.Context, bucket string, object string, metadata map[string]string) (uploadID string, err error) {
 	var client *minio.Core
 	var ok bool
 	if client, ok = l.findMinioClientFor(bucket, object); !ok {
@@ -467,16 +465,11 @@ func (l *pydioObjects) NewMultipartUpload(bucket string, object string, metadata
 	}
 	bucket, object = l.translateBucketAndPrefix(bucket, object)
 	return client.NewMultipartUpload(bucket, object, toMinioClientMetadata(metadata))
-}
 
-// CopyObjectPart copy part of object to other bucket and object
-func (l *pydioObjects) CopyObjectPart(srcBucket string, srcObject string, destBucket string, destObject string, uploadID string, partID int, startOffset int64, length int64) (info PartInfo, err error) {
-	// FIXME: implement CopyObjectPart
-	return PartInfo{}, traceError(NotImplemented{})
 }
 
 // PutObjectPart puts a part of object in bucket
-func (l *pydioObjects) PutObjectPart(bucket string, object string, uploadID string, partID int, size int64, data io.Reader, md5Hex string, sha256sum string) (pi PartInfo, e error) {
+func (l *pydioObjects) PutObjectPartWithContext(ctx context.Context, bucket string, object string, uploadID string, partID int, size int64, data io.Reader, md5Hex string, sha256sum string) (pi PartInfo, e error) {
 	md5HexBytes, err := hex.DecodeString(md5Hex)
 	if err != nil {
 		return pi, err
@@ -500,10 +493,11 @@ func (l *pydioObjects) PutObjectPart(bucket string, object string, uploadID stri
 	}
 
 	return fromMinioClientObjectPart(info), nil
+
 }
 
 // ListObjectParts returns all object parts for specified object in specified bucket
-func (l *pydioObjects) ListObjectParts(bucket string, object string, uploadID string, partNumberMarker int, maxParts int) (lpi ListPartsInfo, e error) {
+func (l *pydioObjects) ListObjectPartsWithContext(ctx context.Context, bucket string, object string, uploadID string, partNumberMarker int, maxParts int) (lpi ListPartsInfo, e error) {
 
 	var client *minio.Core
 	var ok bool
@@ -518,10 +512,11 @@ func (l *pydioObjects) ListObjectParts(bucket string, object string, uploadID st
 	}
 
 	return fromMinioClientListPartsInfo(result), nil
+
 }
 
 // AbortMultipartUpload aborts a ongoing multipart upload
-func (l *pydioObjects) AbortMultipartUpload(bucket string, object string, uploadID string) error {
+func (l *pydioObjects) AbortMultipartUploadWithContext(ctx context.Context, bucket string, object string, uploadID string) error {
 	var client *minio.Core
 	var ok bool
 	if client, ok = l.findMinioClientFor(bucket, object); !ok {
@@ -529,10 +524,11 @@ func (l *pydioObjects) AbortMultipartUpload(bucket string, object string, upload
 	}
 	bucket, object = l.translateBucketAndPrefix(bucket, object)
 	return client.AbortMultipartUpload(bucket, object, uploadID)
+
 }
 
 // CompleteMultipartUpload completes ongoing multipart upload and finalizes object
-func (l *pydioObjects) CompleteMultipartUpload(bucket string, object string, uploadID string, uploadedParts []completePart) (oi ObjectInfo, e error) {
+func (l *pydioObjects) CompleteMultipartUploadWithContext(ctx context.Context, bucket string, object string, uploadID string, uploadedParts []completePart) (oi ObjectInfo, e error) {
 
 	var client *minio.Core
 	var ok bool
@@ -546,4 +542,110 @@ func (l *pydioObjects) CompleteMultipartUpload(bucket string, object string, upl
 	}
 
 	return l.getS3ObjectInfo(client, bucket, object)
+
+}
+
+//////// UTILS ////////
+
+// GetObjectInfo reads object info and replies back ObjectInfo
+func (l *pydioObjects) getS3ObjectInfo(client *minio.Core, bucket string, object string) (objInfo ObjectInfo, err error) {
+	r := minio.NewHeadReqHeaders()
+	oi, err := client.StatObject(bucket, object, r)
+	if err != nil {
+		return ObjectInfo{}, s3ToObjectError(traceError(err), bucket, object)
+	}
+
+	return fromMinioClientObjectInfo(bucket, oi), nil
+}
+
+/////// ORIGINAL METHODS WITHOUT CONTEXT ////////
+
+// GetBucketInfo gets bucket metadata..
+func (l *pydioObjects) GetBucketInfo(bucket string) (bi BucketInfo, e error) {
+	return bi, traceError(ContextNotFound{Bucket: bucket})
+}
+// ListBuckets lists all S3 buckets
+func (l *pydioObjects) ListBuckets() (bi []BucketInfo, e error) {
+	return bi, traceError(ContextNotFound{})
+}
+
+// ListObjects lists all blobs in S3 bucket filtered by prefix
+func (l *pydioObjects) ListObjects(bucket string, prefix string, marker string, delimiter string, maxKeys int) (loi ListObjectsInfo, e error) {
+	return loi, traceError(ContextNotFound{Bucket:bucket, Object:prefix})
+}
+
+// ListObjectsV2 lists all blobs in S3 bucket filtered by prefix
+func (l *pydioObjects) ListObjectsV2(bucket, prefix, continuationToken string, fetchOwner bool, delimiter string, maxKeys int) (loi ListObjectsV2Info, e error) {
+	return loi, traceError(ContextNotFound{Bucket: bucket, Object: prefix})
+}
+
+// GetObjectInfo reads object info and replies back ObjectInfo
+func (l *pydioObjects) GetObjectInfo(bucket string, object string) (objInfo ObjectInfo, err error) {
+	return objInfo, traceError(ContextNotFound{Bucket: bucket, Object: object})
+}
+
+// GetObject reads an object from S3. Supports additional
+// parameters like offset and length which are synonymous with
+// HTTP Range requests.
+//
+// startOffset indicates the starting read location of the object.
+// length indicates the total length of the object.
+func (l *pydioObjects) GetObject(bucket string, key string, startOffset int64, length int64, writer io.Writer) error {
+	return traceError(ContextNotFound{Bucket: bucket, Object: key})
+}
+
+// PutObject creates a new object with the incoming data,
+func (l *pydioObjects) PutObject(bucket string, object string, size int64, data io.Reader, metadata map[string]string, sha256sum string) (objInfo ObjectInfo, e error) {
+	return objInfo, traceError(ContextNotFound{Bucket: bucket, Object: object})
+}
+
+// CopyObject copies a blob from source container to destination container.
+func (l *pydioObjects) CopyObject(srcBucket string, srcObject string, destBucket string, destObject string, metadata map[string]string) (objInfo ObjectInfo, e error) {
+	return objInfo, traceError(ContextNotFound{Bucket: srcBucket, Object: srcObject})
+}
+
+// DeleteObject deletes a blob in bucket
+func (l *pydioObjects) DeleteObject(bucket string, object string) error {
+	return traceError(ContextNotFound{Bucket: bucket, Object: object})
+}
+
+// ListMultipartUploads lists all multipart uploads.
+func (l *pydioObjects) ListMultipartUploads(bucket string, prefix string, keyMarker string, uploadIDMarker string, delimiter string, maxUploads int) (lmi ListMultipartsInfo, e error) {
+	return lmi, traceError(ContextNotFound{Bucket: bucket, Object: prefix})
+}
+
+// NewMultipartUpload upload object in multiple parts
+func (l *pydioObjects) NewMultipartUpload(bucket string, object string, metadata map[string]string) (uploadID string, err error) {
+	return uploadID, traceError(ContextNotFound{Bucket: bucket, Object: object})
+}
+
+// CopyObjectPart copy part of object to other bucket and object
+func (l *pydioObjects) CopyObjectPartWithContext(ctx context.Context, srcBucket string, srcObject string, destBucket string, destObject string, uploadID string, partID int, startOffset int64, length int64) (info PartInfo, err error) {
+	return l.CopyObjectPart(srcBucket, srcObject, destBucket, destObject, uploadID, partID, startOffset, length)
+}
+
+// CopyObjectPart copy part of object to other bucket and object
+func (l *pydioObjects) CopyObjectPart(srcBucket string, srcObject string, destBucket string, destObject string, uploadID string, partID int, startOffset int64, length int64) (info PartInfo, err error) {
+	// FIXME: implement CopyObjectPart
+	return PartInfo{}, traceError(NotImplemented{})
+}
+
+// PutObjectPart puts a part of object in bucket
+func (l *pydioObjects) PutObjectPart(bucket string, object string, uploadID string, partID int, size int64, data io.Reader, md5Hex string, sha256sum string) (pi PartInfo, e error) {
+	return pi, traceError(ContextNotFound{Bucket: bucket, Object: object})
+}
+
+// ListObjectParts returns all object parts for specified object in specified bucket
+func (l *pydioObjects) ListObjectParts(bucket string, object string, uploadID string, partNumberMarker int, maxParts int) (lpi ListPartsInfo, e error) {
+	return lpi, traceError(ContextNotFound{Bucket: bucket, Object: object})
+}
+
+// AbortMultipartUpload aborts a ongoing multipart upload
+func (l *pydioObjects) AbortMultipartUpload(bucket string, object string, uploadID string) error {
+	return traceError(ContextNotFound{Bucket: bucket, Object: object})
+}
+
+// CompleteMultipartUpload completes ongoing multipart upload and finalizes object
+func (l *pydioObjects) CompleteMultipartUpload(bucket string, object string, uploadID string, uploadedParts []completePart) (oi ObjectInfo, e error) {
+	return oi, traceError(ContextNotFound{Bucket: bucket, Object: object})
 }

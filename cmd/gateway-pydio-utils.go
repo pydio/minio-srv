@@ -171,7 +171,7 @@ func (l *pydioObjects) GetOrCreatePutNode(bucket string, prefix string, size int
 
 }
 
-func (l *pydioObjects) ListPydioObjects(bucket string, prefix string, delimiter string, maxKeys int) (objects []ObjectInfo, prefixes []string, err error) {
+func (l *pydioObjects) ListPydioObjects(ctx context.Context, bucket string, prefix string, delimiter string, maxKeys int) (objects []ObjectInfo, prefixes []string, err error) {
 
 	clientBucket, _ := l.translateBucketAndPrefix(bucket, prefix)
 	if clientBucket == "pydio" {
@@ -199,7 +199,7 @@ func (l *pydioObjects) ListPydioObjects(bucket string, prefix string, delimiter 
 		log.Println("Should get only LEAF nodes")
 		FilterType = tree.NodeType_LEAF
 	}
-	lNodeClient, err := l.TreeClient.ListNodes(context.Background(), &tree.ListNodesRequest{
+	lNodeClient, err := l.TreeClient.ListNodes(ctx, &tree.ListNodesRequest{
 		Node: &tree.Node{
 			Path: treePath,
 		},
@@ -236,13 +236,13 @@ func (l *pydioObjects) ListPydioObjects(bucket string, prefix string, delimiter 
 	return objects, prefixes, nil
 }
 
-func (l *pydioObjects) HeadFakeArchiveObject(bucket string, object string, dataSourceName string) (ObjectInfo, error) {
+func (l *pydioObjects) HeadFakeArchiveObject(ctx context.Context, bucket string, object string, dataSourceName string) (ObjectInfo, error) {
 
 	if strings.HasSuffix(object, ".zip") || strings.HasSuffix(object, ".tar") || strings.HasSuffix(object, ".tar.gz") {
 
 		noext := strings.TrimSuffix(strings.TrimSuffix(strings.TrimSuffix(object, ".zip"), ".gz"), ".tar")
 
-		n, er := l.TreeClient.ReadNode(context.Background(), &tree.ReadNodeRequest{Node: &tree.Node{Path: noext}})
+		n, er := l.TreeClient.ReadNode(ctx, &tree.ReadNodeRequest{Node: &tree.Node{Path: noext}})
 		if er == nil && n != nil {
 			n.Node.Type = tree.NodeType_LEAF
 			n.Node.Path = object
@@ -257,7 +257,7 @@ func (l *pydioObjects) HeadFakeArchiveObject(bucket string, object string, dataS
 
 }
 
-func (l *pydioObjects) GenerateArchiveFromKey(writer io.Writer, bucket string, key string) (bool, error) {
+func (l *pydioObjects) GenerateArchiveFromKey(ctx context.Context, writer io.Writer, bucket string, key string) (bool, error) {
 
 	if strings.HasSuffix(key, ".zip") || strings.HasSuffix(key, ".tar") || strings.HasSuffix(key, ".tar.gz") {
 
@@ -269,13 +269,13 @@ func (l *pydioObjects) GenerateArchiveFromKey(writer io.Writer, bucket string, k
 			var err error
 			if strings.HasSuffix(key, ".zip") {
 				log.Println("This is a zip, create a zip on the fly")
-				err = l.ZipFromPydioObjects(writer, bucket, noext, 0)
+				err = l.ZipFromPydioObjects(ctx, writer, bucket, noext, 0)
 			} else if strings.HasSuffix(key, ".tar") {
 				log.Println("This is a tar, create a tar on the fly")
-				err = l.TarballFromPydioObjects(writer, false, bucket, noext, 0)
+				err = l.TarballFromPydioObjects(ctx, writer, false, bucket, noext, 0)
 			} else if strings.HasSuffix(key, ".tar.gz") {
 				log.Println("This is a tar.gz, create a tar.gz on the fly")
-				err = l.TarballFromPydioObjects(writer, true, bucket, noext, 0)
+				err = l.TarballFromPydioObjects(ctx, writer, true, bucket, noext, 0)
 			}
 			return true, err
 		}
@@ -284,11 +284,11 @@ func (l *pydioObjects) GenerateArchiveFromKey(writer io.Writer, bucket string, k
 	return false, nil
 }
 
-func (l *pydioObjects) ZipFromPydioObjects(output io.Writer, bucket string, prefix string, maxKeys int) error {
+func (l *pydioObjects) ZipFromPydioObjects(ctx context.Context, output io.Writer, bucket string, prefix string, maxKeys int) error {
 
 	z := zip.NewWriter(output)
 	defer z.Close()
-	objects, _, err := l.ListPydioObjects(bucket, prefix, "", maxKeys)
+	objects, _, err := l.ListPydioObjects(ctx, bucket, prefix, "", maxKeys)
 	if err != nil {
 		return err
 	}
@@ -307,7 +307,7 @@ func (l *pydioObjects) ZipFromPydioObjects(output io.Writer, bucket string, pref
 			log.Println("Error while creating path", path, e)
 			continue
 		}
-		e1 := l.GetObject(o.Bucket, o.Name, 0, -1, w)
+		e1 := l.GetObjectWithContext(ctx, o.Bucket, o.Name, 0, -1, w)
 		if e1 != nil {
 			log.Println("Error while getting object", path, e1)
 			continue
@@ -318,7 +318,7 @@ func (l *pydioObjects) ZipFromPydioObjects(output io.Writer, bucket string, pref
 
 }
 
-func (l *pydioObjects) TarballFromPydioObjects(output io.Writer, gzipFile bool, bucket string, prefix string, maxKeys int) error {
+func (l *pydioObjects) TarballFromPydioObjects(ctx context.Context, output io.Writer, gzipFile bool, bucket string, prefix string, maxKeys int) error {
 
 	var tw *tar.Writer
 	if gzipFile {
@@ -333,7 +333,7 @@ func (l *pydioObjects) TarballFromPydioObjects(output io.Writer, gzipFile bool, 
 		defer tw.Close()
 	}
 
-	objects, _, err := l.ListPydioObjects(bucket, prefix, "", maxKeys)
+	objects, _, err := l.ListPydioObjects(ctx, bucket, prefix, "", maxKeys)
 	if err != nil {
 		return err
 	}
@@ -351,7 +351,7 @@ func (l *pydioObjects) TarballFromPydioObjects(output io.Writer, gzipFile bool, 
 			log.Println("Error while creating path", path, e)
 			continue
 		}
-		e1 := l.GetObject(o.Bucket, o.Name, 0, -1, tw)
+		e1 := l.GetObjectWithContext(ctx, o.Bucket, o.Name, 0, -1, tw)
 		if e1 != nil {
 			log.Println("Error while getting object and writing to tarball", path, e1)
 			continue
