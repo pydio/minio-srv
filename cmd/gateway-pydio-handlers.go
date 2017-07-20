@@ -654,6 +654,69 @@ func (api gatewayPydioAPIHandlers) DeleteBucketHandler(w http.ResponseWriter, r 
 	writeSuccessNoContent(w)
 }
 
+// DeleteObjectHandler - delete an object
+func (api gatewayPydioAPIHandlers) DeleteObjectHandler(w http.ResponseWriter, r *http.Request) {
+	vars := router.Vars(r)
+	bucket := vars["bucket"]
+	object := vars["object"]
+
+	pydioApi := api.PydioAPI()
+	if pydioApi == nil {
+		writeErrorResponse(w, ErrServerNotInitialized, r.URL)
+		return
+	}
+
+	if s3Error := checkRequestAuthType(r, bucket, "s3:DeleteObject", serverConfig.GetRegion()); s3Error != ErrNone {
+		writeErrorResponse(w, s3Error, r.URL)
+		return
+	}
+
+	// http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETE.html
+	// Ignore delete object errors while replying to client, since we are
+	// suppposed to reply only 204. Additionally log the error for
+	// investigation.
+
+	if err := gatewayDeleteObject(pydioApi, bucket, object, r); err != nil {
+		errorIf(err, "Unable to delete an object %s", pathJoin(bucket, object))
+	}
+	writeSuccessNoContent(w)
+}
+
+// gatewayDeleteObject (derived from object-handlers-common deleteObject)
+// is a convenient wrapper to delete an object, this
+// is a common function to be called from object handlers and
+// web handlers.
+func gatewayDeleteObject(obj PydioGateway, bucket, object string, r *http.Request) (err error) {
+	// Acquire a write lock before deleting the object.
+	objectLock := globalNSMutex.NewNSLock(bucket, object)
+	objectLock.Lock()
+	defer objectLock.Unlock()
+
+	// Proceed to delete the object.
+	if err = obj.DeleteObjectWithContext(r.Context(), bucket, object); err != nil {
+		return err
+	}
+
+	// Get host and port from Request.RemoteAddr.
+	host, port, _ := net.SplitHostPort(r.RemoteAddr)
+
+	// Notify object deleted event.
+	eventNotify(eventData{
+		Type:   ObjectRemovedDelete,
+		Bucket: bucket,
+		ObjInfo: ObjectInfo{
+			Name: object,
+		},
+		ReqParams: extractReqParams(r),
+		UserAgent: r.UserAgent(),
+		Host:      host,
+		Port:      port,
+	})
+
+	return nil
+}
+
+
 // ListObjectsV1Handler - GET Bucket (List Objects) Version 1.
 // --------------------------
 // This implementation of the GET operation returns some or all (up to 1000)
