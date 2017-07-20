@@ -48,6 +48,9 @@ func (l *pydioObjects) findMinioClientFor(bucket string, prefix string) (*minio.
 
 func (l *pydioObjects) clientRequiresEncryption(bucket string, prefix string) bool {
 
+	if strings.HasSuffix(prefix, ".__pydio") {
+		return false
+	}
 	dsName, _ := l.prefixToDataSourceName(prefix)
 	if dsName == "" {
 		return false
