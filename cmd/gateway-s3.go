@@ -19,7 +19,6 @@ package cmd
 import (
 	"io"
 	"net/http"
-	"path"
 
 	"encoding/hex"
 
@@ -361,7 +360,13 @@ func (l *s3Objects) PutObject(bucket string, object string, size int64, data io.
 
 // CopyObject copies a blob from source container to destination container.
 func (l *s3Objects) CopyObject(srcBucket string, srcObject string, destBucket string, destObject string, metadata map[string]string) (objInfo ObjectInfo, e error) {
-	err := l.Client.CopyObject(destBucket, destObject, path.Join(srcBucket, srcObject), minio.CopyConditions{})
+
+	srcInfo := minio.NewSourceInfo(srcBucket, srcObject, nil)
+	destInfo, err := minio.NewDestinationInfo(destBucket, destObject, nil, metadata)
+	if err != nil {
+		return objInfo, s3ToObjectError(traceError(err), destBucket, destObject)
+	}
+	err = l.Client.CopyObject(destInfo, srcInfo)
 	if err != nil {
 		return objInfo, s3ToObjectError(traceError(err), srcBucket, srcObject)
 	}

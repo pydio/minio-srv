@@ -28,6 +28,9 @@ import (
 
 	router "github.com/gorilla/mux"
 	"github.com/minio/minio-go/pkg/policy"
+	"net/url"
+	"encoding/xml"
+	"sync"
 )
 
 // GetObjectHandler - GET Object
@@ -319,6 +322,140 @@ func (api gatewayPydioAPIHandlers) PutObjectHandler(w http.ResponseWriter, r *ht
 	eventNotify(eventData{
 		Type:      ObjectCreatedPut,
 		Bucket:    bucket,
+		ObjInfo:   objInfo,
+		ReqParams: extractReqParams(r),
+		UserAgent: r.UserAgent(),
+		Host:      host,
+		Port:      port,
+	})
+}
+
+
+// CopyObjectHandler - Copy Object
+// ----------
+// This implementation of the PUT operation adds an object to a bucket
+// while reading the object from another source.
+func (api gatewayPydioAPIHandlers) CopyObjectHandler(w http.ResponseWriter, r *http.Request) {
+	vars := router.Vars(r)
+	dstBucket := vars["bucket"]
+	dstObject := vars["object"]
+
+	pydioApi := api.PydioAPI()
+	if pydioApi == nil {
+		writeErrorResponse(w, ErrServerNotInitialized, r.URL)
+		return
+	}
+
+
+	if s3Error := checkRequestAuthType(r, dstBucket, "s3:PutObject", serverConfig.GetRegion()); s3Error != ErrNone {
+		writeErrorResponse(w, s3Error, r.URL)
+		return
+	}
+
+	// TODO: Reject requests where body/payload is present, for now we don't even read it.
+
+	// Copy source path.
+	cpSrcPath, err := url.QueryUnescape(r.Header.Get("X-Amz-Copy-Source"))
+	if err != nil {
+		// Save unescaped string as is.
+		cpSrcPath = r.Header.Get("X-Amz-Copy-Source")
+	}
+
+	srcBucket, srcObject := path2BucketAndObject(cpSrcPath)
+	// If source object is empty or bucket is empty, reply back invalid copy source.
+	if srcObject == "" || srcBucket == "" {
+		writeErrorResponse(w, ErrInvalidCopySource, r.URL)
+		return
+	}
+
+	// Check if metadata directive is valid.
+	if !isMetadataDirectiveValid(r.Header) {
+		writeErrorResponse(w, ErrInvalidMetadataDirective, r.URL)
+		return
+	}
+
+	cpSrcDstSame := srcBucket == dstBucket && srcObject == dstObject
+	// Hold write lock on destination since in both cases
+	// - if source and destination are same
+	// - if source and destination are different
+	// it is the sole mutating state.
+	objectDWLock := globalNSMutex.NewNSLock(dstBucket, dstObject)
+	objectDWLock.Lock()
+	defer objectDWLock.Unlock()
+
+	// if source and destination are different, we have to hold
+	// additional read lock as well to protect against writes on
+	// source.
+	if !cpSrcDstSame {
+		// Hold read locks on source object only if we are
+		// going to read data from source object.
+		objectSRLock := globalNSMutex.NewNSLock(srcBucket, srcObject)
+		objectSRLock.RLock()
+		defer objectSRLock.RUnlock()
+
+	}
+
+	objInfo, err := pydioApi.GetObjectInfoWithContext(r.Context(), srcBucket, srcObject)
+	if err != nil {
+		errorIf(err, "Unable to fetch object info.")
+		writeErrorResponse(w, toAPIErrorCode(err), r.URL)
+		return
+	}
+
+	// Verify before x-amz-copy-source preconditions before continuing with CopyObject.
+	if checkCopyObjectPreconditions(w, r, objInfo) {
+		return
+	}
+
+	/// maximum Upload size for object in a single CopyObject operation.
+	if isMaxObjectSize(objInfo.Size) {
+		writeErrorResponse(w, ErrEntityTooLarge, r.URL)
+		return
+	}
+
+	defaultMeta := objInfo.UserDefined
+
+	// Make sure to remove saved etag, CopyObject calculates a new one.
+	delete(defaultMeta, "etag")
+
+	newMetadata, err := getCpObjMetadataFromHeader(r.Header, defaultMeta)
+	if err != nil {
+		errorIf(err, "found invalid http request header")
+		writeErrorResponse(w, ErrInternalError, r.URL)
+	}
+	// Check if x-amz-metadata-directive was not set to REPLACE and source,
+	// desination are same objects.
+	if !isMetadataReplace(r.Header) && cpSrcDstSame {
+		// If x-amz-metadata-directive is not set to REPLACE then we need
+		// to error out if source and destination are same.
+		writeErrorResponse(w, ErrInvalidCopyDest, r.URL)
+		return
+	}
+
+	// Copy source object to destination, if source and destination
+	// object is same then only metadata is updated.
+	objInfo, err = pydioApi.CopyObjectWithContext(r.Context(), srcBucket, srcObject, dstBucket, dstObject, newMetadata)
+	if err != nil {
+		writeErrorResponse(w, toAPIErrorCode(err), r.URL)
+		return
+	}
+
+	response := generateCopyObjectResponse(objInfo.ETag, objInfo.ModTime)
+	encodedSuccessResponse := encodeResponse(response)
+
+	// Write success response.
+	writeSuccessResponseXML(w, encodedSuccessResponse)
+
+	// Get host and port from Request.RemoteAddr.
+	host, port, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		host, port = "", ""
+	}
+
+	// Notify object created event.
+	eventNotify(eventData{
+		Type:      ObjectCreatedCopy,
+		Bucket:    dstBucket,
 		ObjInfo:   objInfo,
 		ReqParams: extractReqParams(r),
 		UserAgent: r.UserAgent(),
@@ -681,6 +818,131 @@ func (api gatewayPydioAPIHandlers) DeleteObjectHandler(w http.ResponseWriter, r 
 	}
 	writeSuccessNoContent(w)
 }
+
+// DeleteMultipleObjectsHandler - deletes multiple objects.
+func (api gatewayPydioAPIHandlers) DeleteMultipleObjectsHandler(w http.ResponseWriter, r *http.Request) {
+	vars := router.Vars(r)
+	bucket := vars["bucket"]
+
+	pydioApi := api.PydioAPI()
+	if pydioApi == nil {
+		writeErrorResponse(w, ErrServerNotInitialized, r.URL)
+		return
+	}
+
+	if s3Error := checkRequestAuthType(r, bucket, "s3:DeleteObject", serverConfig.GetRegion()); s3Error != ErrNone {
+		writeErrorResponse(w, s3Error, r.URL)
+		return
+	}
+
+	// Content-Length is required and should be non-zero
+	// http://docs.aws.amazon.com/AmazonS3/latest/API/multiobjectdeleteapi.html
+	if r.ContentLength <= 0 {
+		writeErrorResponse(w, ErrMissingContentLength, r.URL)
+		return
+	}
+
+	// Content-Md5 is requied should be set
+	// http://docs.aws.amazon.com/AmazonS3/latest/API/multiobjectdeleteapi.html
+	if _, ok := r.Header["Content-Md5"]; !ok {
+		writeErrorResponse(w, ErrMissingContentMD5, r.URL)
+		return
+	}
+
+	// Allocate incoming content length bytes.
+	deleteXMLBytes := make([]byte, r.ContentLength)
+
+	// Read incoming body XML bytes.
+	if _, err := io.ReadFull(r.Body, deleteXMLBytes); err != nil {
+		errorIf(err, "Unable to read HTTP body.")
+		writeErrorResponse(w, ErrInternalError, r.URL)
+		return
+	}
+
+	// Unmarshal list of keys to be deleted.
+	deleteObjects := &DeleteObjectsRequest{}
+	if err := xml.Unmarshal(deleteXMLBytes, deleteObjects); err != nil {
+		errorIf(err, "Unable to unmarshal delete objects request XML.")
+		writeErrorResponse(w, ErrMalformedXML, r.URL)
+		return
+	}
+
+	var wg = &sync.WaitGroup{} // Allocate a new wait group.
+	var dErrs = make([]error, len(deleteObjects.Objects))
+
+	// Delete all requested objects in parallel.
+	for index, object := range deleteObjects.Objects {
+		wg.Add(1)
+		go func(i int, obj ObjectIdentifier) {
+			objectLock := globalNSMutex.NewNSLock(bucket, obj.ObjectName)
+			objectLock.Lock()
+			defer objectLock.Unlock()
+			defer wg.Done()
+
+			dErr := pydioApi.DeleteObjectWithContext(r.Context(), bucket, obj.ObjectName)
+			if dErr != nil {
+				dErrs[i] = dErr
+			}
+		}(index, object)
+	}
+	wg.Wait()
+
+	// Collect deleted objects and errors if any.
+	var deletedObjects []ObjectIdentifier
+	var deleteErrors []DeleteError
+	for index, err := range dErrs {
+		object := deleteObjects.Objects[index]
+		// Success deleted objects are collected separately.
+		if err == nil {
+			deletedObjects = append(deletedObjects, object)
+			continue
+		}
+		if _, ok := errorCause(err).(ObjectNotFound); ok {
+			// If the object is not found it should be
+			// accounted as deleted as per S3 spec.
+			deletedObjects = append(deletedObjects, object)
+			continue
+		}
+		errorIf(err, "Unable to delete object. %s", object.ObjectName)
+		// Error during delete should be collected separately.
+		deleteErrors = append(deleteErrors, DeleteError{
+			Code:    errorCodeResponse[toAPIErrorCode(err)].Code,
+			Message: errorCodeResponse[toAPIErrorCode(err)].Description,
+			Key:     object.ObjectName,
+		})
+	}
+
+	// Generate response
+	response := generateMultiDeleteResponse(deleteObjects.Quiet, deletedObjects, deleteErrors)
+	encodedSuccessResponse := encodeResponse(response)
+
+	// Write success response.
+	writeSuccessResponseXML(w, encodedSuccessResponse)
+
+	// Get host and port from Request.RemoteAddr failing which
+	// fill them with empty strings.
+	host, port, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		host, port = "", ""
+	}
+
+	// Notify deleted event for objects.
+	for _, dobj := range deletedObjects {
+		eventNotify(eventData{
+			Type:   ObjectRemovedDelete,
+			Bucket: bucket,
+			ObjInfo: ObjectInfo{
+				Name: dobj.ObjectName,
+			},
+			ReqParams: extractReqParams(r),
+			UserAgent: r.UserAgent(),
+			Host:      host,
+			Port:      port,
+		})
+	}
+}
+
+
 
 // gatewayDeleteObject (derived from object-handlers-common deleteObject)
 // is a convenient wrapper to delete an object, this
