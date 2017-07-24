@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"github.com/micro/go-micro/metadata"
 	"github.com/pydio/services/common"
+	"context"
 )
 
 // authHandler - handles all the incoming authorization headers and validates them if possible.
@@ -27,6 +28,8 @@ func (a pydioAuthHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	md[common.PYDIO_CONTEXT_USER_KEY] = "gateway-pydio-user"
 	newContext := metadata.NewContext(r.Context(), md)
+	// Add it also as value for easier use in the gateway, but this will not be transmitted
+	newContext = context.WithValue(newContext, common.PYDIO_CONTEXT_USER_KEY, "gateway-pydio-user")
 	newRequest := r.WithContext(newContext)
 	a.handler.ServeHTTP(w, newRequest)
 

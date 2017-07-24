@@ -18,15 +18,12 @@ package cmd
 
 import (
 	"io"
-	"path"
-
 	"encoding/hex"
 
 	"errors"
-	minio "github.com/minio/minio-go"
+	"github.com/minio/minio-go"
 	"github.com/pydio/services/common"
 	"github.com/pydio/services/common/proto/tree"
-//	"golang.org/x/net/context"
 	"strings"
 	"time"
 
@@ -316,24 +313,37 @@ func (l *pydioObjects) PutObjectWithContext(ctx context.Context, bucket string, 
 		}
 		delete(metadata, "etag")
 	}
+	userValue := ctx.Value(common.PYDIO_CONTEXT_USER_KEY)
+	if userValue != nil {
+		userName := userValue.(string)
+		metadata["X-Amz-Meta-Pydio-User-Last-Update"] = userName
+	}
 	if client, ok := l.findMinioClientFor(bucket, object); ok {
 
 		// We create the node in the index right now, so that we can use a Uuid for other operations, and rollback if there is a Put error
 		// This is kind of similar to presigned?
 		var newNode *tree.Node
+		var err error
 		/*
 		newNode, nodeErr, onErrorFunc := l.GetOrCreatePutNode(bucket, object, size, metadata)
 		log.Println("[PreLoad or PreCreate Node in tree]", object, newNode, nodeErr)
 		if nodeErr != nil {
 			return objInfo, s3ToObjectError(traceError(nodeErr), bucket, object)
 		}
+		defer func(){
+			// Rollback index node creation
+			if err != nil && onErrorFunc != nil {
+				onErrorFunc()
+			}
+		}()
+		metadata["X-Amz-Meta-Pydio-Node-Uuid"] = newNode.Uuid
 		*/
 		newBucket, newObject := l.translateBucketAndPrefix(bucket, object)
-		if newNode != nil && l.clientRequiresEncryption(bucket, object) {
+		if l.clientRequiresEncryption(bucket, object) {
 
-			material, encErr := l.retrieveEncryptionMaterial(newNode)
-			if encErr != nil {
-				return objInfo, encErr
+			material, err := l.retrieveEncryptionMaterial(newNode)
+			if err != nil {
+				return objInfo, err
 			}
 			log.Println("Successfully received a material stuff, sending to PutEncrypted", material)
 			size, err := client.PutEncryptedObject(newBucket, newObject, data, material, toMinioClientMetadata(metadata), nil)
@@ -346,7 +356,6 @@ func (l *pydioObjects) PutObjectWithContext(ctx context.Context, bucket string, 
 				Size:size,
 			}
 		} else {
-
 			oi, err := client.PutObject(newBucket, newObject, size, data, md5sumBytes, sha256sumBytes, toMinioClientMetadata(metadata))
 			if err != nil {
 				return objInfo, err
@@ -355,11 +364,6 @@ func (l *pydioObjects) PutObjectWithContext(ctx context.Context, bucket string, 
 		}
 
 		if err != nil {
-			/*
-			if onErrorFunc != nil {
-				onErrorFunc()
-			}
-			*/
 			return objInfo, s3ToObjectError(traceError(err), newBucket, newObject)
 		}
 
@@ -384,37 +388,43 @@ func (l *pydioObjects) CopyObjectWithContext(ctx context.Context, srcBucket stri
 	if client, ok = l.findMinioClientFor(srcBucket, srcObject); !ok {
 		return objInfo, s3ToObjectError(traceError(&BucketNotFound{}), srcBucket, srcObject)
 	}
-
+	var err error
 	/*
-	_, nodeErr, onErrorFunc := l.GetOrCreatePutNode(destBucket, destObject, -1, metadata)
+	newNode, nodeErr, onErrorFunc := l.GetOrCreatePutNode(destBucket, destObject, 0, metadata)
 	if nodeErr != nil {
 		return objInfo, s3ToObjectError(traceError(nodeErr), destBucket, destObject)
 	}
+	if metadata == nil {
+		metadata = make(map[string]string, 1)
+	}
+	metadata["X-Amz-Meta-Pydio-Node-Uuid"] = newNode.Uuid
+	defer func(){
+		if err != nil && onErrorFunc != nil {
+			// Rollback index node creation
+			onErrorFunc()
+		}
+	}()
 	*/
 
 	destBucket, destObject = l.translateBucketAndPrefix(destBucket, destObject)
 	srcBucket, srcObject = l.translateBucketAndPrefix(srcBucket, srcObject)
-	err := client.CopyObject(destBucket, destObject, path.Join(srcBucket, srcObject), minio.CopyConditions{})
-	if err != nil {
-		/*
-		if onErrorFunc != nil {
-			onErrorFunc()
-		}
-		*/
-		return objInfo, s3ToObjectError(traceError(err), srcBucket, srcObject)
-	}
 
-	oi, err := l.getS3ObjectInfo(client, destBucket, destObject)
+	srcInfo := minio.NewSourceInfo(srcBucket, srcObject, nil)
+	destInfo, err := minio.NewDestinationInfo(destBucket, destObject, nil, metadata)
 	if err != nil {
-		/*
-		if onErrorFunc != nil {
-			onErrorFunc()
-		}
-		*/
+		return objInfo, s3ToObjectError(traceError(err), destBucket, destObject)
+	}
+	err = client.CopyObject(destInfo, srcInfo)
+	if err != nil {
 		return objInfo, s3ToObjectError(traceError(err), destBucket, destObject)
 	}
 
-	return oi, nil
+	objInfo, err = l.getS3ObjectInfo(client, destBucket, destObject)
+	if err != nil {
+		return objInfo, s3ToObjectError(traceError(err), destBucket, destObject)
+	}
+
+	return objInfo, nil
 
 }
 

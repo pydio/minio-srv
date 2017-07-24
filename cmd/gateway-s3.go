@@ -23,7 +23,7 @@ import (
 
 	"encoding/hex"
 
-	minio "github.com/minio/minio-go"
+	minio "github.com/pydio/minio-go"
 	"github.com/minio/minio-go/pkg/policy"
 	"github.com/minio/minio-go/pkg/s3utils"
 )
@@ -362,6 +362,7 @@ func (l *s3Objects) PutObject(bucket string, object string, data *HashReader, me
 }
 
 // CopyObject copies a blob from source container to destination container.
+<<<<<<< aa328a647cee2bd5a68e049384f4f67d2d6ce149
 func (l *s3Objects) CopyObject(srcBucket string, srcObject string, dstBucket string, dstObject string, metadata map[string]string) (objInfo ObjectInfo, err error) {
 	// Source object
 	src := minio.NewSourceInfo(srcBucket, srcObject, nil)
@@ -376,6 +377,16 @@ func (l *s3Objects) CopyObject(srcBucket string, srcObject string, dstBucket str
 		}
 	}
 	dst, err := minio.NewDestinationInfo(dstBucket, dstObject, nil, xamzMeta)
+=======
+func (l *s3Objects) CopyObject(srcBucket string, srcObject string, destBucket string, destObject string, metadata map[string]string) (objInfo ObjectInfo, e error) {
+
+	srcInfo := minio.NewSourceInfo(srcBucket, srcObject, nil)
+	destInfo, err := minio.NewDestinationInfo(destBucket, destObject, nil, metadata)
+	if err != nil {
+		return objInfo, s3ToObjectError(traceError(err), destBucket, destObject)
+	}
+	err = l.Client.CopyObject(destInfo, srcInfo)
+>>>>>>> Gateway : remove minio-go from vendor (use last version) - Remove node pre-creation in index - Auth: add fake user in context
 	if err != nil {
 		return objInfo, s3ToObjectError(traceError(err), dstBucket, dstObject)
 	}
