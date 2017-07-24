@@ -30,6 +30,7 @@ import (
 	"github.com/micro/go-plugins/client/grpc"
 	"sync"
 	"context"
+	"bytes"
 )
 
 type PydioGateway interface {
@@ -179,10 +180,9 @@ func (l *pydioObjects) ListObjectsV2WithContext(ctx context.Context, bucket, pre
 // GetObjectInfo reads object info and replies back ObjectInfo
 func (l *pydioObjects) GetObjectInfoWithContext(ctx context.Context, bucket string, object string) (objInfo ObjectInfo, err error) {
 
-	log.Println("GetObjectInfo : " + object)
+	log.Println("[GetObjectInfo]" + object)
 
 	dataSourceName, newPrefix := l.prefixToDataSourceName(object)
-	log.Println("GetObjectInfo :", dataSourceName, newPrefix)
 	if newPrefix == "" {
 		// This is a datasource object info
 		return ObjectInfo{
@@ -324,22 +324,29 @@ func (l *pydioObjects) PutObjectWithContext(ctx context.Context, bucket string, 
 		// This is kind of similar to presigned?
 		var newNode *tree.Node
 		var err error
-		/*
-		newNode, nodeErr, onErrorFunc := l.GetOrCreatePutNode(bucket, object, size, metadata)
-		log.Println("[PreLoad or PreCreate Node in tree]", object, newNode, nodeErr)
-		if nodeErr != nil {
-			return objInfo, s3ToObjectError(traceError(nodeErr), bucket, object)
-		}
-		defer func(){
-			// Rollback index node creation
-			if err != nil && onErrorFunc != nil {
-				onErrorFunc()
+
+		if ! strings.HasSuffix(object, ".__pydio") {
+			newNode, nodeErr, onErrorFunc := l.GetOrCreatePutNode(bucket, object, size, metadata)
+			log.Println("[PreLoad or PreCreate Node in tree]", object, newNode, nodeErr)
+			if nodeErr != nil {
+				return objInfo, s3ToObjectError(traceError(nodeErr), bucket, object)
 			}
-		}()
-		metadata["X-Amz-Meta-Pydio-Node-Uuid"] = newNode.Uuid
-		*/
+			if !newNode.IsLeaf() {
+				// This was a .__pydio and the folder already exists, replace the content
+				// with the actual folder Uuid to avoid replacing it
+				data = bytes.NewBufferString(newNode.Uuid)
+			}
+			defer func(){
+				// Rollback index node creation
+				if err != nil && onErrorFunc != nil {
+					onErrorFunc()
+				}
+			}()
+			metadata["X-Amz-Meta-Pydio-Node-Uuid"] = newNode.Uuid
+		}
+
 		newBucket, newObject := l.translateBucketAndPrefix(bucket, object)
-		if l.clientRequiresEncryption(bucket, object) {
+		if l.clientRequiresEncryption(bucket, object) && !strings.HasSuffix(object, ".__pydio") {
 
 			material, err := l.retrieveEncryptionMaterial(newNode)
 			if err != nil {
@@ -389,22 +396,23 @@ func (l *pydioObjects) CopyObjectWithContext(ctx context.Context, srcBucket stri
 		return objInfo, s3ToObjectError(traceError(&BucketNotFound{}), srcBucket, srcObject)
 	}
 	var err error
-	/*
-	newNode, nodeErr, onErrorFunc := l.GetOrCreatePutNode(destBucket, destObject, 0, metadata)
-	if nodeErr != nil {
-		return objInfo, s3ToObjectError(traceError(nodeErr), destBucket, destObject)
-	}
-	if metadata == nil {
-		metadata = make(map[string]string, 1)
-	}
-	metadata["X-Amz-Meta-Pydio-Node-Uuid"] = newNode.Uuid
-	defer func(){
-		if err != nil && onErrorFunc != nil {
-			// Rollback index node creation
-			onErrorFunc()
+
+	if ! strings.HasSuffix(destObject, ".__pydio") {
+		newNode, nodeErr, onErrorFunc := l.GetOrCreatePutNode(destBucket, destObject, 0, metadata)
+		if nodeErr != nil {
+			return objInfo, s3ToObjectError(traceError(nodeErr), destBucket, destObject)
 		}
-	}()
-	*/
+		if metadata == nil {
+			metadata = make(map[string]string, 1)
+		}
+		metadata["X-Amz-Meta-Pydio-Node-Uuid"] = newNode.Uuid
+		defer func() {
+			if err != nil && onErrorFunc != nil {
+				// Rollback index node creation
+				onErrorFunc()
+			}
+		}()
+	}
 
 	destBucket, destObject = l.translateBucketAndPrefix(destBucket, destObject)
 	srcBucket, srcObject = l.translateBucketAndPrefix(srcBucket, srcObject)
@@ -431,6 +439,7 @@ func (l *pydioObjects) CopyObjectWithContext(ctx context.Context, srcBucket stri
 // DeleteObject deletes a blob in bucket
 func (l *pydioObjects) DeleteObjectWithContext(ctx context.Context, bucket string, object string) error {
 
+	log.Println("[DeleteObject]", object)
 	var client *minio.Core
 	var ok bool
 	if client, ok = l.findMinioClientFor(bucket, object); !ok {
@@ -438,8 +447,10 @@ func (l *pydioObjects) DeleteObjectWithContext(ctx context.Context, bucket strin
 	}
 
 	bucket, object = l.translateBucketAndPrefix(bucket, object)
+	log.Println("[Gateway Delete]", object)
 	err := client.RemoveObject(bucket, object)
 	if err != nil {
+		log.Println("[Gateway Delete Error]", err, object)
 		return s3ToObjectError(traceError(err), bucket, object)
 	}
 
