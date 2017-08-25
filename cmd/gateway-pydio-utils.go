@@ -21,7 +21,7 @@ import (
 	"archive/zip"
 	"compress/gzip"
 	"errors"
-	"github.com/minio/minio-go"
+	"github.com/pydio/minio-go"
 	"github.com/pydio/services/common"
 	"github.com/pydio/services/common/proto/tree"
 	"golang.org/x/net/context"

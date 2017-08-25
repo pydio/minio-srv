@@ -22,8 +22,9 @@ import (
 
 	"encoding/hex"
 
-	minio "github.com/minio/minio-go"
+	minio "github.com/pydio/minio-go"
 	"github.com/minio/minio-go/pkg/policy"
+	"os"
 )
 
 // s3ToObjectError converts Minio errors to minio object layer errors.
@@ -117,10 +118,17 @@ func newS3Gateway(host string) (GatewayLayer, error) {
 		endpoint = "s3.amazonaws.com"
 	}
 
-	creds := serverConfig.GetCredential()
+	accessKey := os.Getenv("GATEWAY_ACCESS_KEY")
+	secretKey := os.Getenv("GATEWAY_SECRET_KEY")
+
+	if accessKey == "" || secretKey == "" {
+		creds := serverConfig.GetCredential()
+		accessKey = creds.AccessKey
+		secretKey = creds.SecretKey
+	}
 
 	// Initialize minio client object.
-	client, err := minio.NewCore(endpoint, creds.AccessKey, creds.SecretKey, secure)
+	client, err := minio.NewCore(endpoint, accessKey, secretKey, secure)
 	if err != nil {
 		return nil, err
 	}

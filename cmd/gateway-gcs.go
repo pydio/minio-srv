@@ -36,7 +36,7 @@ import (
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"
 
-	minio "github.com/minio/minio-go"
+	minio "github.com/pydio/minio-go"
 	"github.com/minio/minio-go/pkg/policy"
 )
 
