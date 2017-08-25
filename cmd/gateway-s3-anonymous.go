@@ -20,7 +20,7 @@ import (
 	"encoding/hex"
 	"io"
 
-	minio "github.com/minio/minio-go"
+	minio "github.com/pydio/minio-go"
 )
 
 // AnonPutObject creates a new object anonymously with the incoming data,

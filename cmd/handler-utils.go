@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"github.com/micro/go-micro/metadata"
 )
 
 // Parses location constraint from the incoming reader.
@@ -152,12 +153,16 @@ func extractReqParams(r *http.Request) map[string]string {
 	if r == nil {
 		return nil
 	}
-
-	// Success.
-	return map[string]string{
-		"sourceIPAddress": r.RemoteAddr,
-		// Add more fields here.
+	params := map[string]string{
+		"sourceIPAddress" : r.RemoteAddr,
 	}
+	if md, ok := metadata.FromContext(r.Context()); ok {
+		for k, v := range md {
+			params[k] = v
+		}
+	}
+	// Success.
+	return params
 }
 
 // Trims away `aws-chunked` from the content-encoding header if present.

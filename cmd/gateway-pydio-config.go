@@ -3,7 +3,7 @@ package cmd
 import (
 	"github.com/micro/go-micro/registry"
 	"github.com/micro/go-plugins/client/grpc"
-	"github.com/minio/minio-go"
+	"github.com/pydio/minio-go"
 	"github.com/pydio/services/common"
 	"github.com/pydio/services/common/proto/object"
 	"golang.org/x/net/context"

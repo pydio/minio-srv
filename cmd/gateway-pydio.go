@@ -21,7 +21,7 @@ import (
 	"encoding/hex"
 
 	"errors"
-	"github.com/minio/minio-go"
+	"github.com/pydio/minio-go"
 	"github.com/pydio/services/common"
 	"github.com/pydio/services/common/proto/tree"
 	"strings"
@@ -31,6 +31,7 @@ import (
 	"sync"
 	"context"
 	"bytes"
+	"github.com/micro/go-micro/metadata"
 )
 
 type PydioGateway interface {
@@ -196,6 +197,10 @@ func (l *pydioObjects) GetObjectInfoWithContext(ctx context.Context, bucket stri
 	if dataSourceName == common.PYDIO_THUMBSTORE_NAMESPACE {
 		// Use the thumb S3 client
 		if thumbClient, ok := l.findMinioClientFor(bucket, object); ok {
+			if meta, mOk := metadata.FromContext(ctx); mOk {
+				thumbClient.PrepareMetadata(meta)
+				defer thumbClient.ClearMetadata()
+			}
 			buck, obj := l.translateBucketAndPrefix(bucket, object)
 			return l.getS3ObjectInfo(thumbClient, buck, obj)
 		} else {
@@ -249,6 +254,11 @@ func (l *pydioObjects) GetObjectWithContext(ctx context.Context, bucket string, 
 	}
 	if client, ok := l.findMinioClientFor(bucket, key); ok {
 
+		if meta, mOk := metadata.FromContext(ctx); mOk {
+			client.PrepareMetadata(meta)
+			defer client.ClearMetadata()
+		}
+
 		newBucket, newKey := l.translateBucketAndPrefix(bucket, key)
 		var objectReader io.ReadCloser
 		var err error
@@ -292,7 +302,7 @@ func (l *pydioObjects) GetObjectWithContext(ctx context.Context, bucket string, 
 }
 
 // PutObject creates a new object with the incoming data,
-func (l *pydioObjects) PutObjectWithContext(ctx context.Context, bucket string, object string, size int64, data io.Reader, metadata map[string]string, sha256sum string) (objInfo ObjectInfo, e error) {
+func (l *pydioObjects) PutObjectWithContext(ctx context.Context, bucket string, object string, size int64, data io.Reader, requestMetadata map[string]string, sha256sum string) (objInfo ObjectInfo, e error) {
 
 	var sha256sumBytes []byte
 
@@ -305,28 +315,32 @@ func (l *pydioObjects) PutObjectWithContext(ctx context.Context, bucket string, 
 	}
 
 	var md5sumBytes []byte
-	md5sum := metadata["etag"]
+	md5sum := requestMetadata["etag"]
 	if md5sum != "" {
 		md5sumBytes, err = hex.DecodeString(md5sum)
 		if err != nil {
 			return objInfo, s3ToObjectError(traceError(err), bucket, object)
 		}
-		delete(metadata, "etag")
+		delete(requestMetadata, "etag")
 	}
 	userValue := ctx.Value(common.PYDIO_CONTEXT_USER_KEY)
 	if userValue != nil {
 		userName := userValue.(string)
-		metadata["X-Amz-Meta-Pydio-User-Last-Update"] = userName
+		requestMetadata["X-Amz-Meta-Pydio-User-Last-Update"] = userName
 	}
 	if client, ok := l.findMinioClientFor(bucket, object); ok {
 
+		if meta, mOk := metadata.FromContext(ctx); mOk {
+			client.PrepareMetadata(meta)
+			defer client.ClearMetadata()
+		}
 		// We create the node in the index right now, so that we can use a Uuid for other operations, and rollback if there is a Put error
 		// This is kind of similar to presigned?
 		var newNode *tree.Node
 		var err error
 
 		if ! strings.HasSuffix(object, ".__pydio") {
-			newNode, nodeErr, onErrorFunc := l.GetOrCreatePutNode(bucket, object, size, metadata)
+			newNode, nodeErr, onErrorFunc := l.GetOrCreatePutNode(bucket, object, size, requestMetadata)
 			log.Println("[PreLoad or PreCreate Node in tree]", object, newNode, nodeErr)
 			if nodeErr != nil {
 				return objInfo, s3ToObjectError(traceError(nodeErr), bucket, object)
@@ -342,7 +356,7 @@ func (l *pydioObjects) PutObjectWithContext(ctx context.Context, bucket string, 
 					onErrorFunc()
 				}
 			}()
-			metadata["X-Amz-Meta-Pydio-Node-Uuid"] = newNode.Uuid
+			requestMetadata["X-Amz-Meta-Pydio-Node-Uuid"] = newNode.Uuid
 		}
 
 		newBucket, newObject := l.translateBucketAndPrefix(bucket, object)
@@ -353,7 +367,7 @@ func (l *pydioObjects) PutObjectWithContext(ctx context.Context, bucket string, 
 				return objInfo, err
 			}
 			log.Println("Successfully received a material stuff, sending to PutEncrypted", material)
-			size, err := client.PutEncryptedObject(newBucket, newObject, data, material, toMinioClientMetadata(metadata), nil)
+			size, err := client.PutEncryptedObject(newBucket, newObject, data, material, toMinioClientMetadata(requestMetadata), nil)
 			if err != nil {
 				return objInfo, err
 			}
@@ -363,7 +377,7 @@ func (l *pydioObjects) PutObjectWithContext(ctx context.Context, bucket string, 
 				Size:size,
 			}
 		} else {
-			oi, err := client.PutObject(newBucket, newObject, size, data, md5sumBytes, sha256sumBytes, toMinioClientMetadata(metadata))
+			oi, err := client.PutObject(newBucket, newObject, size, data, md5sumBytes, sha256sumBytes, toMinioClientMetadata(requestMetadata))
 			if err != nil {
 				return objInfo, err
 			}
@@ -381,11 +395,11 @@ func (l *pydioObjects) PutObjectWithContext(ctx context.Context, bucket string, 
 }
 
 // CopyObject copies a blob from source container to destination container.
-func (l *pydioObjects) CopyObjectWithContext(ctx context.Context, srcBucket string, srcObject string, destBucket string, destObject string, metadata map[string]string) (objInfo ObjectInfo, e error) {
+func (l *pydioObjects) CopyObjectWithContext(ctx context.Context, srcBucket string, srcObject string, destBucket string, destObject string, requestMetadata map[string]string) (objInfo ObjectInfo, e error) {
 
 	if srcObject == destObject {
 		log.Printf("Coping %v to %v, this is a REPLACE meta directive \n", srcObject, destObject)
-		log.Println(metadata)
+		log.Println(requestMetadata)
 		return objInfo, traceError(&NotImplemented{})
 	}
 	log.Println("Received COPY instruction: ", srcBucket, "/", srcObject, "=>", destBucket, "/", destObject)
@@ -396,16 +410,20 @@ func (l *pydioObjects) CopyObjectWithContext(ctx context.Context, srcBucket stri
 		return objInfo, s3ToObjectError(traceError(&BucketNotFound{}), srcBucket, srcObject)
 	}
 	var err error
+	if meta, mOk := metadata.FromContext(ctx); mOk {
+		client.PrepareMetadata(meta)
+		defer client.ClearMetadata()
+	}
 
 	if ! strings.HasSuffix(destObject, ".__pydio") {
-		newNode, nodeErr, onErrorFunc := l.GetOrCreatePutNode(destBucket, destObject, 0, metadata)
+		newNode, nodeErr, onErrorFunc := l.GetOrCreatePutNode(destBucket, destObject, 0, requestMetadata)
 		if nodeErr != nil {
 			return objInfo, s3ToObjectError(traceError(nodeErr), destBucket, destObject)
 		}
-		if metadata == nil {
-			metadata = make(map[string]string, 1)
+		if requestMetadata == nil {
+			requestMetadata = make(map[string]string, 1)
 		}
-		metadata["X-Amz-Meta-Pydio-Node-Uuid"] = newNode.Uuid
+		requestMetadata["X-Amz-Meta-Pydio-Node-Uuid"] = newNode.Uuid
 		defer func() {
 			if err != nil && onErrorFunc != nil {
 				// Rollback index node creation
@@ -418,7 +436,7 @@ func (l *pydioObjects) CopyObjectWithContext(ctx context.Context, srcBucket stri
 	srcBucket, srcObject = l.translateBucketAndPrefix(srcBucket, srcObject)
 
 	srcInfo := minio.NewSourceInfo(srcBucket, srcObject, nil)
-	destInfo, err := minio.NewDestinationInfo(destBucket, destObject, nil, metadata)
+	destInfo, err := minio.NewDestinationInfo(destBucket, destObject, nil, requestMetadata)
 	if err != nil {
 		return objInfo, s3ToObjectError(traceError(err), destBucket, destObject)
 	}
@@ -445,6 +463,10 @@ func (l *pydioObjects) DeleteObjectWithContext(ctx context.Context, bucket strin
 	if client, ok = l.findMinioClientFor(bucket, object); !ok {
 		return s3ToObjectError(traceError(&BucketNotFound{}), bucket, object)
 	}
+	if meta, mOk := metadata.FromContext(ctx); mOk {
+		client.PrepareMetadata(meta)
+		defer client.ClearMetadata()
+	}
 
 	bucket, object = l.translateBucketAndPrefix(bucket, object)
 	log.Println("[Gateway Delete]", object)
@@ -466,6 +488,10 @@ func (l *pydioObjects) ListMultipartUploadsWithContext(ctx context.Context, buck
 	if client, ok = l.findMinioClientFor(bucket, prefix); !ok {
 		return lmi, errors.New("Multipart Error")
 	}
+	if meta, mOk := metadata.FromContext(ctx); mOk {
+		client.PrepareMetadata(meta)
+		defer client.ClearMetadata()
+	}
 
 	bucket, prefix = l.translateBucketAndPrefix(bucket, prefix)
 	result, err := client.ListMultipartUploads(bucket, prefix, keyMarker, uploadIDMarker, delimiter, maxUploads)
@@ -478,14 +504,18 @@ func (l *pydioObjects) ListMultipartUploadsWithContext(ctx context.Context, buck
 }
 
 // NewMultipartUpload upload object in multiple parts
-func (l *pydioObjects) NewMultipartUploadWithContext(ctx context.Context, bucket string, object string, metadata map[string]string) (uploadID string, err error) {
+func (l *pydioObjects) NewMultipartUploadWithContext(ctx context.Context, bucket string, object string, reqMetadata map[string]string) (uploadID string, err error) {
 	var client *minio.Core
 	var ok bool
 	if client, ok = l.findMinioClientFor(bucket, object); !ok {
 		return "", errors.New("Multipart Error")
 	}
+	if meta, mOk := metadata.FromContext(ctx); mOk {
+		client.PrepareMetadata(meta)
+		defer client.ClearMetadata()
+	}
 	bucket, object = l.translateBucketAndPrefix(bucket, object)
-	return client.NewMultipartUpload(bucket, object, toMinioClientMetadata(metadata))
+	return client.NewMultipartUpload(bucket, object, toMinioClientMetadata(reqMetadata))
 
 }
 
@@ -506,6 +536,10 @@ func (l *pydioObjects) PutObjectPartWithContext(ctx context.Context, bucket stri
 	if client, ok = l.findMinioClientFor(bucket, object); !ok {
 		return pi, errors.New("Put Object Part Error")
 	}
+	if meta, mOk := metadata.FromContext(ctx); mOk {
+		client.PrepareMetadata(meta)
+		defer client.ClearMetadata()
+	}
 
 	bucket, object = l.translateBucketAndPrefix(bucket, object)
 	info, err := client.PutObjectPart(bucket, object, uploadID, partID, size, data, md5HexBytes, sha256sumBytes)
@@ -525,6 +559,10 @@ func (l *pydioObjects) ListObjectPartsWithContext(ctx context.Context, bucket st
 	if client, ok = l.findMinioClientFor(bucket, object); !ok {
 		return lpi, errors.New("Put Object Part Error")
 	}
+	if meta, mOk := metadata.FromContext(ctx); mOk {
+		client.PrepareMetadata(meta)
+		defer client.ClearMetadata()
+	}
 
 	bucket, object = l.translateBucketAndPrefix(bucket, object)
 	result, err := client.ListObjectParts(bucket, object, uploadID, partNumberMarker, maxParts)
@@ -543,6 +581,11 @@ func (l *pydioObjects) AbortMultipartUploadWithContext(ctx context.Context, buck
 	if client, ok = l.findMinioClientFor(bucket, object); !ok {
 		return errors.New("Put Object Part Error")
 	}
+	if meta, mOk := metadata.FromContext(ctx); mOk {
+		client.PrepareMetadata(meta)
+		defer client.ClearMetadata()
+	}
+
 	bucket, object = l.translateBucketAndPrefix(bucket, object)
 	return client.AbortMultipartUpload(bucket, object, uploadID)
 
@@ -556,6 +599,11 @@ func (l *pydioObjects) CompleteMultipartUploadWithContext(ctx context.Context, b
 	if client, ok = l.findMinioClientFor(bucket, object); !ok {
 		return oi, errors.New("Put Object Part Error")
 	}
+	if meta, mOk := metadata.FromContext(ctx); mOk {
+		client.PrepareMetadata(meta)
+		defer client.ClearMetadata()
+	}
+
 	bucket, object = l.translateBucketAndPrefix(bucket, object)
 	err := client.CompleteMultipartUpload(bucket, object, uploadID, toMinioClientCompleteParts(uploadedParts))
 	if err != nil {
