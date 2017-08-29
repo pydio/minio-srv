@@ -17,8 +17,8 @@
 package cmd
 
 import (
-	"io"
 	"encoding/hex"
+	"io"
 
 	"errors"
 	"github.com/pydio/minio-go"
@@ -27,11 +27,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/micro/go-plugins/client/grpc"
-	"sync"
 	"context"
-	"bytes"
-	"github.com/micro/go-micro/metadata"
+	"github.com/pydio/services/common/views"
 )
 
 type PydioGateway interface {
@@ -61,44 +58,105 @@ func (e ContextNotFound) Error() string {
 	return "Context not found. Use WithContext function."
 }
 
-
 // s3Objects implements gateway for Minio and S3 compatible object storage servers.
 type pydioObjects struct {
-	Clients         map[string]*minio.Core
-	anonClients     map[string]*minio.Core
-	TreeClient      tree.NodeProviderClient
-	TreeClientWrite tree.NodeReceiverClient
-	EncryptionClient tree.FileKeyManagerClient
-	dsBuckets       map[string]string
-	dsEncrypted     map[string]bool
-
-	configMutex *sync.Mutex
+	Router *views.Router
 }
 
 // newS3Gateway returns s3 gatewaylayer
 func newPydioGateway() (GatewayLayer, error) {
 
-	clients := make(map[string]*minio.Core)
-	anonClients := make(map[string]*minio.Core)
-	dsBuckets := make(map[string]string)
-	dsEncrypted := make(map[string]bool)
-	grpcClient := grpc.NewClient()
+	pool := views.NewClientsPool()
+	router := views.NewRouter(pool, []views.Handler{
+		&views.ThumbsHandler{
+			StoreName: common.PYDIO_THUMBSTORE_NAMESPACE, // Direct access to dedicated Bucket for thumbnails
+		},
+		&views.ArchiveHandler{},    // Catch "GET" request on folder.zip and create archive on-demand
+		&views.ViewAdmin{},         // Currently merge TreeClient & S3 Clients to display whole tree
+		&views.EncryptionHandler{}, // Handler retrieve encryption materials from encryption service
+		&views.MkfileHandler{},     // Handler adding a node precreation on PUT file request
+		&views.Executor{},          // Final handler using the passed data to perform actual tree/s3 queries
+	})
 
 	api := &pydioObjects{
-		Clients:         clients,
-		anonClients:     anonClients,
-		dsBuckets:       dsBuckets,
-		TreeClient:      tree.NewNodeProviderClient(common.SERVICE_TREE, grpcClient),
-		TreeClientWrite: tree.NewNodeReceiverClient(common.SERVICE_TREE, grpcClient),
-		EncryptionClient:tree.NewFileKeyManagerClient(common.SERVICE_ENCRYPTION, grpcClient),
-		configMutex:     &sync.Mutex{},
-		dsEncrypted:     dsEncrypted,
+		Router: router,
 	}
 
-	api.listDatasources()
-	go api.watchRegistry()
-
 	return api, nil
+}
+
+// fromMinioClientObjectInfo converts minio ObjectInfo to gateway ObjectInfo
+func fromPydioNodeObjectInfo(bucket string, node *tree.Node) ObjectInfo {
+
+	cType := "application/octet-stream"
+	userDefined := map[string]string{
+		"Content-Type": cType,
+	}
+
+	nodePath := node.Path
+	if node.Type == tree.NodeType_COLLECTION {
+		nodePath += "/"
+	}
+	return ObjectInfo{
+		Bucket:          bucket,
+		Name:            nodePath,
+		ModTime:         time.Unix(0, node.MTime*int64(time.Second)),
+		Size:            node.Size,
+		ETag:            canonicalizeETag(node.Etag),
+		UserDefined:     userDefined,
+		ContentType:     cType,
+		ContentEncoding: "",
+	}
+}
+
+func (l *pydioObjects) ListPydioObjects(ctx context.Context, bucket string, prefix string, delimiter string, maxKeys int) (objects []ObjectInfo, prefixes []string, err error) {
+
+	treePath := strings.TrimLeft(prefix, "/")
+	recursive := false
+	if delimiter == "" {
+		recursive = true
+	}
+	var FilterType tree.NodeType
+	if maxKeys == 1 {
+		// We probably want to get only the very first object here (for folders stats)
+		log.Println("Should get only LEAF nodes")
+		FilterType = tree.NodeType_LEAF
+	}
+	lNodeClient, err := l.Router.ListNodes(ctx, &tree.ListNodesRequest{
+		Node: &tree.Node{
+			Path: treePath,
+		},
+		Recursive:  recursive,
+		Limit:      int64(maxKeys),
+		FilterType: FilterType,
+	})
+	if err != nil {
+		return nil, nil, s3ToObjectError(traceError(err), bucket)
+	}
+	for {
+		clientResponse, err := lNodeClient.Recv()
+
+		if clientResponse == nil {
+			break
+		}
+
+		if err != nil {
+			break
+		}
+
+		objectInfo := fromPydioNodeObjectInfo(bucket, clientResponse.Node)
+		if clientResponse.Node.IsLeaf() {
+			objects = append(objects, objectInfo)
+		} else {
+			prefixes = append(prefixes, objectInfo.Name)
+		}
+
+	}
+	if len(objects) > 0 && strings.Trim(prefix, "/") != "" {
+		prefixes = append(prefixes, strings.TrimLeft(prefix, "/"))
+	}
+
+	return objects, prefixes, nil
 }
 
 // Shutdown saves any gateway metadata to disk
@@ -183,52 +241,19 @@ func (l *pydioObjects) GetObjectInfoWithContext(ctx context.Context, bucket stri
 
 	log.Println("[GetObjectInfo]" + object)
 
-	dataSourceName, newPrefix := l.prefixToDataSourceName(object)
-	if newPrefix == "" {
-		// This is a datasource object info
-		return ObjectInfo{
-			Bucket:  bucket,
-			Name:    object,
-			ModTime: time.Now(),
-			Size:    0,
-		}, nil
-
-	}
-	if dataSourceName == common.PYDIO_THUMBSTORE_NAMESPACE {
-		// Use the thumb S3 client
-		if thumbClient, ok := l.findMinioClientFor(bucket, object); ok {
-			if meta, mOk := metadata.FromContext(ctx); mOk {
-				thumbClient.PrepareMetadata(meta)
-				defer thumbClient.ClearMetadata()
-			}
-			buck, obj := l.translateBucketAndPrefix(bucket, object)
-			return l.getS3ObjectInfo(thumbClient, buck, obj)
-		} else {
-			return ObjectInfo{}, errors.New("Cannot find client for ThumbStore")
-		}
+	path := strings.TrimLeft(object, "/")
+	readNodeResponse, err := l.Router.ReadNode(ctx, &tree.ReadNodeRequest{Node: &tree.Node{
+		Path: path,
+	}})
+	if err != nil {
+		return ObjectInfo{}, s3ToObjectError(traceError(err), bucket, object)
 	}
 
-	treePath := strings.TrimLeft(object, "/")
-	readNodeResponse, err := l.TreeClient.ReadNode(ctx, &tree.ReadNodeRequest{
-		Node: &tree.Node{
-			Path: treePath,
-		},
-	})
-
-	if err != nil || readNodeResponse.Node == nil {
-
-		archiveInfo, noArch := l.HeadFakeArchiveObject(ctx, bucket, object, dataSourceName)
-		if noArch == nil {
-			return archiveInfo, nil
-		}
-
-		return ObjectInfo{}, s3ToObjectError(traceError(&ObjectNotFound{}))
-	}
 	if !readNodeResponse.Node.IsLeaf() {
 		return ObjectInfo{}, errors.New("S3 API Cannot send object info for folder")
 	}
 
-	return fromPydioNodeObjectInfo(bucket, dataSourceName, readNodeResponse.Node), nil
+	return fromPydioNodeObjectInfo(bucket, readNodeResponse.Node), nil
 
 }
 
@@ -240,64 +265,23 @@ func (l *pydioObjects) GetObjectInfoWithContext(ctx context.Context, bucket stri
 // length indicates the total length of the object.
 func (l *pydioObjects) GetObjectWithContext(ctx context.Context, bucket string, key string, startOffset int64, length int64, writer io.Writer) error {
 
-	log.Println("[GetObject]", bucket, key, startOffset, length)
-	r := minio.NewGetReqHeaders()
+	log.Println("[GetObject] From Router", bucket, key, startOffset, length)
 
-	if length < 0 && length != -1 {
-		return s3ToObjectError(traceError(errInvalidArgument), bucket, key)
+	path := strings.TrimLeft(key, "/")
+	objectReader, err := l.Router.GetObject(ctx, &tree.Node{
+		Path: path,
+	}, &views.GetRequestData{
+		StartOffset: startOffset,
+		Length:      length,
+	})
+	if err != nil {
+		return s3ToObjectError(traceError(err), bucket, key)
 	}
-
-	if startOffset >= 0 && length >= 0 {
-		if err := r.SetRange(startOffset, startOffset+length-1); err != nil {
-			return s3ToObjectError(traceError(err), bucket, key)
-		}
+	defer objectReader.Close()
+	if _, err := io.Copy(writer, objectReader); err != nil {
+		return s3ToObjectError(traceError(err), bucket, key)
 	}
-	if client, ok := l.findMinioClientFor(bucket, key); ok {
-
-		if meta, mOk := metadata.FromContext(ctx); mOk {
-			client.PrepareMetadata(meta)
-			defer client.ClearMetadata()
-		}
-
-		newBucket, newKey := l.translateBucketAndPrefix(bucket, key)
-		var objectReader io.ReadCloser
-		var err error
-		if l.clientRequiresEncryption(bucket, key) {
-			readNodeResp, rE := l.TreeClient.ReadNode(ctx, &tree.ReadNodeRequest{
-				Node:&tree.Node{
-					Path:strings.TrimLeft(key, "/"),
-				},
-			})
-			if rE != nil {
-				return rE
-			}
-			material, encErr := l.retrieveEncryptionMaterial(readNodeResp.Node)
-			if encErr != nil {
-				return encErr
-			}
-			objectReader, err = client.GetEncryptedObject(newBucket, newKey, material)
-		} else {
-			objectReader, _, err = client.GetObject(newBucket, newKey, r)
-		}
-		if err != nil {
-			archive, err := l.GenerateArchiveFromKey(ctx, writer, bucket, key)
-			if archive {
-				return err
-			} else {
-				return s3ToObjectError(traceError(err), bucket, key)
-			}
-		}
-
-		defer objectReader.Close()
-
-		if _, err := io.Copy(writer, objectReader); err != nil {
-			return s3ToObjectError(traceError(err), bucket, key)
-		}
-
-		return nil
-	}
-
-	return s3ToObjectError(traceError(&BucketNotFound{}), bucket, key)
+	return nil
 
 }
 
@@ -305,6 +289,7 @@ func (l *pydioObjects) GetObjectWithContext(ctx context.Context, bucket string, 
 func (l *pydioObjects) PutObjectWithContext(ctx context.Context, bucket string, object string, size int64, data io.Reader, requestMetadata map[string]string, sha256sum string) (objInfo ObjectInfo, e error) {
 
 	var sha256sumBytes []byte
+	var md5sumBytes []byte
 
 	var err error
 	if sha256sum != "" {
@@ -314,7 +299,6 @@ func (l *pydioObjects) PutObjectWithContext(ctx context.Context, bucket string, 
 		}
 	}
 
-	var md5sumBytes []byte
 	md5sum := requestMetadata["etag"]
 	if md5sum != "" {
 		md5sumBytes, err = hex.DecodeString(md5sum)
@@ -323,74 +307,24 @@ func (l *pydioObjects) PutObjectWithContext(ctx context.Context, bucket string, 
 		}
 		delete(requestMetadata, "etag")
 	}
-	userValue := ctx.Value(common.PYDIO_CONTEXT_USER_KEY)
-	if userValue != nil {
-		userName := userValue.(string)
-		requestMetadata["X-Amz-Meta-Pydio-User-Last-Update"] = userName
+
+	written, err := l.Router.PutObject(ctx, &tree.Node{
+		Path: strings.TrimLeft(object, "/"),
+	}, data, &views.PutRequestData{
+		Size:      size,
+		Sha256Sum: sha256sumBytes,
+		Md5Sum:    md5sumBytes,
+	})
+	if err != nil {
+		return objInfo, s3ToObjectError(traceError(err), bucket, object)
 	}
-	if client, ok := l.findMinioClientFor(bucket, object); ok {
-
-		if meta, mOk := metadata.FromContext(ctx); mOk {
-			client.PrepareMetadata(meta)
-			defer client.ClearMetadata()
-		}
-		// We create the node in the index right now, so that we can use a Uuid for other operations, and rollback if there is a Put error
-		// This is kind of similar to presigned?
-		var newNode *tree.Node
-		var err error
-
-		if ! strings.HasSuffix(object, ".__pydio") {
-			newNode, nodeErr, onErrorFunc := l.GetOrCreatePutNode(bucket, object, size, requestMetadata)
-			log.Println("[PreLoad or PreCreate Node in tree]", object, newNode, nodeErr)
-			if nodeErr != nil {
-				return objInfo, s3ToObjectError(traceError(nodeErr), bucket, object)
-			}
-			if !newNode.IsLeaf() {
-				// This was a .__pydio and the folder already exists, replace the content
-				// with the actual folder Uuid to avoid replacing it
-				data = bytes.NewBufferString(newNode.Uuid)
-			}
-			defer func(){
-				// Rollback index node creation
-				if err != nil && onErrorFunc != nil {
-					onErrorFunc()
-				}
-			}()
-			requestMetadata["X-Amz-Meta-Pydio-Node-Uuid"] = newNode.Uuid
-		}
-
-		newBucket, newObject := l.translateBucketAndPrefix(bucket, object)
-		if l.clientRequiresEncryption(bucket, object) && !strings.HasSuffix(object, ".__pydio") {
-
-			material, err := l.retrieveEncryptionMaterial(newNode)
-			if err != nil {
-				return objInfo, err
-			}
-			log.Println("Successfully received a material stuff, sending to PutEncrypted", material)
-			size, err := client.PutEncryptedObject(newBucket, newObject, data, material, toMinioClientMetadata(requestMetadata), nil)
-			if err != nil {
-				return objInfo, err
-			}
-			objInfo = ObjectInfo{
-				Bucket:newBucket,
-				Name:object,
-				Size:size,
-			}
-		} else {
-			oi, err := client.PutObject(newBucket, newObject, size, data, md5sumBytes, sha256sumBytes, toMinioClientMetadata(requestMetadata))
-			if err != nil {
-				return objInfo, err
-			}
-			objInfo = fromMinioClientObjectInfo(newBucket, oi)
-		}
-
-		if err != nil {
-			return objInfo, s3ToObjectError(traceError(err), newBucket, newObject)
-		}
-
-		return objInfo, nil
+	// TODO : PutObject should return more info about written node
+	objInfo = ObjectInfo{
+		Bucket: bucket,
+		Name:   object,
+		Size:   written,
 	}
-	return ObjectInfo{}, s3ToObjectError(traceError(err), bucket, object)
+	return objInfo, nil
 
 }
 
@@ -404,53 +338,20 @@ func (l *pydioObjects) CopyObjectWithContext(ctx context.Context, srcBucket stri
 	}
 	log.Println("Received COPY instruction: ", srcBucket, "/", srcObject, "=>", destBucket, "/", destObject)
 
-	var client *minio.Core
-	var ok bool
-	if client, ok = l.findMinioClientFor(srcBucket, srcObject); !ok {
+	written, err := l.Router.CopyObject(ctx, &tree.Node{
+		Path: strings.TrimLeft(srcObject, "/"),
+	}, &tree.Node{
+		Path: strings.TrimLeft(destObject, "/"),
+	}, &views.CopyRequestData{})
+
+	if err != nil {
 		return objInfo, s3ToObjectError(traceError(&BucketNotFound{}), srcBucket, srcObject)
 	}
-	var err error
-	if meta, mOk := metadata.FromContext(ctx); mOk {
-		client.PrepareMetadata(meta)
-		defer client.ClearMetadata()
-	}
-
-	if ! strings.HasSuffix(destObject, ".__pydio") {
-		newNode, nodeErr, onErrorFunc := l.GetOrCreatePutNode(destBucket, destObject, 0, requestMetadata)
-		if nodeErr != nil {
-			return objInfo, s3ToObjectError(traceError(nodeErr), destBucket, destObject)
-		}
-		if requestMetadata == nil {
-			requestMetadata = make(map[string]string, 1)
-		}
-		requestMetadata["X-Amz-Meta-Pydio-Node-Uuid"] = newNode.Uuid
-		defer func() {
-			if err != nil && onErrorFunc != nil {
-				// Rollback index node creation
-				onErrorFunc()
-			}
-		}()
-	}
-
-	destBucket, destObject = l.translateBucketAndPrefix(destBucket, destObject)
-	srcBucket, srcObject = l.translateBucketAndPrefix(srcBucket, srcObject)
-
-	srcInfo := minio.NewSourceInfo(srcBucket, srcObject, nil)
-	destInfo, err := minio.NewDestinationInfo(destBucket, destObject, nil, requestMetadata)
-	if err != nil {
-		return objInfo, s3ToObjectError(traceError(err), destBucket, destObject)
-	}
-	err = client.CopyObject(destInfo, srcInfo)
-	if err != nil {
-		return objInfo, s3ToObjectError(traceError(err), destBucket, destObject)
-	}
-
-	objInfo, err = l.getS3ObjectInfo(client, destBucket, destObject)
-	if err != nil {
-		return objInfo, s3ToObjectError(traceError(err), destBucket, destObject)
-	}
-
-	return objInfo, nil
+	return ObjectInfo{
+		Bucket: destBucket,
+		Name:   destObject,
+		Size:   written,
+	}, nil
 
 }
 
@@ -458,24 +359,14 @@ func (l *pydioObjects) CopyObjectWithContext(ctx context.Context, srcBucket stri
 func (l *pydioObjects) DeleteObjectWithContext(ctx context.Context, bucket string, object string) error {
 
 	log.Println("[DeleteObject]", object)
-	var client *minio.Core
-	var ok bool
-	if client, ok = l.findMinioClientFor(bucket, object); !ok {
-		return s3ToObjectError(traceError(&BucketNotFound{}), bucket, object)
-	}
-	if meta, mOk := metadata.FromContext(ctx); mOk {
-		client.PrepareMetadata(meta)
-		defer client.ClearMetadata()
-	}
-
-	bucket, object = l.translateBucketAndPrefix(bucket, object)
-	log.Println("[Gateway Delete]", object)
-	err := client.RemoveObject(bucket, object)
+	_, err := l.Router.DeleteNode(ctx, &tree.DeleteNodeRequest{
+		Node: &tree.Node{
+			Path: strings.TrimLeft(object, "/"),
+		},
+	})
 	if err != nil {
-		log.Println("[Gateway Delete Error]", err, object)
 		return s3ToObjectError(traceError(err), bucket, object)
 	}
-
 	return nil
 
 }
@@ -483,44 +374,34 @@ func (l *pydioObjects) DeleteObjectWithContext(ctx context.Context, bucket strin
 // ListMultipartUploads lists all multipart uploads.
 func (l *pydioObjects) ListMultipartUploadsWithContext(ctx context.Context, bucket string, prefix string, keyMarker string, uploadIDMarker string, delimiter string, maxUploads int) (lmi ListMultipartsInfo, e error) {
 
-	var client *minio.Core
-	var ok bool
-	if client, ok = l.findMinioClientFor(bucket, prefix); !ok {
-		return lmi, errors.New("Multipart Error")
-	}
-	if meta, mOk := metadata.FromContext(ctx); mOk {
-		client.PrepareMetadata(meta)
-		defer client.ClearMetadata()
-	}
-
-	bucket, prefix = l.translateBucketAndPrefix(bucket, prefix)
-	result, err := client.ListMultipartUploads(bucket, prefix, keyMarker, uploadIDMarker, delimiter, maxUploads)
-	if err != nil {
+	result, err := l.Router.MultipartList(ctx, prefix, &views.MultipartRequestData{
+		ListKeyMarker:      keyMarker,
+		ListUploadIDMarker: uploadIDMarker,
+		ListDelimiter:      delimiter,
+		ListMaxUploads:     maxUploads,
+	})
+	if err == nil {
+		return fromMinioClientListMultipartsInfo(result), nil
+	} else {
 		return lmi, err
 	}
-
-	return fromMinioClientListMultipartsInfo(result), nil
 
 }
 
 // NewMultipartUpload upload object in multiple parts
 func (l *pydioObjects) NewMultipartUploadWithContext(ctx context.Context, bucket string, object string, reqMetadata map[string]string) (uploadID string, err error) {
-	var client *minio.Core
-	var ok bool
-	if client, ok = l.findMinioClientFor(bucket, object); !ok {
-		return "", errors.New("Multipart Error")
-	}
-	if meta, mOk := metadata.FromContext(ctx); mOk {
-		client.PrepareMetadata(meta)
-		defer client.ClearMetadata()
-	}
-	bucket, object = l.translateBucketAndPrefix(bucket, object)
-	return client.NewMultipartUpload(bucket, object, toMinioClientMetadata(reqMetadata))
+
+	return l.Router.MultipartCreate(ctx, &tree.Node{
+		Path: object,
+	}, &views.MultipartRequestData{
+		Metadata: toMinioClientMetadata(reqMetadata),
+	})
 
 }
 
 // PutObjectPart puts a part of object in bucket
 func (l *pydioObjects) PutObjectPartWithContext(ctx context.Context, bucket string, object string, uploadID string, partID int, size int64, data io.Reader, md5Hex string, sha256sum string) (pi PartInfo, e error) {
+
 	md5HexBytes, err := hex.DecodeString(md5Hex)
 	if err != nil {
 		return pi, err
@@ -530,87 +411,50 @@ func (l *pydioObjects) PutObjectPartWithContext(ctx context.Context, bucket stri
 	if err != nil {
 		return pi, err
 	}
-
-	var client *minio.Core
-	var ok bool
-	if client, ok = l.findMinioClientFor(bucket, object); !ok {
-		return pi, errors.New("Put Object Part Error")
-	}
-	if meta, mOk := metadata.FromContext(ctx); mOk {
-		client.PrepareMetadata(meta)
-		defer client.ClearMetadata()
-	}
-
-	bucket, object = l.translateBucketAndPrefix(bucket, object)
-	info, err := client.PutObjectPart(bucket, object, uploadID, partID, size, data, md5HexBytes, sha256sumBytes)
+	written, err := l.Router.PutObject(ctx, &tree.Node{Path: object}, data, &views.PutRequestData{
+		Size:              size,
+		Md5Sum:            md5HexBytes,
+		Sha256Sum:         sha256sumBytes,
+		MultipartPartID:   partID,
+		MultipartUploadID: uploadID,
+	})
 	if err != nil {
 		return pi, err
 	}
-
-	return fromMinioClientObjectPart(info), nil
+	// TODO
+	//return fromMinioClientObjectPart(info), nil
+	return PartInfo{
+		Size:         written,
+		ETag:         "",
+		LastModified: time.Now(),
+		PartNumber:   partID,
+	}, nil
 
 }
 
 // ListObjectParts returns all object parts for specified object in specified bucket
 func (l *pydioObjects) ListObjectPartsWithContext(ctx context.Context, bucket string, object string, uploadID string, partNumberMarker int, maxParts int) (lpi ListPartsInfo, e error) {
 
-	var client *minio.Core
-	var ok bool
-	if client, ok = l.findMinioClientFor(bucket, object); !ok {
-		return lpi, errors.New("Put Object Part Error")
-	}
-	if meta, mOk := metadata.FromContext(ctx); mOk {
-		client.PrepareMetadata(meta)
-		defer client.ClearMetadata()
-	}
-
-	bucket, object = l.translateBucketAndPrefix(bucket, object)
-	result, err := client.ListObjectParts(bucket, object, uploadID, partNumberMarker, maxParts)
+	result, err := l.Router.MultipartListObjectParts(ctx, &tree.Node{Path: object}, uploadID, partNumberMarker, maxParts)
 	if err != nil {
 		return lpi, err
 	}
-
 	return fromMinioClientListPartsInfo(result), nil
 
 }
 
 // AbortMultipartUpload aborts a ongoing multipart upload
 func (l *pydioObjects) AbortMultipartUploadWithContext(ctx context.Context, bucket string, object string, uploadID string) error {
-	var client *minio.Core
-	var ok bool
-	if client, ok = l.findMinioClientFor(bucket, object); !ok {
-		return errors.New("Put Object Part Error")
-	}
-	if meta, mOk := metadata.FromContext(ctx); mOk {
-		client.PrepareMetadata(meta)
-		defer client.ClearMetadata()
-	}
 
-	bucket, object = l.translateBucketAndPrefix(bucket, object)
-	return client.AbortMultipartUpload(bucket, object, uploadID)
+	return l.Router.MultipartAbort(ctx, &tree.Node{Path: object}, uploadID, &views.MultipartRequestData{})
 
 }
 
 // CompleteMultipartUpload completes ongoing multipart upload and finalizes object
 func (l *pydioObjects) CompleteMultipartUploadWithContext(ctx context.Context, bucket string, object string, uploadID string, uploadedParts []completePart) (oi ObjectInfo, e error) {
 
-	var client *minio.Core
-	var ok bool
-	if client, ok = l.findMinioClientFor(bucket, object); !ok {
-		return oi, errors.New("Put Object Part Error")
-	}
-	if meta, mOk := metadata.FromContext(ctx); mOk {
-		client.PrepareMetadata(meta)
-		defer client.ClearMetadata()
-	}
-
-	bucket, object = l.translateBucketAndPrefix(bucket, object)
-	err := client.CompleteMultipartUpload(bucket, object, uploadID, toMinioClientCompleteParts(uploadedParts))
-	if err != nil {
-		return oi, s3ToObjectError(traceError(err), bucket, object)
-	}
-
-	return l.getS3ObjectInfo(client, bucket, object)
+	out, err := l.Router.MultipartComplete(ctx, &tree.Node{Path: object}, uploadID, toMinioClientCompleteParts(uploadedParts))
+	return fromMinioClientObjectInfo(bucket, out), err
 
 }
 
@@ -633,6 +477,7 @@ func (l *pydioObjects) getS3ObjectInfo(client *minio.Core, bucket string, object
 func (l *pydioObjects) GetBucketInfo(bucket string) (bi BucketInfo, e error) {
 	return bi, traceError(ContextNotFound{Bucket: bucket})
 }
+
 // ListBuckets lists all S3 buckets
 func (l *pydioObjects) ListBuckets() (bi []BucketInfo, e error) {
 	return bi, traceError(ContextNotFound{})
@@ -640,7 +485,7 @@ func (l *pydioObjects) ListBuckets() (bi []BucketInfo, e error) {
 
 // ListObjects lists all blobs in S3 bucket filtered by prefix
 func (l *pydioObjects) ListObjects(bucket string, prefix string, marker string, delimiter string, maxKeys int) (loi ListObjectsInfo, e error) {
-	return loi, traceError(ContextNotFound{Bucket:bucket, Object:prefix})
+	return loi, traceError(ContextNotFound{Bucket: bucket, Object: prefix})
 }
 
 // ListObjectsV2 lists all blobs in S3 bucket filtered by prefix

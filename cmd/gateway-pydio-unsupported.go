@@ -16,7 +16,10 @@
 
 package cmd
 
-import "github.com/minio/minio-go/pkg/policy"
+import (
+	"github.com/minio/minio-go/pkg/policy"
+	"io"
+)
 
 // MakeBucket creates a new container on S3 backend.
 func (l *pydioObjects) MakeBucketWithLocation(bucket, location string) error {
@@ -30,15 +33,18 @@ func (l *pydioObjects) DeleteBucket(bucket string) error {
 
 // SetBucketPolicies sets policy on bucket
 func (l *pydioObjects) SetBucketPolicies(bucket string, policyInfo policy.BucketAccessPolicy) error {
-	return traceError(NotImplemented{})}
+	return traceError(NotImplemented{})
+}
 
 // GetBucketPolicies will get policy on bucket
 func (l *pydioObjects) GetBucketPolicies(bucket string) (bap policy.BucketAccessPolicy, e error) {
-	return bap, traceError(NotImplemented{})}
+	return bap, traceError(NotImplemented{})
+}
 
 // DeleteBucketPolicies deletes all policies on bucket
 func (l *pydioObjects) DeleteBucketPolicies(bucket string) error {
-	return traceError(NotImplemented{})}
+	return traceError(NotImplemented{})
+}
 
 // HealBucket - Not relevant.
 func (l *pydioObjects) HealBucket(bucket string) error {
@@ -63,4 +69,34 @@ func (l *pydioObjects) ListObjectsHeal(bucket string, prefix string, marker stri
 // ListUploadsHeal - Not relevant.
 func (l *pydioObjects) ListUploadsHeal(bucket string, prefix string, marker string, uploadIDMarker string, delimiter string, maxUploads int) (lmi ListMultipartsInfo, e error) {
 	return lmi, traceError(NotImplemented{})
+}
+
+// AnonPutObject creates a new object anonymously with the incoming data,
+func (l *pydioObjects) AnonPutObject(bucket string, object string, size int64, data io.Reader, metadata map[string]string, sha256sum string) (objInfo ObjectInfo, e error) {
+	return objInfo, s3ToObjectError(traceError(NotImplemented{}), bucket, object)
+}
+
+// AnonGetObject - Get object anonymously
+func (l *pydioObjects) AnonGetObject(bucket string, key string, startOffset int64, length int64, writer io.Writer) error {
+	return s3ToObjectError(traceError(NotImplemented{}), bucket, key)
+}
+
+// AnonGetObjectInfo - Get object info anonymously
+func (l *pydioObjects) AnonGetObjectInfo(bucket string, object string) (objInfo ObjectInfo, e error) {
+	return objInfo, s3ToObjectError(traceError(NotImplemented{}), bucket, object)
+}
+
+// AnonListObjects - List objects anonymously
+func (l *pydioObjects) AnonListObjects(bucket string, prefix string, marker string, delimiter string, maxKeys int) (loi ListObjectsInfo, e error) {
+	return loi, s3ToObjectError(traceError(NotImplemented{}), bucket, prefix)
+}
+
+// AnonListObjectsV2 - List objects in V2 mode, anonymously
+func (l *pydioObjects) AnonListObjectsV2(bucket, prefix, continuationToken string, fetchOwner bool, delimiter string, maxKeys int) (loi ListObjectsV2Info, e error) {
+	return loi, s3ToObjectError(traceError(NotImplemented{}), bucket, prefix)
+}
+
+// AnonGetBucketInfo - Get bucket metadata anonymously.
+func (l *pydioObjects) AnonGetBucketInfo(bucket string) (bi BucketInfo, e error) {
+	return bi, s3ToObjectError(traceError(NotImplemented{}), bucket)
 }
