@@ -135,15 +135,12 @@ func (l *pydioObjects) ListPydioObjects(ctx context.Context, bucket string, pref
 	}
 	for {
 		clientResponse, err := lNodeClient.Recv()
-
-		if clientResponse == nil {
-			break
-		}
-
 		if err != nil {
 			break
 		}
-
+		if clientResponse == nil {
+			continue
+		}
 		objectInfo := fromPydioNodeObjectInfo(bucket, clientResponse.Node)
 		if clientResponse.Node.IsLeaf() {
 			objects = append(objects, objectInfo)
