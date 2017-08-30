@@ -201,7 +201,7 @@ func (l *pydioObjects) ListObjectsWithContext(ctx context.Context, bucket string
 		return loi, s3ToObjectError(traceError(err), bucket)
 	}
 
-	log.Printf("[ListObjects] Returning %d objects and %d prefixes (V1) for prefix\n", len(objects), len(prefixes), prefix)
+	log.Printf("[ListObjects] Returning %d objects and %d prefixes (V1) for prefix %s\n", len(objects), len(prefixes), prefix)
 
 	return ListObjectsInfo{
 		IsTruncated: false,
@@ -220,7 +220,7 @@ func (l *pydioObjects) ListObjectsV2WithContext(ctx context.Context, bucket, pre
 		return loi, s3ToObjectError(traceError(err), bucket)
 	}
 
-	log.Printf("\n[ListObjectsV2] Returning %d objects and %d prefixes (V2) for prefix\n", len(objects), len(prefixes), prefix)
+	log.Printf("\n[ListObjectsV2] Returning %d objects and %d prefixes (V2) for prefix %s\n", len(objects), len(prefixes), prefix)
 
 	return ListObjectsV2Info{
 		IsTruncated: false,
