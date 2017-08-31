@@ -57,7 +57,7 @@
 			"revisionTime": "2017-02-08T01:01:20Z"
 		},
 		{
-			"path": "github.com/Sirupsen/logrus",
+			"path": "github.com/sirupsen/logrus",
 			"revision": "32055c351ea8b00b96d70f28db48d9840feaf0ec",
 			"revisionTime": "2016-07-12T20:17:32-04:00"
 		},
