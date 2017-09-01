@@ -66,17 +66,7 @@ type pydioObjects struct {
 // newS3Gateway returns s3 gatewaylayer
 func newPydioGateway() (GatewayLayer, error) {
 
-	pool := views.NewClientsPool()
-	router := views.NewRouter(pool, []views.Handler{
-		&views.ThumbsHandler{
-			StoreName: common.PYDIO_THUMBSTORE_NAMESPACE, // Direct access to dedicated Bucket for thumbnails
-		},
-		&views.ArchiveHandler{},    // Catch "GET" request on folder.zip and create archive on-demand
-		&views.ViewAdmin{},         // Currently merge TreeClient & S3 Clients to display whole tree
-		&views.EncryptionHandler{}, // Handler retrieve encryption materials from encryption service
-		&views.MkfileHandler{},     // Handler adding a node precreation on PUT file request
-		&views.Executor{},          // Final handler using the passed data to perform actual tree/s3 queries
-	})
+	router := views.NewStandardRooter(false)
 
 	api := &pydioObjects{
 		Router: router,
