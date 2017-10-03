@@ -180,7 +180,7 @@ func IsSourceBuild() bool {
 //
 //   Minio (<OS>; <ARCH>[; dcos][; kubernetes][; docker][; source]) Minio/<VERSION> Minio/<RELEASE-TAG> Minio/<COMMIT-ID> [Minio/univers-<PACKAGE_NAME>]
 //
-// For any change here should be discussed by openning an issue at https://github.com/minio/minio/issues.
+// For any change here should be discussed by openning an issue at https://github.com/pydio/minio-priv/issues.
 func getUserAgent(mode string) string {
 	userAgent := "Minio (" + runtime.GOOS + "; " + runtime.GOARCH
 	if mode != "" {
@@ -324,7 +324,7 @@ func getDownloadURL(buildDate time.Time) (downloadURL string) {
 	if IsDocker() {
 		// Construct release tag name.
 		rTag := "RELEASE." + buildDate.Format(minioReleaseTagTimeLayout)
-		return fmt.Sprintf("docker pull minio/minio:%s", rTag)
+		return fmt.Sprintf("docker pull pydio/minio-priv:%s", rTag)
 	}
 
 	// For binary only installations, then we just show binary download link.

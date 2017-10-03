@@ -27,7 +27,7 @@ let BrowserDropdown = ({fullScreenFunc, aboutFunc, settingsFunc, logoutFunc}) =>
         </Dropdown.Toggle>
         <Dropdown.Menu className="dropdown-menu-right">
           <li>
-            <a target="_blank" href="https://github.com/minio/minio">Github <i className="fa fa-github"></i></a>
+            <a target="_blank" href="https://github.com/pydio/minio-priv">Github <i className="fa fa-github"></i></a>
           </li>
           <li>
             <a href="" onClick={ fullScreenFunc }>Fullscreen <i className="fa fa-expand"></i></a>

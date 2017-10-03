@@ -27,7 +27,7 @@ import (
 	"encoding/json"
 
 	router "github.com/gorilla/mux"
-	"github.com/minio/minio-go/pkg/policy"
+	"github.com/pydio/minio-go/pkg/policy"
 )
 
 // GetObjectHandler - GET Object

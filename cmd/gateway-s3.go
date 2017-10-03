@@ -25,9 +25,9 @@ import (
 
 	"os"
 
-	"github.com/minio/minio-go/pkg/policy"
-	"github.com/minio/minio-go/pkg/s3utils"
 	minio "github.com/pydio/minio-go"
+	"github.com/pydio/minio-go/pkg/policy"
+	"github.com/pydio/minio-go/pkg/s3utils"
 )
 
 // s3ToObjectError converts Minio errors to minio object layer errors.

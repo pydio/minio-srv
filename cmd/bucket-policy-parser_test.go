@@ -22,8 +22,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/minio/minio-go/pkg/policy"
-	"github.com/minio/minio-go/pkg/set"
+	"github.com/pydio/minio-go/pkg/policy"
+	"github.com/pydio/minio-go/pkg/set"
 )
 
 // Common bucket actions for both read and write policies.

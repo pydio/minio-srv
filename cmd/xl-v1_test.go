@@ -22,7 +22,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/minio/minio/pkg/disk"
+	"github.com/pydio/minio-priv/pkg/disk"
 )
 
 // TestStorageInfo - tests storage info.

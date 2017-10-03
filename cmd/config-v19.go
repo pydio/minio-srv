@@ -22,7 +22,7 @@ import (
 	"io/ioutil"
 	"sync"
 
-	"github.com/minio/minio/pkg/quick"
+	"github.com/pydio/minio-priv/pkg/quick"
 	"github.com/tidwall/gjson"
 )
 

@@ -25,7 +25,7 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/minio/minio/pkg/lock"
+	"github.com/pydio/minio-priv/pkg/lock"
 )
 
 // fsFormat - structure holding 'fs' format.

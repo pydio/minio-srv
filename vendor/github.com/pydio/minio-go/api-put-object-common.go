@@ -22,7 +22,7 @@ import (
 	"math"
 	"os"
 
-	"github.com/minio/minio-go/pkg/s3utils"
+	"github.com/pydio/minio-go/pkg/s3utils"
 )
 
 // Verify if reader is *os.File

@@ -21,8 +21,8 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/minio/minio-go/pkg/s3signer"
-	"github.com/minio/minio-go/pkg/s3utils"
+	"github.com/pydio/minio-go/pkg/s3signer"
+	"github.com/pydio/minio-go/pkg/s3utils"
 )
 
 // supportedGetReqParams - supported request parameters for GET presigned request.

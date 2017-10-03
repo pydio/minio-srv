@@ -32,7 +32,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/minio/minio-go/pkg/set"
+	"github.com/pydio/minio-go/pkg/set"
 )
 
 var serverPort uint32 = 60000

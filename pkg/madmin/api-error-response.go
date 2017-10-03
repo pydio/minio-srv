@@ -54,7 +54,7 @@ func (e ErrorResponse) Error() string {
 }
 
 const (
-	reportIssue = "Please report this issue at https://github.com/minio/minio-go/issues."
+	reportIssue = "Please report this issue at https://github.com/pydio/minio-go/issues."
 )
 
 // httpRespToErrorResponse returns a new encoded ErrorResponse

@@ -26,7 +26,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/minio/minio/pkg/mimedb"
+	"github.com/pydio/minio-priv/pkg/mimedb"
 )
 
 // updateUploadJSON - add or remove upload ID info in all `uploads.json`.

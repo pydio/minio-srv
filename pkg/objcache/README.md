@@ -2,7 +2,7 @@
 PACKAGE DOCUMENTATION
 
 package objcache
-    import "github.com/minio/minio/pkg/objcache"
+    import "github.com/pydio/minio-priv/pkg/objcache"
 
     Package objcache implements in memory caching methods.
 

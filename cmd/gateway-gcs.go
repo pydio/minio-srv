@@ -36,7 +36,7 @@ import (
 	"google.golang.org/api/iterator"
 
 	minio "github.com/pydio/minio-go"
-	"github.com/minio/minio-go/pkg/policy"
+	"github.com/pydio/minio-go/pkg/policy"
 )
 
 const (

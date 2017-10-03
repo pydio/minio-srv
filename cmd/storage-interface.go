@@ -19,7 +19,7 @@ package cmd
 import (
 	"io"
 
-	"github.com/minio/minio/pkg/disk"
+	"github.com/pydio/minio-priv/pkg/disk"
 )
 
 // StorageAPI interface.

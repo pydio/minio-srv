@@ -20,7 +20,7 @@ import (
 	"context"
 	"io"
 
-	"github.com/minio/minio-go/pkg/encrypt"
+	"github.com/pydio/minio-go/pkg/encrypt"
 )
 
 // PutEncryptedObject - Encrypt and store object.

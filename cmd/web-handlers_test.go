@@ -36,8 +36,8 @@ import (
 
 	jwtgo "github.com/dgrijalva/jwt-go"
 	humanize "github.com/dustin/go-humanize"
-	"github.com/minio/minio-go/pkg/policy"
-	"github.com/minio/minio-go/pkg/set"
+	"github.com/pydio/minio-go/pkg/policy"
+	"github.com/pydio/minio-go/pkg/set"
 )
 
 // Tests private function writeWebErrorResponse.

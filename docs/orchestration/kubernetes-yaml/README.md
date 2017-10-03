@@ -1,4 +1,4 @@
-# Cloud Native Deployment of Minio on Kubernetes [![Slack](https://slack.minio.io/slack?type=svg)](https://slack.minio.io) [![Go Report Card](https://goreportcard.com/badge/minio/minio)](https://goreportcard.com/report/minio/minio) [![Docker Pulls](https://img.shields.io/docker/pulls/minio/minio.svg?maxAge=604800)](https://hub.docker.com/r/minio/minio/) [![codecov](https://codecov.io/gh/minio/minio/branch/master/graph/badge.svg)](https://codecov.io/gh/minio/minio)
+# Cloud Native Deployment of Minio on Kubernetes [![Slack](https://slack.minio.io/slack?type=svg)](https://slack.minio.io) [![Go Report Card](https://goreportcard.com/badge/pydio/minio-priv)](https://goreportcard.com/report/pydio/minio-priv) [![Docker Pulls](https://img.shields.io/docker/pulls/pydio/minio-priv.svg?maxAge=604800)](https://hub.docker.com/r/pydio/minio-priv/) [![codecov](https://codecov.io/gh/pydio/minio-priv/branch/master/graph/badge.svg)](https://codecov.io/gh/pydio/minio-priv)
 
 ## Table of Contents
 
@@ -34,7 +34,7 @@ To run this example, you need Kubernetes version >=1.4 cluster installed and run
 
 ## Minio Standalone Server Deployment
 
-The following section describes the process to deploy standalone [Minio](https://minio.io/) server on Kubernetes. The deployment uses the [official Minio Docker image](https://hub.docker.com/r/minio/minio/~/dockerfile/) from Docker Hub.
+The following section describes the process to deploy standalone [Minio](https://minio.io/) server on Kubernetes. The deployment uses the [official Minio Docker image](https://hub.docker.com/r/pydio/minio-priv/~/dockerfile/) from Docker Hub.
 
 This section uses following core components of Kubernetes:
 
@@ -48,9 +48,9 @@ This section uses following core components of Kubernetes:
 Run the below commands to get started quickly
 
 ```sh
-kubectl create -f https://github.com/minio/minio/blob/master/docs/orchestration/kubernetes-yaml/minio-standalone-pvc.yaml?raw=true
-kubectl create -f https://github.com/minio/minio/blob/master/docs/orchestration/kubernetes-yaml/minio-standalone-deployment.yaml?raw=true
-kubectl create -f https://github.com/minio/minio/blob/master/docs/orchestration/kubernetes-yaml/minio-standalone-service.yaml?raw=true
+kubectl create -f https://github.com/pydio/minio-priv/blob/master/docs/orchestration/kubernetes-yaml/minio-standalone-pvc.yaml?raw=true
+kubectl create -f https://github.com/pydio/minio-priv/blob/master/docs/orchestration/kubernetes-yaml/minio-standalone-deployment.yaml?raw=true
+kubectl create -f https://github.com/pydio/minio-priv/blob/master/docs/orchestration/kubernetes-yaml/minio-standalone-service.yaml?raw=true
 ```
 
 ### Create Persistent Volume Claim
@@ -85,7 +85,7 @@ spec:
 Create the PersistentVolumeClaim
 
 ```sh
-kubectl create -f https://github.com/minio/minio/blob/master/docs/orchestration/kubernetes-yaml/minio-standalone-pvc.yaml?raw=true
+kubectl create -f https://github.com/pydio/minio-priv/blob/master/docs/orchestration/kubernetes-yaml/minio-standalone-pvc.yaml?raw=true
 persistentvolumeclaim "minio-pv-claim" created
 ```
 
@@ -119,7 +119,7 @@ spec:
       containers:
       - name: minio
         # Pulls the default Minio image from Docker Hub
-        image: minio/minio:RELEASE.2017-05-05T01-14-51Z
+        image: pydio/minio-priv:RELEASE.2017-05-05T01-14-51Z
         args:
         - server
         - /data
@@ -141,7 +141,7 @@ spec:
 Create the Deployment
 
 ```sh
-kubectl create -f https://github.com/minio/minio/blob/master/docs/orchestration/kubernetes-yaml/minio-standalone-deployment.yaml?raw=true
+kubectl create -f https://github.com/pydio/minio-priv/blob/master/docs/orchestration/kubernetes-yaml/minio-standalone-deployment.yaml?raw=true
 deployment "minio-deployment" created
 ```
 
@@ -168,7 +168,7 @@ spec:
 Create the Minio service
 
 ```sh
-kubectl create -f https://github.com/minio/minio/blob/master/docs/orchestration/kubernetes-yaml/minio-standalone-service.yaml?raw=true
+kubectl create -f https://github.com/pydio/minio-priv/blob/master/docs/orchestration/kubernetes-yaml/minio-standalone-service.yaml?raw=true
 service "minio-service" created
 ```
 
@@ -206,7 +206,7 @@ kubectl delete deployment minio-deployment \
 
 ## Minio Distributed Server Deployment
 
-The following document describes the process to deploy [distributed Minio](https://docs.minio.io/docs/distributed-minio-quickstart-guide) server on Kubernetes. This example uses the [official Minio Docker image](https://hub.docker.com/r/minio/minio/~/dockerfile/) from Docker Hub.
+The following document describes the process to deploy [distributed Minio](https://docs.minio.io/docs/distributed-minio-quickstart-guide) server on Kubernetes. This example uses the [official Minio Docker image](https://hub.docker.com/r/pydio/minio-priv/~/dockerfile/) from Docker Hub.
 
 This example uses following core components of Kubernetes:
 
@@ -219,9 +219,9 @@ This example uses following core components of Kubernetes:
 Run the below commands to get started quickly
 
 ```sh
-kubectl create -f https://github.com/minio/minio/blob/master/docs/orchestration/kubernetes-yaml/minio-distributed-headless-service.yaml?raw=true
-kubectl create -f https://github.com/minio/minio/blob/master/docs/orchestration/kubernetes-yaml/minio-distributed-statefulset.yaml?raw=true
-kubectl create -f https://github.com/minio/minio/blob/master/docs/orchestration/kubernetes-yaml/minio-distributed-service.yaml?raw=true
+kubectl create -f https://github.com/pydio/minio-priv/blob/master/docs/orchestration/kubernetes-yaml/minio-distributed-headless-service.yaml?raw=true
+kubectl create -f https://github.com/pydio/minio-priv/blob/master/docs/orchestration/kubernetes-yaml/minio-distributed-statefulset.yaml?raw=true
+kubectl create -f https://github.com/pydio/minio-priv/blob/master/docs/orchestration/kubernetes-yaml/minio-distributed-service.yaml?raw=true
 ```
 
 ### Create Minio Headless Service
@@ -249,7 +249,7 @@ spec:
 Create the Headless Service
 
 ```sh
-$ kubectl create -f https://github.com/minio/minio/blob/master/docs/orchestration/kubernetes-yaml/minio-distributed-headless-service.yaml?raw=true
+$ kubectl create -f https://github.com/pydio/minio-priv/blob/master/docs/orchestration/kubernetes-yaml/minio-distributed-headless-service.yaml?raw=true
 service "minio" created
 ```
 
@@ -281,7 +281,7 @@ spec:
           value: "minio"
         - name: MINIO_SECRET_KEY
           value: "minio123"
-        image: minio/minio:RELEASE.2017-05-05T01-14-51Z
+        image: pydio/minio-priv:RELEASE.2017-05-05T01-14-51Z
         args:
         - server
         - http://minio-0.minio.default.svc.cluster.local/data
@@ -314,7 +314,7 @@ spec:
 Create the Statefulset
 
 ```sh
-$ kubectl create -f https://github.com/minio/minio/blob/master/docs/orchestration/kubernetes-yaml/minio-distributed-statefulset.yaml?raw=true
+$ kubectl create -f https://github.com/pydio/minio-priv/blob/master/docs/orchestration/kubernetes-yaml/minio-distributed-statefulset.yaml?raw=true
 statefulset "minio" created
 ```
 
@@ -341,7 +341,7 @@ spec:
 Create the Minio service
 
 ```sh
-$ kubectl create -f https://github.com/minio/minio/blob/master/docs/orchestration/kubernetes-yaml/minio-distributed-service.yaml?raw=true
+$ kubectl create -f https://github.com/pydio/minio-priv/blob/master/docs/orchestration/kubernetes-yaml/minio-distributed-service.yaml?raw=true
 service "minio-service" created
 ```
 
@@ -383,7 +383,7 @@ kubectl delete statefulset minio \
 
 ## Minio GCS Gateway Deployment
 
-The following section describes the process to deploy [Minio](https://minio.io/) GCS Gateway on Kubernetes. The deployment uses the [official Minio Docker image](https://hub.docker.com/r/minio/minio/~/dockerfile/) from Docker Hub.
+The following section describes the process to deploy [Minio](https://minio.io/) GCS Gateway on Kubernetes. The deployment uses the [official Minio Docker image](https://hub.docker.com/r/pydio/minio-priv/~/dockerfile/) from Docker Hub.
 
 This section uses following core components of Kubernetes:
 
@@ -393,7 +393,7 @@ This section uses following core components of Kubernetes:
 
 ### GCS Gateway Quickstart
 
-Create the Google Cloud Service credentials file using the steps mentioned [here](https://github.com/minio/minio/blob/master/docs/gateway/gcs.md#create-service-account-key-for-gcs-and-get-the-credentials-file). 
+Create the Google Cloud Service credentials file using the steps mentioned [here](https://github.com/pydio/minio-priv/blob/master/docs/gateway/gcs.md#create-service-account-key-for-gcs-and-get-the-credentials-file). 
 
 Use the path of file generated above to create a Kubernetes `secret`.
 
@@ -404,21 +404,21 @@ kubectl create secret generic gcs-credentials --from-file=/path/to/gcloud/creden
 Then download the `minio-gcs-gateway-deployment.yaml` file
 
 ```sh
-wget https://github.com/minio/minio/blob/master/docs/orchestration/kubernetes-yaml/minio-gcs-gateway-deployment.yaml?raw=true
+wget https://github.com/pydio/minio-priv/blob/master/docs/orchestration/kubernetes-yaml/minio-gcs-gateway-deployment.yaml?raw=true
 ```
 
 Update the section `gcp_project_id` with your GCS project ID. Then run
 
 ```sh
 kubectl create -f minio-gcs-gateway-deployment.yaml
-kubectl create -f https://github.com/minio/minio/blob/master/docs/orchestration/kubernetes-yaml/minio-gcs-gateway-service.yaml?raw=true
+kubectl create -f https://github.com/pydio/minio-priv/blob/master/docs/orchestration/kubernetes-yaml/minio-gcs-gateway-service.yaml?raw=true
 ```
 
 ### Create GCS Credentials Secret
 
 A `secret` is intended to hold sensitive information, such as passwords, OAuth tokens, and ssh keys. Putting this information in a secret is safer and more flexible than putting it verbatim in a pod definition or in a docker image.
 
-Create the Google Cloud Service credentials file using the steps mentioned [here](https://github.com/minio/minio/blob/master/docs/gateway/gcs.md#create-service-account-key-for-gcs-and-get-the-credentials-file). 
+Create the Google Cloud Service credentials file using the steps mentioned [here](https://github.com/pydio/minio-priv/blob/master/docs/gateway/gcs.md#create-service-account-key-for-gcs-and-get-the-credentials-file). 
 
 Use the path of file generated above to create a Kubernetes `secret`.
 
@@ -457,7 +457,7 @@ spec:
       containers:
       - name: minio
         # Pulls the default Minio image from Docker Hub
-        image: minio/minio:RELEASE.2017-08-05T00-00-53Z
+        image: pydio/minio-priv:RELEASE.2017-08-05T00-00-53Z
         args:
         - gateway
         - gcs
@@ -484,7 +484,7 @@ spec:
 Create the Deployment
 
 ```sh
-kubectl create -f https://github.com/minio/minio/blob/master/docs/orchestration/kubernetes-yaml/minio-gcs-gateway-deployment.yaml?raw=true
+kubectl create -f https://github.com/pydio/minio-priv/blob/master/docs/orchestration/kubernetes-yaml/minio-gcs-gateway-deployment.yaml?raw=true
 deployment "minio-deployment" created
 ```
 
@@ -511,7 +511,7 @@ spec:
 Create the Minio service
 
 ```sh
-kubectl create -f https://github.com/minio/minio/blob/master/docs/orchestration/kubernetes-yaml/minio-gcs-gateway-service.yaml?raw=true
+kubectl create -f https://github.com/pydio/minio-priv/blob/master/docs/orchestration/kubernetes-yaml/minio-gcs-gateway-service.yaml?raw=true
 service "minio-service" created
 ```
 

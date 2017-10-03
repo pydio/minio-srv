@@ -175,7 +175,7 @@ func getSource() string {
 	pc, filename, lineNum, ok := runtime.Caller(2)
 	if ok {
 		filename = path.Base(filename)
-		funcName = strings.TrimPrefix(runtime.FuncForPC(pc).Name(), "github.com/minio/minio/cmd.")
+		funcName = strings.TrimPrefix(runtime.FuncForPC(pc).Name(), "github.com/pydio/minio-priv/cmd.")
 	} else {
 		filename = "<unknown>"
 		lineNum = 0

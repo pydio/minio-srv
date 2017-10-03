@@ -24,7 +24,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/minio/minio-go/pkg/s3utils"
+	"github.com/pydio/minio-go/pkg/s3utils"
 )
 
 // ListBuckets list all buckets owned by this authenticated user.

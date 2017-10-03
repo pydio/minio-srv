@@ -22,7 +22,7 @@ import (
 	"path"
 	"testing"
 
-	os2 "github.com/minio/minio/pkg/x/os"
+	os2 "github.com/pydio/minio-priv/pkg/x/os"
 	. "gopkg.in/check.v1"
 )
 

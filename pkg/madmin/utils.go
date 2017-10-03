@@ -27,7 +27,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/minio/minio-go/pkg/s3utils"
+	"github.com/pydio/minio-go/pkg/s3utils"
 )
 
 // sum256 calculate sha256 sum for an input byte array.

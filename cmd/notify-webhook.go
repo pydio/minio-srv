@@ -73,7 +73,7 @@ func isNetErrorIgnored(err error) bool {
 		case *net.DNSError, *net.OpError, net.UnknownNetworkError:
 			return true
 		case *url.Error:
-			// Fixes https://github.com/minio/minio/issues/4050
+			// Fixes https://github.com/pydio/minio-priv/issues/4050
 			switch e.Err.(type) {
 			case *net.DNSError, *net.OpError, net.UnknownNetworkError:
 				return true

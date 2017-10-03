@@ -10,7 +10,7 @@ Erasure code is a mathematical algorithm to reconstruct missing or corrupted dat
 
 Erasure code protects data from multiple drives failure unlike RAID or replication. For eg RAID6 can protect against 2 drive failure whereas in Minio erasure code you can lose as many as half number of drives and still the data remains safe. Further Minio's erasure code is at object level and can heal one object at a time. For RAID, healing can only be performed at volume level which translates into huge down time. As Minio encodes each object individually with a high parity count. Storage servers once deployed should not require drive replacement or healing for the lifetime of the server. Minio's erasure coded backend is designed for operational efficiency and takes full advantage of hardware acceleration whenever available.
 
-![Erasure](https://github.com/minio/minio/blob/master/docs/screenshots/erasure-code.jpg?raw=true)
+![Erasure](https://github.com/pydio/minio-priv/blob/master/docs/screenshots/erasure-code.jpg?raw=true)
 
 ## What is Bit Rot protection?
 
@@ -44,7 +44,7 @@ docker run -p 9000:9000 --name minio \
   -v /mnt/data6:/data6 \
   -v /mnt/data7:/data7 \
   -v /mnt/data8:/data8 \
-  minio/minio server /data1 /data2 /data3 /data4 /data5 /data6 /data7 /data8
+  pydio/minio-priv server /data1 /data2 /data3 /data4 /data5 /data6 /data7 /data8
 ```
 
 ### 3. Test your setup

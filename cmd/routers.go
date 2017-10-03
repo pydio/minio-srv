@@ -56,7 +56,7 @@ func registerDistXLRouters(mux *router.Router, endpoints EndpointList) error {
 // configureServer handler returns final handler for the http server.
 func configureServerHandler(endpoints EndpointList) (http.Handler, error) {
 	// Initialize router. `SkipClean(true)` stops gorilla/mux from
-	// normalizing URL path minio/minio#3256
+	// normalizing URL path pydio/minio-priv#3256
 	mux := router.NewRouter().SkipClean(true)
 
 	// Initialize distributed NS lock.

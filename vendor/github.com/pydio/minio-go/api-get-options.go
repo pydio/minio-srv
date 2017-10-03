@@ -21,7 +21,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/minio/minio-go/pkg/encrypt"
+	"github.com/pydio/minio-go/pkg/encrypt"
 )
 
 // GetObjectOptions are used to specify additional headers or options

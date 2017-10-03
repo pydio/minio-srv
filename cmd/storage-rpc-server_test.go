@@ -20,7 +20,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/minio/minio/pkg/disk"
+	"github.com/pydio/minio-priv/pkg/disk"
 )
 
 const invalidToken = "invalidToken"

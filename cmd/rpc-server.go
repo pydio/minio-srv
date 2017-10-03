@@ -21,7 +21,7 @@ import (
 	"net/http"
 	"net/rpc"
 
-	miniohttp "github.com/minio/minio/pkg/http"
+	miniohttp "github.com/pydio/minio-priv/pkg/http"
 )
 
 // ServeHTTP implements an http.Handler that answers RPC requests,

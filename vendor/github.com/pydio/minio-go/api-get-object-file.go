@@ -21,11 +21,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/minio/minio-go/pkg/encrypt"
+	"github.com/pydio/minio-go/pkg/encrypt"
 
 	"context"
 
-	"github.com/minio/minio-go/pkg/s3utils"
+	"github.com/pydio/minio-go/pkg/s3utils"
 )
 
 // FGetObjectWithContext - download contents of an object to a local file.

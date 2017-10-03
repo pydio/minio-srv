@@ -28,7 +28,7 @@ import (
 	"sync"
 
 	mux "github.com/gorilla/mux"
-	"github.com/minio/minio-go/pkg/set"
+	"github.com/pydio/minio-go/pkg/set"
 )
 
 // http://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html

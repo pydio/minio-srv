@@ -23,7 +23,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/minio/minio/pkg/disk"
+	"github.com/pydio/minio-priv/pkg/disk"
 
 	. "gopkg.in/check.v1"
 )

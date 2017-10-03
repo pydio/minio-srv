@@ -20,7 +20,7 @@ import (
 	"io"
 
 	router "github.com/gorilla/mux"
-	"github.com/minio/minio-go/pkg/policy"
+	"github.com/pydio/minio-go/pkg/policy"
 )
 
 // GatewayLayer - Interface to implement gateway mode.

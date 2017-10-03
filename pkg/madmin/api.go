@@ -32,8 +32,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/minio/minio-go/pkg/s3signer"
-	"github.com/minio/minio-go/pkg/s3utils"
+	"github.com/pydio/minio-go/pkg/s3signer"
+	"github.com/pydio/minio-go/pkg/s3utils"
 )
 
 // AdminClient implements Amazon S3 compatible methods.

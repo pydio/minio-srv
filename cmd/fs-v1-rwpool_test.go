@@ -21,7 +21,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/minio/minio/pkg/lock"
+	"github.com/pydio/minio-priv/pkg/lock"
 )
 
 // Tests long path calls.

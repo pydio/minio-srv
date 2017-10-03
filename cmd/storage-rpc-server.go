@@ -22,7 +22,7 @@ import (
 	"time"
 
 	router "github.com/gorilla/mux"
-	"github.com/minio/minio/pkg/disk"
+	"github.com/pydio/minio-priv/pkg/disk"
 )
 
 // Storage server implements rpc primitives to facilitate exporting a

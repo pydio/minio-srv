@@ -19,7 +19,7 @@ package cmd
 import (
 	"io"
 
-	"github.com/minio/minio-go/pkg/policy"
+	"github.com/pydio/minio-go/pkg/policy"
 )
 
 // MakeBucket creates a new container on S3 backend.

@@ -24,7 +24,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/minio/minio/pkg/lock"
+	"github.com/pydio/minio-priv/pkg/lock"
 )
 
 // A uploadInfo represents the s3 compatible spec.

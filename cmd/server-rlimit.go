@@ -16,7 +16,7 @@
 
 package cmd
 
-import "github.com/minio/minio/pkg/sys"
+import "github.com/pydio/minio-priv/pkg/sys"
 
 func setMaxResources() (err error) {
 	var maxLimit uint64

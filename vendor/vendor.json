@@ -678,28 +678,46 @@
 			"revisionTime": "2017-07-06T04:52:24Z"
 		},
 		{
-			"checksumSHA1": "5NjOQhnsgB1QKpdkP7p6faL8Mng=",
+			"checksumSHA1": "T1MConDKETB9TbxLMY3rRBq/ZRI=",
 			"path": "github.com/pydio/minio-go",
-			"revision": "dce0da98c790daef6fc56988d65188634b9040a9",
-			"revisionTime": "2017-10-03T11:05:10Z"
+			"revision": "2f229938c65c7ab9d23af525c968be71103fe7db",
+			"revisionTime": "2017-10-03T19:51:20Z"
 		},
 		{
-			"checksumSHA1": "pggIpSePizRBQ7ybhB0CuaSQydw=",
+			"checksumSHA1": "auRee3ydiTjco+F9dOcvoqN2XDQ=",
+			"path": "github.com/pydio/minio-go/pkg/credentials",
+			"revision": "2f229938c65c7ab9d23af525c968be71103fe7db",
+			"revisionTime": "2017-10-03T19:51:20Z"
+		},
+		{
+			"checksumSHA1": "M4Qdgh6jJ3WoHIFOe+EpdHh0wAk=",
 			"path": "github.com/pydio/minio-go/pkg/encrypt",
-			"revision": "9690dc6c40e6ef271727848c04f974e801212ac1",
-			"revisionTime": "2017-10-02T19:34:27Z"
+			"revision": "2f229938c65c7ab9d23af525c968be71103fe7db",
+			"revisionTime": "2017-10-03T19:51:20Z"
 		},
 		{
-			"checksumSHA1": "3tl2ehmod/EzXE9o9WJ5HM2AQPE=",
+			"checksumSHA1": "lPMdCeEenWHmp6xOBHftlWm49W0=",
 			"path": "github.com/pydio/minio-go/pkg/policy",
-			"revision": "9690dc6c40e6ef271727848c04f974e801212ac1",
-			"revisionTime": "2017-10-02T19:34:27Z"
+			"revision": "2f229938c65c7ab9d23af525c968be71103fe7db",
+			"revisionTime": "2017-10-03T19:51:20Z"
 		},
 		{
-			"checksumSHA1": "maUy+dbN6VfTTnfErrAW2lLit1w=",
+			"checksumSHA1": "IqrClG1X13JU478sfYrKQhtfV/I=",
+			"path": "github.com/pydio/minio-go/pkg/s3signer",
+			"revision": "2f229938c65c7ab9d23af525c968be71103fe7db",
+			"revisionTime": "2017-10-03T19:51:20Z"
+		},
+		{
+			"checksumSHA1": "xvu2Tph1RdoHbCKwBJq3GQpeet0=",
+			"path": "github.com/pydio/minio-go/pkg/s3utils",
+			"revision": "2f229938c65c7ab9d23af525c968be71103fe7db",
+			"revisionTime": "2017-10-03T19:51:20Z"
+		},
+		{
+			"checksumSHA1": "vQZBYJBFtlMgkjD43apvG0rcGaQ=",
 			"path": "github.com/pydio/minio-go/pkg/set",
-			"revision": "9690dc6c40e6ef271727848c04f974e801212ac1",
-			"revisionTime": "2017-10-02T19:34:27Z"
+			"revision": "2f229938c65c7ab9d23af525c968be71103fe7db",
+			"revisionTime": "2017-10-03T19:51:20Z"
 		},
 		{
 			"checksumSHA1": "cjz+PKDINCmFDDWcGGyBgW67/II=",

@@ -26,8 +26,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/minio/minio-go/pkg/encrypt"
-	"github.com/minio/minio-go/pkg/s3utils"
+	"github.com/pydio/minio-go/pkg/encrypt"
+	"github.com/pydio/minio-go/pkg/s3utils"
 )
 
 // PutObjectOptions represents options specified by user for PutObject call

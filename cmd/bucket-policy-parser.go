@@ -26,7 +26,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/minio/minio-go/pkg/set"
+	"github.com/pydio/minio-go/pkg/set"
 )
 
 var conditionKeyActionMap = map[string]set.StringSet{

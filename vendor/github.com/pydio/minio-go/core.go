@@ -21,7 +21,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/minio/minio-go/pkg/policy"
+	"github.com/pydio/minio-go/pkg/policy"
 )
 
 // Core - Inherits Client and adds new methods to expose the low level S3 APIs.

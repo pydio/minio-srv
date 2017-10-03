@@ -22,7 +22,7 @@ import (
 	"path"
 	"sync"
 
-	"github.com/minio/minio-go/pkg/set"
+	"github.com/pydio/minio-go/pkg/set"
 )
 
 // s3Peer structs contains the address of a peer in the cluster, and

@@ -24,7 +24,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/minio/minio-go/pkg/set"
+	"github.com/pydio/minio-go/pkg/set"
 )
 
 func TestMustSplitHostPort(t *testing.T) {

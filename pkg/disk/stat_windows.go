@@ -22,7 +22,7 @@ import (
 	"syscall"
 	"unsafe"
 
-	os2 "github.com/minio/minio/pkg/x/os"
+	os2 "github.com/pydio/minio-priv/pkg/x/os"
 )
 
 var (

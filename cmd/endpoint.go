@@ -26,8 +26,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/minio/minio-go/pkg/set"
-	"github.com/minio/minio/pkg/mountinfo"
+	"github.com/pydio/minio-go/pkg/set"
+	"github.com/pydio/minio-priv/pkg/mountinfo"
 )
 
 // EndpointType - enum for endpoint type.
