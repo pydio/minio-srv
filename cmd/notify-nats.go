@@ -17,6 +17,7 @@
 package cmd
 
 import (
+	"bytes"
 	"io/ioutil"
 	"net"
 
@@ -163,10 +164,12 @@ func newNATSNotify(accountID string) (*logrus.Logger, error) {
 
 // Fire is called when an event should be sent to the message broker
 func (n natsIOConn) Fire(entry *logrus.Entry) error {
-	body, err := entry.Reader()
+	serialized, err := entry.Logger.Formatter.Format(entry)
 	if err != nil {
 		return err
 	}
+
+	body := bytes.NewBuffer(serialized)
 	if n.params.Streaming.Enable {
 		// Streaming flag is enabled, publish the log synchronously or asynchronously
 		// depending on the user supplied parameter

@@ -17,6 +17,7 @@
 package cmd
 
 import (
+	"bytes"
 	"io/ioutil"
 	"net"
 
@@ -115,10 +116,12 @@ func (kC kafkaConn) Close() {
 
 // Fire - to implement logrus.Hook interface
 func (kC kafkaConn) Fire(entry *logrus.Entry) error {
-	body, err := entry.Reader()
+	serialized, err := entry.Logger.Formatter.Format(entry)
 	if err != nil {
 		return err
 	}
+
+	body := bytes.NewBuffer(serialized)
 
 	// Extract the key of the event as a string
 	keyStr, ok := entry.Data["Key"].(string)

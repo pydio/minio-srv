@@ -23,10 +23,11 @@ import (
 
 	"encoding/hex"
 
-	minio "github.com/pydio/minio-go"
+	"os"
+
 	"github.com/minio/minio-go/pkg/policy"
 	"github.com/minio/minio-go/pkg/s3utils"
-	"os"
+	minio "github.com/pydio/minio-go"
 )
 
 // s3ToObjectError converts Minio errors to minio object layer errors.
@@ -298,7 +299,7 @@ func fromMinioClientListBucketResult(bucket string, result minio.ListBucketResul
 // startOffset indicates the starting read location of the object.
 // length indicates the total length of the object.
 func (l *s3Objects) GetObject(bucket string, key string, startOffset int64, length int64, writer io.Writer) error {
-	r := minio.NewGetReqHeaders()
+	r := minio.GetObjectOptions{}
 
 	if length < 0 && length != -1 {
 		return s3ToObjectError(traceError(errInvalidArgument), bucket, key)
@@ -341,8 +342,7 @@ func fromMinioClientObjectInfo(bucket string, oi minio.ObjectInfo) ObjectInfo {
 
 // GetObjectInfo reads object info and replies back ObjectInfo
 func (l *s3Objects) GetObjectInfo(bucket string, object string) (objInfo ObjectInfo, err error) {
-	r := minio.NewHeadReqHeaders()
-	oi, err := l.Client.StatObject(bucket, object, r)
+	oi, err := l.Client.StatObject(bucket, object, minio.StatObjectOptions{})
 	if err != nil {
 		return ObjectInfo{}, s3ToObjectError(traceError(err), bucket, object)
 	}
@@ -370,10 +370,9 @@ func (l *s3Objects) PutObject(bucket string, object string, data *HashReader, me
 }
 
 // CopyObject copies a blob from source container to destination container.
-<<<<<<< aa328a647cee2bd5a68e049384f4f67d2d6ce149
 func (l *s3Objects) CopyObject(srcBucket string, srcObject string, dstBucket string, dstObject string, metadata map[string]string) (objInfo ObjectInfo, err error) {
 	// Source object
-	src := minio.NewSourceInfo(srcBucket, srcObject, nil)
+	// src := minio.NewSourceInfo(srcBucket, srcObject, nil)
 
 	// Destination object
 	var xamzMeta = map[string]string{}
@@ -384,31 +383,17 @@ func (l *s3Objects) CopyObject(srcBucket string, srcObject string, dstBucket str
 			}
 		}
 	}
-	dst, err := minio.NewDestinationInfo(dstBucket, dstObject, nil, xamzMeta)
-=======
-func (l *s3Objects) CopyObject(srcBucket string, srcObject string, destBucket string, destObject string, metadata map[string]string) (objInfo ObjectInfo, e error) {
+	// dst, err := minio.NewDestinationInfo(dstBucket, dstObject, nil, xamzMeta)
+	// if err != nil {
+	// 	return objInfo, s3ToObjectError(traceError(err), dstBucket, dstObject)
+	// }
 
-	srcInfo := minio.NewSourceInfo(srcBucket, srcObject, nil)
-	destInfo, err := minio.NewDestinationInfo(destBucket, destObject, nil, metadata)
+	oi, err := l.Client.CopyObject(srcBucket, srcObject, dstBucket, dstObject, nil)
 	if err != nil {
-		return objInfo, s3ToObjectError(traceError(err), destBucket, destObject)
-	}
-	err = l.Client.CopyObject(destInfo, srcInfo)
->>>>>>> Gateway : remove minio-go from vendor (use last version) - Remove node pre-creation in index - Auth: add fake user in context
-	if err != nil {
-		return objInfo, s3ToObjectError(traceError(err), dstBucket, dstObject)
-	}
-
-	if err = l.Client.CopyObject(dst, src); err != nil {
 		return objInfo, s3ToObjectError(traceError(err), srcBucket, srcObject)
 	}
 
-	oi, err := l.GetObjectInfo(dstBucket, dstObject)
-	if err != nil {
-		return objInfo, s3ToObjectError(traceError(err), dstBucket, dstObject)
-	}
-
-	return oi, nil
+	return fromMinioClientObjectInfo(dstBucket, oi), nil
 }
 
 // DeleteObject deletes a blob in bucket

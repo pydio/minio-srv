@@ -21,7 +21,7 @@ import (
 	"reflect"
 	"testing"
 
-	minio "github.com/minio/minio-go"
+	minio "github.com/pydio/minio-go"
 )
 
 func TestToGCSPageToken(t *testing.T) {

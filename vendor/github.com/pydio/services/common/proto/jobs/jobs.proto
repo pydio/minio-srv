@@ -1,0 +1,248 @@
+syntax = "proto3";
+
+import "any.proto";
+import "github.com/pydio/services/common/service/proto/common.proto";
+import "github.com/pydio/services/common/proto/tree/tree.proto";
+import "github.com/pydio/services/common/proto/idm/idm.proto";
+import "github.com/pydio/services/common/proto/activity/activitystream.proto";
+
+package jobs;
+
+///////////////////
+// JOB  SERVICE  //
+///////////////////
+message NodesSelector{
+    // Select all files - ignore any other condition
+    bool All = 1;
+    // Preset list of node pathes
+    repeated string Pathes = 2;
+    // Preset set of nodes
+    repeated tree.Node Nodes = 3;
+    // Query to apply to select users (or filter a given node passed by event)
+    service.Query Query = 4;
+    // Wether to trigger one action per node or one action
+    //with all nodes as selection
+    bool Collect = 5;
+
+}
+
+message UsersSelector{
+    // Select all users
+    bool All = 1;
+    // Preset set of Users
+    repeated idm.User Users = 2;
+    // Filter users using this query
+    service.Query Query = 3;
+    // Wether to trigger one action per user or one action
+    //with all user as a selection
+    bool Collect = 5;
+}
+
+message SourceFilter {
+    // Can be built with SourceSingleQuery or ActionOutputQuery
+    service.Query Query = 1;
+}
+
+message Schedule{
+
+    // ISO 8601 Description of the scheduling
+    string Iso8601Schedule = 1;
+    // Minimum time between two runs
+    string Iso8601MinDelta = 3;
+}
+
+message Action {
+    // String Identifier for specific action
+    string ID = 1;
+
+    // Nodes Selector
+    NodesSelector NodesSelector = 2;
+    // Users Selector
+    UsersSelector UsersSelector = 3;
+    // Node Filter
+    NodesSelector NodesFilter = 4;
+    // User Filter
+    UsersSelector UsersFilter = 5;
+
+    // Source filter
+    SourceFilter SourceFilter = 6;
+
+    // Defined parameters for this action
+    map<string, string> Parameters = 7;
+    // Other actions to perform after this one is finished,
+    // using the Output of this action as Input for the next.
+    // If there are many, it is considered they can be triggered
+    // in parallel
+    repeated Action ChainedActions = 8;
+}
+
+message Job{
+    // Unique ID for this Job
+    string ID = 1;
+    // Human-readable Label
+    string Label = 2;
+    // Who created this Job
+    string Owner = 3;
+    // Admin can temporarily disable this job
+    bool Inactive = 4;
+
+    // How the job will be triggered.
+    // One of these must be set (not exclusive)
+    // Listen to a given set of events
+    repeated string EventNames = 5;
+    // Schedule a periodic repetition
+    Schedule Schedule = 6;
+    // Start task as soon as job is inserted
+    bool AutoStart = 12;
+
+    // Chain of actions to perform
+    repeated Action Actions = 7;
+
+    // Task properties
+    int32 MaxConcurrency = 8;
+    bool Stoppable = 9;
+    bool HasProgress = 10;
+
+    // Filled with currently running tasks
+    repeated Task Tasks = 11;
+}
+
+// Events sent by the JobService when CRUD'ing a Job configuration
+message JobChangeEvent{
+    Job JobUpdated = 1;
+    string JobRemoved = 2;
+}
+
+message TaskChangeEvent{
+    Task TaskUpdated = 1;
+}
+
+message PutJobRequest{
+    Job Job = 1;
+}
+
+message PutJobResponse{
+    Job Job = 1;
+}
+
+message GetJobRequest{
+    string JobID = 1;
+    TaskStatus LoadTasks = 2;
+}
+
+message GetJobResponse{
+    Job Job = 1;
+}
+
+message DeleteJobRequest{
+    string JobID = 1;
+}
+
+message DeleteJobResponse{
+    bool Success = 1;
+}
+
+message ListJobsRequest{
+    string Owner = 1;
+    bool EventsOnly = 2;
+    bool TimersOnly = 3;
+
+    TaskStatus LoadTasks = 4;
+}
+message ListJobsResponse{
+    Job Job = 1;
+}
+
+message ListTasksRequest{
+    string JobID = 1;
+    TaskStatus Status = 2;
+}
+
+message ListTasksResponse{
+    Task Task = 1;
+}
+
+message PutTaskRequest{
+    Task Task = 1;
+}
+
+message PutTaskResponse{
+    Task Task = 1;
+}
+
+// *****************************************************************************
+//  Services Jobs: Stores Jobs and associated tasks.
+// *****************************************************************************
+service JobService{
+    rpc PutJob(PutJobRequest) returns (PutJobResponse) {};
+    rpc GetJob(GetJobRequest) returns (GetJobResponse) {};
+    rpc DeleteJob(DeleteJobRequest) returns (DeleteJobResponse) {};
+    rpc ListJobs(ListJobsRequest) returns (stream ListJobsResponse){};
+
+    rpc PutTask(PutTaskRequest) returns (PutTaskResponse) {};
+    rpc PutTaskStream(stream PutTaskRequest) returns (stream PutTaskResponse) {};
+    rpc ListTasks(ListTasksRequest) returns (stream ListTasksResponse){};
+}
+
+
+///////////////////
+// TASK SERVICE  //
+///////////////////
+enum TaskStatus{
+    Unknown  = 0;
+    Idle     = 1;
+    Running  = 2;
+    Finished = 3;
+    Any      = 4;
+    Error    = 5;
+}
+
+message Task{
+    string ID = 1;
+    string JobID = 2;
+    TaskStatus Status = 3;
+
+    int32 StartTime = 4;
+    int32 EndTime = 6;
+
+    float Progress = 7;
+
+    repeated ActionLog ActionsLogs = 8;
+}
+
+message ActionLog {
+    Action Action = 1;
+    ActionMessage InputMessage = 2;
+    ActionMessage OutputMessage = 3;
+}
+
+
+// Simple Event sent by the Timer Service
+// to trigger a JobID at a given time
+message JobTriggerEvent{
+    string JobID = 1;
+    Schedule Schedule = 2;
+    bool RunNow = 3;
+}
+
+// Standard output of an action. Success value is required
+// other are optional
+message ActionOutput {
+    bool Success = 1;
+    bytes RawBody = 2;
+    string StringBody = 3;
+    bytes JsonBody = 4;
+    string ErrorString = 5;
+    bool Ignored = 6;
+}
+
+// Message passed along from one action to another, main properties
+// are modified by the various actions.
+// OutputChain is being stacked up when passing through actions
+message ActionMessage {
+    google.protobuf.Any Event = 1;
+    repeated tree.Node Nodes = 2;
+    repeated idm.User Users = 3;
+    repeated activity.Object Activities = 4;
+    repeated ActionOutput OutputChain = 5;
+}

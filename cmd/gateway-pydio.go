@@ -21,13 +21,14 @@ import (
 	"io"
 
 	"errors"
-	"github.com/pydio/minio-go"
-	"github.com/pydio/services/common"
-	"github.com/pydio/services/common/proto/tree"
 	"strings"
 	"time"
 
+	"github.com/pydio/minio-go"
+	"github.com/pydio/services/common/proto/tree"
+
 	"context"
+
 	"github.com/pydio/services/common/views"
 )
 
@@ -66,7 +67,7 @@ type pydioObjects struct {
 // newS3Gateway returns s3 gatewaylayer
 func newPydioGateway() (GatewayLayer, error) {
 
-	router := views.NewStandardRooter(false)
+	router := views.NewStandardRouter(false, false)
 
 	api := &pydioObjects{
 		Router: router,
@@ -109,7 +110,6 @@ func (l *pydioObjects) ListPydioObjects(ctx context.Context, bucket string, pref
 	var FilterType tree.NodeType
 	if maxKeys == 1 {
 		// We probably want to get only the very first object here (for folders stats)
-		log.Println("Should get only LEAF nodes")
 		FilterType = tree.NodeType_LEAF
 	}
 	lNodeClient, err := l.Router.ListNodes(ctx, &tree.ListNodesRequest{
@@ -191,7 +191,7 @@ func (l *pydioObjects) ListObjectsWithContext(ctx context.Context, bucket string
 		return loi, s3ToObjectError(traceError(err), bucket)
 	}
 
-	log.Printf("[ListObjects] Returning %d objects and %d prefixes (V1) for prefix %s\n", len(objects), len(prefixes), prefix)
+	//	log.Printf("[ListObjects] Returning %d objects and %d prefixes (V1) for prefix %s\n", len(objects), len(prefixes), prefix)
 
 	return ListObjectsInfo{
 		IsTruncated: false,
@@ -210,7 +210,7 @@ func (l *pydioObjects) ListObjectsV2WithContext(ctx context.Context, bucket, pre
 		return loi, s3ToObjectError(traceError(err), bucket)
 	}
 
-	log.Printf("\n[ListObjectsV2] Returning %d objects and %d prefixes (V2) for prefix %s\n", len(objects), len(prefixes), prefix)
+	// log.Printf("\n[ListObjectsV2] Returning %d objects and %d prefixes (V2) for prefix %s\n", len(objects), len(prefixes), prefix)
 
 	return ListObjectsV2Info{
 		IsTruncated: false,
@@ -226,7 +226,7 @@ func (l *pydioObjects) ListObjectsV2WithContext(ctx context.Context, bucket, pre
 // GetObjectInfo reads object info and replies back ObjectInfo
 func (l *pydioObjects) GetObjectInfoWithContext(ctx context.Context, bucket string, object string) (objInfo ObjectInfo, err error) {
 
-	log.Println("[GetObjectInfo]" + object)
+	// log.Println("[GetObjectInfo]" + object)
 
 	path := strings.TrimLeft(object, "/")
 	readNodeResponse, err := l.Router.ReadNode(ctx, &tree.ReadNodeRequest{Node: &tree.Node{
@@ -252,7 +252,7 @@ func (l *pydioObjects) GetObjectInfoWithContext(ctx context.Context, bucket stri
 // length indicates the total length of the object.
 func (l *pydioObjects) GetObjectWithContext(ctx context.Context, bucket string, key string, startOffset int64, length int64, writer io.Writer) error {
 
-	log.Println("[GetObject] From Router", bucket, key, startOffset, length)
+	// log.Println("[GetObject] From Router", bucket, key, startOffset, length)
 
 	path := strings.TrimLeft(key, "/")
 	objectReader, err := l.Router.GetObject(ctx, &tree.Node{
@@ -319,11 +319,11 @@ func (l *pydioObjects) PutObjectWithContext(ctx context.Context, bucket string, 
 func (l *pydioObjects) CopyObjectWithContext(ctx context.Context, srcBucket string, srcObject string, destBucket string, destObject string, requestMetadata map[string]string) (objInfo ObjectInfo, e error) {
 
 	if srcObject == destObject {
-		log.Printf("Coping %v to %v, this is a REPLACE meta directive \n", srcObject, destObject)
-		log.Println(requestMetadata)
+		//log.Printf("Coping %v to %v, this is a REPLACE meta directive \n", srcObject, destObject)
+		// log.Println(requestMetadata)
 		return objInfo, traceError(&NotImplemented{})
 	}
-	log.Println("Received COPY instruction: ", srcBucket, "/", srcObject, "=>", destBucket, "/", destObject)
+	// log.Println("Received COPY instruction: ", srcBucket, "/", srcObject, "=>", destBucket, "/", destObject)
 
 	written, err := l.Router.CopyObject(ctx, &tree.Node{
 		Path: strings.TrimLeft(srcObject, "/"),
@@ -345,7 +345,7 @@ func (l *pydioObjects) CopyObjectWithContext(ctx context.Context, srcBucket stri
 // DeleteObject deletes a blob in bucket
 func (l *pydioObjects) DeleteObjectWithContext(ctx context.Context, bucket string, object string) error {
 
-	log.Println("[DeleteObject]", object)
+	// log.Println("[DeleteObject]", object)
 	_, err := l.Router.DeleteNode(ctx, &tree.DeleteNodeRequest{
 		Node: &tree.Node{
 			Path: strings.TrimLeft(object, "/"),
@@ -449,8 +449,7 @@ func (l *pydioObjects) CompleteMultipartUploadWithContext(ctx context.Context, b
 
 // GetObjectInfo reads object info and replies back ObjectInfo
 func (l *pydioObjects) getS3ObjectInfo(client *minio.Core, bucket string, object string) (objInfo ObjectInfo, err error) {
-	r := minio.NewHeadReqHeaders()
-	oi, err := client.StatObject(bucket, object, r)
+	oi, err := client.StatObject(bucket, object, minio.StatObjectOptions{})
 	if err != nil {
 		return ObjectInfo{}, s3ToObjectError(traceError(err), bucket, object)
 	}
@@ -476,7 +475,7 @@ func (l *pydioObjects) ListObjects(bucket string, prefix string, marker string, 
 }
 
 // ListObjectsV2 lists all blobs in S3 bucket filtered by prefix
-func (l *pydioObjects) ListObjectsV2(bucket, prefix, continuationToken string, fetchOwner bool, delimiter string, maxKeys int) (loi ListObjectsV2Info, e error) {
+func (l *pydioObjects) ListObjectsV2(bucket, prefix, continuationToken, delimiter string, maxKeys int, fetchOwner bool, startAfter string) (loi ListObjectsV2Info, e error) {
 	return loi, traceError(ContextNotFound{Bucket: bucket, Object: prefix})
 }
 
@@ -496,7 +495,7 @@ func (l *pydioObjects) GetObject(bucket string, key string, startOffset int64, l
 }
 
 // PutObject creates a new object with the incoming data,
-func (l *pydioObjects) PutObject(bucket string, object string, size int64, data io.Reader, metadata map[string]string, sha256sum string) (objInfo ObjectInfo, e error) {
+func (l *pydioObjects) PutObject(bucket, object string, data *HashReader, metadata map[string]string) (objInfo ObjectInfo, e error) {
 	return objInfo, traceError(ContextNotFound{Bucket: bucket, Object: object})
 }
 
@@ -532,7 +531,7 @@ func (l *pydioObjects) CopyObjectPart(srcBucket string, srcObject string, destBu
 }
 
 // PutObjectPart puts a part of object in bucket
-func (l *pydioObjects) PutObjectPart(bucket string, object string, uploadID string, partID int, size int64, data io.Reader, md5Hex string, sha256sum string) (pi PartInfo, e error) {
+func (l *pydioObjects) PutObjectPart(bucket, object, uploadID string, partID int, data *HashReader) (pi PartInfo, e error) {
 	return pi, traceError(ContextNotFound{Bucket: bucket, Object: object})
 }
 

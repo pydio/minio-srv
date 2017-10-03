@@ -1,0 +1,304 @@
+syntax = "proto3";
+
+package tree;
+
+// ==========================================================
+// * Node Provider
+// ==========================================================
+service NodeProvider{
+    rpc ReadNode(ReadNodeRequest) returns (ReadNodeResponse) {};
+    rpc ListNodes(ListNodesRequest) returns (stream ListNodesResponse) {};
+}
+
+service NodeProviderStreamer{
+    rpc ReadNodeStream(stream ReadNodeRequest) returns (stream ReadNodeResponse) {};
+}
+
+// Request / Responses Messages
+message ReadNodeRequest {
+    Node node = 1;
+}
+
+message ReadNodeResponse {
+    bool success = 1;
+    Node node = 2;
+}
+
+message ListNodesRequest {
+    Node node = 1;
+    bool recursive = 2; // Send back all children of the node
+    bool ancestors = 3; // Send back a list of parent nodes, until the root, including the original node
+    bool versions = 7; // Sends the list of versions for a given node
+    int64 limit = 4;
+    int64 offset = 5;
+    NodeType FilterType = 6;
+}
+
+message ListNodesResponse {
+    Node node = 1;
+}
+
+// ==========================================================
+// * Node Receiver
+// ==========================================================
+service NodeReceiver{
+    rpc CreateNode(CreateNodeRequest) returns (CreateNodeResponse) {};
+    rpc UpdateNode(UpdateNodeRequest) returns (UpdateNodeResponse) {};
+    rpc DeleteNode(DeleteNodeRequest) returns (DeleteNodeResponse) {};
+}
+
+// Request / Responses Messages
+message CreateNodeRequest {
+    Node node = 1;
+    bool updateIfExists = 2;
+}
+
+message CreateNodeResponse {
+    bool success = 1;
+    Node node = 2;
+}
+
+message UpdateNodeRequest {
+    Node from = 1;
+    Node to = 2;
+}
+
+message UpdateNodeResponse {
+    bool success = 1;
+    Node node = 2;
+}
+
+message DeleteNodeRequest {
+    Node node = 1;
+}
+
+message DeleteNodeResponse {
+    bool success = 1;
+}
+
+// ==========================================================
+// * Node Events Provider
+// ==========================================================
+service NodeEventsProvider {
+    rpc WatchNode(WatchNodeRequest) returns (stream WatchNodeResponse){};
+}
+
+// Request / Responses Messages
+message WatchNodeRequest {
+    Node node = 1;
+}
+
+message WatchNodeResponse {
+    Node node = 1;
+}
+
+// ==========================================================
+// * Node Searcher
+// ==========================================================
+service Searcher{
+    rpc Search(SearchRequest) returns (stream SearchResponse){};
+}
+
+message SearchRequest{
+    // The query object
+    Query Query = 1;
+    // Limit the number of results
+    int32 Size = 2;
+    // Start at given position
+    int32 From = 3;
+    // Load node details
+    bool Details = 4;
+    // Facet search
+    string Facet = 5;
+}
+
+message SearchResponse{
+    Node node = 1;
+}
+
+// ==========================================================
+// * Node Content Reader
+// ==========================================================
+service NodeContentReader{
+    // Content Read / write will not go through gRPC
+}
+
+// ==========================================================
+// * Node Content Writer
+// ==========================================================
+service NodeContentWriter{
+    // Content Read / write will not go through gRPC
+}
+
+// ==========================================================
+// * Node Versions Provider
+// ==========================================================
+service NodeVersioner{
+    rpc CreateVersion(CreateVersionRequest) returns (CreateVersionResponse) {};
+    rpc StoreVersion(StoreVersionRequest) returns (StoreVersionResponse) {};
+    rpc ListVersions(ListVersionsRequest) returns (stream ListVersionsResponse) {};
+    rpc HeadVersion(HeadVersionRequest) returns (HeadVersionResponse) {};
+}
+
+message CreateVersionRequest{
+    Node node = 1;
+}
+
+message CreateVersionResponse{
+    ChangeLog version = 1;
+}
+
+message ListVersionsRequest{
+    Node node = 1;
+}
+
+message ListVersionsResponse{
+    ChangeLog version = 1;
+}
+
+message HeadVersionRequest{
+    Node node = 1;
+    string VersionId = 2;
+}
+
+message HeadVersionResponse{
+    ChangeLog version = 1;
+}
+
+message StoreVersionRequest{
+    Node node = 1;
+    ChangeLog version = 2;
+}
+
+message StoreVersionResponse{
+    bool Success = 1;
+}
+
+
+// ==========================================================
+// * Standard Messages
+// ==========================================================
+enum NodeType {
+    UNKNOWN = 0;
+    LEAF = 1;
+    COLLECTION = 2;
+}
+
+message Node{
+
+    // ------------------------------------
+    // Core identification of the node
+    // ------------------------------------
+    string Uuid = 1;
+    string Path = 2;
+    NodeType type = 3;
+
+    // Size of the file, or cumulated size of folder
+    int64 Size = 4;
+
+    // Last modification Timestamp
+    int64 MTime = 5;
+    // Permission mode, like 0777
+    int32 Mode = 6;
+    // Hash of the content if node is a LEAF, Uuid or
+    string Etag = 7;
+    // List of successive commits
+    repeated ChangeLog Commits = 9;
+
+    // ------------------------------------
+    // Then a free K => V representation of any kind of metadata
+    // ------------------------------------
+    map <string, string> MetaStore = 8;
+}
+
+message ChangeLog{
+    // Unique commit ID
+    string Uuid = 1;
+    // Human-readable description of what happened
+    string Description = 2;
+    // Unix Timestamp
+    int64 MTime = 3;
+    // Content Size at that moment
+    int64 Size = 4;
+    // Arbitrary additional data
+    bytes Data = 5;
+}
+
+// Search Queries
+message Query {
+    // Limit to a given subtree
+    repeated string PathPrefix = 1;
+    // Range for size
+    int64 MinSize = 2;
+    int64 MaxSize = 3;
+    // Range for date
+    int64 MinDate = 4;
+    int64 MaxDate = 5;
+    // Limit to a given node type
+    NodeType Type = 6;
+    // Search in filename
+    string FileName = 7;
+    // Search in content
+    string Content = 8;
+    // Free Query String (for metadata)
+    string FreeString = 9;
+    // Search files by extension
+    string Extension = 10;
+    // Search geographically
+    GeoQuery GeoQuery = 11;
+}
+
+message GeoQuery {
+    // Either use a center point and a distance
+    GeoPoint Center = 1;
+    // Example formats supported:
+    // "5in" "5inch" "7yd" "7yards" "9ft" "9feet" "11km" "11kilometers"
+    // "3nm" "3nauticalmiles" "13mm" "13millimeters" "15cm" "15centimeters"
+    // "17mi" "17miles" "19m" "19meters"
+    // If the unit cannot be determined, the entire string is parsed and the
+    // unit of meters is assumed.
+    string Distance = 2;
+
+    // Or use a bounding box with TopLeft and BottomRight points
+    GeoPoint TopLeft = 3;
+    GeoPoint BottomRight = 4;
+}
+
+message GeoPoint {
+    double lat = 1;
+    double lon = 2;
+}
+
+message NodeChangeEvent{
+    enum EventType {
+        CREATE = 0;
+        READ = 1;
+        UPDATE_PATH = 2;
+        UPDATE_CONTENT = 3;
+        UPDATE_META = 4;
+        DELETE = 5;
+    }
+    EventType Type = 1;
+    Node Source = 2;
+    Node Target = 3;
+}
+
+
+
+// ==========================================================
+// * Node FileKeyManager
+// ==========================================================
+service FileKeyManager{
+    rpc GetEncryptionKey(GetEncryptionKeyRequest) returns (GetEncryptionKeyResponse) {};
+}
+
+message GetEncryptionKeyRequest{
+    string user     = 1;
+    string password = 2;
+    tree.Node node  = 3;
+    bool create     = 5;
+}
+
+message GetEncryptionKeyResponse{
+    bytes  key     = 1;
+}

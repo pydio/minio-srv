@@ -17,8 +17,9 @@
 package cmd
 
 import (
-	"github.com/minio/minio-go/pkg/policy"
 	"io"
+
+	"github.com/minio/minio-go/pkg/policy"
 )
 
 // MakeBucket creates a new container on S3 backend.
@@ -92,8 +93,8 @@ func (l *pydioObjects) AnonListObjects(bucket string, prefix string, marker stri
 }
 
 // AnonListObjectsV2 - List objects in V2 mode, anonymously
-func (l *pydioObjects) AnonListObjectsV2(bucket, prefix, continuationToken string, fetchOwner bool, delimiter string, maxKeys int) (loi ListObjectsV2Info, e error) {
-	return loi, s3ToObjectError(traceError(NotImplemented{}), bucket, prefix)
+func (l *pydioObjects) AnonListObjectsV2(bucket, prefix, continuationToken, delimiter string, maxKeys int, fetchOwner bool, startAfter string) (result ListObjectsV2Info, err error) {
+	return result, s3ToObjectError(traceError(NotImplemented{}), bucket, prefix)
 }
 
 // AnonGetBucketInfo - Get bucket metadata anonymously.

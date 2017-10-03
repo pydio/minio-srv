@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+import "github.com/pydio/services/common/service/proto/common.proto";
+
+package acl;
+
+// *****************************************************************************
+//  Services
+// *****************************************************************************
+service ACLService {
+    rpc CreateACL (CreateACLRequest) returns (CreateACLResponse) {};
+    rpc DeleteACL (DeleteACLRequest) returns (DeleteACLResponse) {};
+    rpc SearchACL (SearchACLRequest) returns (stream SearchACLResponse) {};
+    rpc StreamACL (stream SearchACLRequest) returns (stream SearchACLResponse) {};
+}
+
+// *****************************************************************************
+//  ACL Messages structure
+// *****************************************************************************
+
+message CreateACLRequest{
+    ACL ACL = 1;
+}
+
+message CreateACLResponse{
+    ACL ACL = 1;
+}
+
+message DeleteACLRequest{
+    service.Query Query = 1;
+}
+
+message DeleteACLResponse{
+    int64 RowsDeleted = 1;
+}
+
+message SearchACLRequest{
+    service.Query Query = 1;
+}
+
+message SearchACLResponse{
+    ACL ACL = 1;
+}
+
+message ACLAction{
+    string Name = 1;
+    string Value = 2;
+}
+
+message ACL {
+    string ID = 1;
+    ACLAction Action = 2;
+    string RoleID = 3;
+    string WorkspaceID = 4;
+    string NodeID = 5;
+}
+
+enum GroupByType{
+    Action = 0;
+    Role = 1;
+    Workspace = 2;
+    Node = 3;
+}
+
+message ACLSingleQuery {
+    repeated ACLAction Actions = 1;
+    repeated string RoleIDs = 2;
+    repeated string WorkspaceIDs = 3;
+    repeated string NodeIDs = 4;
+    bool not = 5;
+}

@@ -180,10 +180,12 @@ func newWebhookNotify(accountID string) (*logrus.Logger, error) {
 
 // Fire is called when an event should be sent to the message broker.
 func (n httpConn) Fire(entry *logrus.Entry) error {
-	body, err := entry.Reader()
+	serialized, err := entry.Logger.Formatter.Format(entry)
 	if err != nil {
 		return err
 	}
+
+	body := bytes.NewBuffer(serialized)
 
 	req, err := http.NewRequest("POST", n.Endpoint, body)
 	if err != nil {

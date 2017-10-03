@@ -17,6 +17,7 @@
 package cmd
 
 import (
+	"errors"
 	"io"
 	"io/ioutil"
 	"net"
@@ -26,11 +27,12 @@ import (
 	"encoding/hex"
 	"encoding/json"
 
+	"encoding/xml"
+	"net/url"
+	"sync"
+
 	router "github.com/gorilla/mux"
 	"github.com/minio/minio-go/pkg/policy"
-	"net/url"
-	"encoding/xml"
-	"sync"
 )
 
 // GetObjectHandler - GET Object
@@ -125,7 +127,7 @@ func (api gatewayPydioAPIHandlers) GetObjectHandler(w http.ResponseWriter, r *ht
 			setObjectHeaders(w, objInfo, hrange)
 
 			// Set any additional requested response headers.
-			setGetRespHeaders(w, r.URL.Query())
+			setHeadGetRespHeaders(w, r.URL.Query())
 
 			dataWritten = true
 		}
@@ -179,7 +181,6 @@ func (api gatewayPydioAPIHandlers) PutObjectHandler(w http.ResponseWriter, r *ht
 		writeErrorResponse(w, ErrServerNotInitialized, r.URL)
 		return
 	}
-
 
 	// X-Amz-Copy-Source shouldn't be set for this call.
 	if _, ok := r.Header["X-Amz-Copy-Source"]; ok {
@@ -257,7 +258,10 @@ func (api gatewayPydioAPIHandlers) PutObjectHandler(w http.ResponseWriter, r *ht
 
 	// Lock the object.
 	objectLock := globalNSMutex.NewNSLock(bucket, object)
-	objectLock.Lock()
+	if objectLock.GetLock(globalOperationTimeout) != nil {
+		writeErrorResponse(w, ErrOperationTimedOut, r.URL)
+		return
+	}
 	defer objectLock.Unlock()
 
 	var objInfo ObjectInfo
@@ -330,7 +334,6 @@ func (api gatewayPydioAPIHandlers) PutObjectHandler(w http.ResponseWriter, r *ht
 	})
 }
 
-
 // CopyObjectHandler - Copy Object
 // ----------
 // This implementation of the PUT operation adds an object to a bucket
@@ -345,7 +348,6 @@ func (api gatewayPydioAPIHandlers) CopyObjectHandler(w http.ResponseWriter, r *h
 		writeErrorResponse(w, ErrServerNotInitialized, r.URL)
 		return
 	}
-
 
 	if s3Error := checkRequestAuthType(r, dstBucket, "s3:PutObject", serverConfig.GetRegion()); s3Error != ErrNone {
 		writeErrorResponse(w, s3Error, r.URL)
@@ -380,7 +382,10 @@ func (api gatewayPydioAPIHandlers) CopyObjectHandler(w http.ResponseWriter, r *h
 	// - if source and destination are different
 	// it is the sole mutating state.
 	objectDWLock := globalNSMutex.NewNSLock(dstBucket, dstObject)
-	objectDWLock.Lock()
+	if objectDWLock.GetLock(globalOperationTimeout) != nil {
+		writeErrorResponse(w, ErrOperationTimedOut, r.URL)
+		return
+	}
 	defer objectDWLock.Unlock()
 
 	// if source and destination are different, we have to hold
@@ -390,7 +395,10 @@ func (api gatewayPydioAPIHandlers) CopyObjectHandler(w http.ResponseWriter, r *h
 		// Hold read locks on source object only if we are
 		// going to read data from source object.
 		objectSRLock := globalNSMutex.NewNSLock(srcBucket, srcObject)
-		objectSRLock.RLock()
+		if objectSRLock.GetRLock(globalOperationTimeout) != nil {
+			writeErrorResponse(w, ErrOperationTimedOut, r.URL)
+			return
+		}
 		defer objectSRLock.RUnlock()
 
 	}
@@ -746,7 +754,10 @@ func (api gatewayPydioAPIHandlers) PutBucketHandler(w http.ResponseWriter, r *ht
 	}
 
 	bucketLock := globalNSMutex.NewNSLock(bucket, "")
-	bucketLock.Lock()
+	if bucketLock.GetLock(globalOperationTimeout) != nil {
+		writeErrorResponse(w, ErrOperationTimedOut, r.URL)
+		return
+	}
 	defer bucketLock.Unlock()
 
 	// Proceed to creating a bucket.
@@ -875,7 +886,10 @@ func (api gatewayPydioAPIHandlers) DeleteMultipleObjectsHandler(w http.ResponseW
 		wg.Add(1)
 		go func(i int, obj ObjectIdentifier) {
 			objectLock := globalNSMutex.NewNSLock(bucket, obj.ObjectName)
-			objectLock.Lock()
+			if objectLock.GetLock(globalOperationTimeout) != nil {
+				writeErrorResponse(w, ErrOperationTimedOut, r.URL)
+				return
+			}
 			defer objectLock.Unlock()
 			defer wg.Done()
 
@@ -942,8 +956,6 @@ func (api gatewayPydioAPIHandlers) DeleteMultipleObjectsHandler(w http.ResponseW
 	}
 }
 
-
-
 // gatewayDeleteObject (derived from object-handlers-common deleteObject)
 // is a convenient wrapper to delete an object, this
 // is a common function to be called from object handlers and
@@ -951,7 +963,9 @@ func (api gatewayPydioAPIHandlers) DeleteMultipleObjectsHandler(w http.ResponseW
 func gatewayDeleteObject(obj PydioGateway, bucket, object string, r *http.Request) (err error) {
 	// Acquire a write lock before deleting the object.
 	objectLock := globalNSMutex.NewNSLock(bucket, object)
-	objectLock.Lock()
+	if objectLock.GetLock(globalOperationTimeout) != nil {
+		return errors.New("Cannot get lock")
+	}
 	defer objectLock.Unlock()
 
 	// Proceed to delete the object.
@@ -977,7 +991,6 @@ func gatewayDeleteObject(obj PydioGateway, bucket, object string, r *http.Reques
 
 	return nil
 }
-
 
 // ListObjectsV1Handler - GET Bucket (List Objects) Version 1.
 // --------------------------
@@ -1094,7 +1107,6 @@ func (api gatewayPydioAPIHandlers) ListObjectsV2Handler(w http.ResponseWriter, r
 		// Then we need to use 'start-after' as marker instead.
 		marker = startAfter
 	}
-
 
 	// Validate the query params before beginning to serve the request.
 	// fetch-owner is not validated since it is a boolean
