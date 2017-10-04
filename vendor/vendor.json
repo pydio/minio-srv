@@ -132,16 +132,16 @@
 			"revisionTime": "2016-08-05T00:47:13Z"
 		},
 		{
-			"checksumSHA1": "LHwm1G0lFyQ3X0iHZ/MOYnAtjd4=",
+			"checksumSHA1": "9SMXUZjn5vV8cpAlpokIDKZe2MA=",
 			"path": "github.com/eclipse/paho.mqtt.golang",
-			"revision": "d06cc70ac43d625e602946b5ff2346ddebb768e4",
-			"revisionTime": "2017-06-02T16:30:32Z"
+			"revision": "65f43bda5f7edbbf6b7533d3a5a13b2c67cf3545",
+			"revisionTime": "2017-09-08T15:56:42Z"
 		},
 		{
-			"checksumSHA1": "g2AaO9VMaxzFQZkrCfxBUV3yAyM=",
+			"checksumSHA1": "ITCnG3uKUnqNXrnnulKokjQKfN4=",
 			"path": "github.com/eclipse/paho.mqtt.golang/packets",
-			"revision": "d06cc70ac43d625e602946b5ff2346ddebb768e4",
-			"revisionTime": "2017-06-02T16:30:32Z"
+			"revision": "65f43bda5f7edbbf6b7533d3a5a13b2c67cf3545",
+			"revisionTime": "2017-09-08T15:56:42Z"
 		},
 		{
 			"path": "github.com/elazarl/go-bindata-assetfs",
@@ -889,6 +889,12 @@
 			"path": "golang.org/x/net/lex/httplex",
 			"revision": "da118f7b8e5954f39d0d2130ab35d4bf0e3cb344",
 			"revisionTime": "2017-04-23T14:02:46Z"
+		},
+		{
+			"checksumSHA1": "S4QRxs3K4notNO97Um4sA2IvHaM=",
+			"path": "golang.org/x/net/proxy",
+			"revision": "a04bdaca5b32abe1c069418fb7088ae607de5bd0",
+			"revisionTime": "2017-10-03T05:09:24Z"
 		},
 		{
 			"checksumSHA1": "u/r66lwYfgg682u5hZG7/E7+VCY=",

@@ -21,8 +21,8 @@ import (
 	"io/ioutil"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	MQTT "github.com/eclipse/paho.mqtt.golang"
+	"github.com/sirupsen/logrus"
 )
 
 type mqttNotify struct {
@@ -60,7 +60,7 @@ func dialMQTT(mqttL mqttNotify) (mc mqttConn, e error) {
 		Username:             mqttL.User,
 		Password:             mqttL.Password,
 		MaxReconnectInterval: 1 * time.Second,
-		KeepAlive:            30 * time.Second,
+		KeepAlive:            30,
 		TLSConfig:            tls.Config{RootCAs: globalRootCAs},
 	}
 	connOpts.AddBroker(mqttL.Broker)
