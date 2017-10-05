@@ -324,7 +324,7 @@ func gatewayMain(ctx *cli.Context, backendType gatewayBackend) {
 
 	// Validate if we have access, secret set through environment.
 	if !globalIsEnvCreds {
-		fatalIf(fmt.Errorf("Access and Secret keys should be set through ENVs for backend [%s]", backendType), "")
+		// fatalIf(fmt.Errorf("Access and Secret keys should be set through ENVs for backend [%s]", backendType), "")
 	}
 
 	// Create certs path.
@@ -391,7 +391,7 @@ func gatewayMain(ctx *cli.Context, backendType gatewayBackend) {
 	}
 
 	if backendType == pydioBackend {
-		handlerFns = append(handlerFns, setPydioAuthHandler)
+		handlerFns = append(handlerFns, getPydioAuthHandlerFunc(true))
 	}
 
 	globalHTTPServer = miniohttp.NewServer([]string{gatewayAddr}, registerHandlers(router, handlerFns...), globalTLSCertificate)

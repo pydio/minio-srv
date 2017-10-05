@@ -115,6 +115,9 @@ type ObjectInfo struct {
 	// User-Defined metadata
 	UserDefined    map[string]string
 	HealObjectInfo *HealObjectInfo `xml:"HealObjectInfo,omitempty"`
+
+	// VersionID
+	VersionID string
 }
 
 // ListPartsInfo - represents list of all parts.

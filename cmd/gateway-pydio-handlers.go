@@ -77,7 +77,9 @@ func (api gatewayPydioAPIHandlers) GetObjectHandler(w http.ResponseWriter, r *ht
 		return
 	}
 
-	objInfo, err := pydioApi.GetObjectInfoWithContext(r.Context(), bucket, object)
+	versionId := r.URL.Query().Get("versionId")
+
+	objInfo, err := pydioApi.GetObjectInfoWithContext(r.Context(), bucket, object, versionId)
 	if err != nil {
 		errorIf(err, "Unable to fetch object info.")
 		apiErr := toAPIErrorCode(err)
@@ -135,7 +137,7 @@ func (api gatewayPydioAPIHandlers) GetObjectHandler(w http.ResponseWriter, r *ht
 	})
 
 	// Reads the object at startOffset and writes to mw.
-	if err = pydioApi.GetObjectWithContext(r.Context(), bucket, object, startOffset, length, writer); err != nil {
+	if err = pydioApi.GetObjectWithContext(r.Context(), bucket, object, startOffset, length, versionId, writer); err != nil {
 		errorIf(err, "Unable to write to client.")
 		if !dataWritten {
 			// Error response only if no data has been written to client yet. i.e if
@@ -403,7 +405,9 @@ func (api gatewayPydioAPIHandlers) CopyObjectHandler(w http.ResponseWriter, r *h
 
 	}
 
-	objInfo, err := pydioApi.GetObjectInfoWithContext(r.Context(), srcBucket, srcObject)
+	versionId := r.URL.Query().Get("versionId")
+
+	objInfo, err := pydioApi.GetObjectInfoWithContext(r.Context(), srcBucket, srcObject, versionId)
 	if err != nil {
 		errorIf(err, "Unable to fetch object info.")
 		writeErrorResponse(w, toAPIErrorCode(err), r.URL)
@@ -442,7 +446,7 @@ func (api gatewayPydioAPIHandlers) CopyObjectHandler(w http.ResponseWriter, r *h
 
 	// Copy source object to destination, if source and destination
 	// object is same then only metadata is updated.
-	objInfo, err = pydioApi.CopyObjectWithContext(r.Context(), srcBucket, srcObject, dstBucket, dstObject, newMetadata)
+	objInfo, err = pydioApi.CopyObjectWithContext(r.Context(), srcBucket, srcObject, versionId, dstBucket, dstObject, newMetadata)
 	if err != nil {
 		writeErrorResponse(w, toAPIErrorCode(err), r.URL)
 		return
@@ -513,7 +517,7 @@ func (api gatewayPydioAPIHandlers) HeadObjectHandler(w http.ResponseWriter, r *h
 		return
 	}
 
-	objInfo, err := pydioApi.GetObjectInfoWithContext(r.Context(), bucket, object)
+	objInfo, err := pydioApi.GetObjectInfoWithContext(r.Context(), bucket, object, r.URL.Query().Get("versionId"))
 	if err != nil {
 		errorIf(err, "Unable to fetch object info.")
 		apiErr := toAPIErrorCode(err)
@@ -1039,10 +1043,15 @@ func (api gatewayPydioAPIHandlers) ListObjectsV1Handler(w http.ResponseWriter, r
 	// gateway backends.
 	prefix, marker, delimiter, maxKeys, _ := getListObjectsV1Args(r.URL.Query())
 
+	versions := false
+	if r.URL.Query().Get("versions") != "" {
+		versions = true
+	}
+
 	// Inititate a list objects operation based on the input params.
 	// On success would return back ListObjectsInfo object to be
 	// marshalled into S3 compatible XML header.
-	listObjectsInfo, err := pydioApi.ListObjectsWithContext(r.Context(), bucket, prefix, marker, delimiter, maxKeys)
+	listObjectsInfo, err := pydioApi.ListObjectsWithContext(r.Context(), bucket, prefix, marker, delimiter, maxKeys, versions)
 	if err != nil {
 		errorIf(err, "Unable to list objects.")
 		writeErrorResponse(w, toAPIErrorCode(err), r.URL)

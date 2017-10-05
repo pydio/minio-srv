@@ -678,12 +678,6 @@
 			"revisionTime": "2017-07-06T04:52:24Z"
 		},
 		{
-			"checksumSHA1": "T1MConDKETB9TbxLMY3rRBq/ZRI=",
-			"path": "github.com/pydio/minio-go",
-			"revision": "2f229938c65c7ab9d23af525c968be71103fe7db",
-			"revisionTime": "2017-10-03T19:51:20Z"
-		},
-		{
 			"checksumSHA1": "auRee3ydiTjco+F9dOcvoqN2XDQ=",
 			"path": "github.com/pydio/minio-go/pkg/credentials",
 			"revision": "2f229938c65c7ab9d23af525c968be71103fe7db",
@@ -718,12 +712,6 @@
 			"path": "github.com/pydio/minio-go/pkg/set",
 			"revision": "2f229938c65c7ab9d23af525c968be71103fe7db",
 			"revisionTime": "2017-10-03T19:51:20Z"
-		},
-		{
-			"checksumSHA1": "cjz+PKDINCmFDDWcGGyBgW67/II=",
-			"path": "github.com/pydio/services",
-			"revision": "faa5a79fa3dccc5c6db2574d4731fafc21d4d9c3",
-			"revisionTime": "2017-10-03T09:03:38Z"
 		},
 		{
 			"checksumSHA1": "NLwKGa5B0STKAvQV+lz/ujnbzN4=",
@@ -782,12 +770,6 @@
 			"path": "go.uber.org/atomic",
 			"revision": "3b8db5e93c4c02efbc313e17b2e796b0914a01fb",
 			"revisionTime": "2016-12-15T19:56:52Z"
-		},
-		{
-			"checksumSHA1": "5BYbiKEkYykvfjSaNYDuQpBqglo=",
-			"path": "go.uber.org/zap",
-			"revision": "35aad584952c3e7020db7b839f6b102de6271f89",
-			"revisionTime": "2017-09-25T19:53:02Z"
 		},
 		{
 			"checksumSHA1": "HYo/9nwrY08NQA+2ItPOAH8IFW8=",
@@ -895,12 +877,6 @@
 			"path": "golang.org/x/net/proxy",
 			"revision": "a04bdaca5b32abe1c069418fb7088ae607de5bd0",
 			"revisionTime": "2017-10-03T05:09:24Z"
-		},
-		{
-			"checksumSHA1": "u/r66lwYfgg682u5hZG7/E7+VCY=",
-			"path": "golang.org/x/net/trace",
-			"revision": "0a9397675ba34b2845f758fe3cd68828369c6517",
-			"revisionTime": "2017-07-19T03:24:12Z"
 		},
 		{
 			"checksumSHA1": "HmVJmSDDCwsPJQrp7ml2gXb2szg=",

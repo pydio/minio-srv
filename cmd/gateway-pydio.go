@@ -36,12 +36,12 @@ type PydioGateway interface {
 	GatewayLayer
 	GetBucketInfoWithContext(ctx context.Context, bucket string) (bi BucketInfo, e error)
 	ListBucketsWithContext(ctx context.Context) ([]BucketInfo, error)
-	ListObjectsWithContext(ctx context.Context, bucket string, prefix string, marker string, delimiter string, maxKeys int) (loi ListObjectsInfo, e error)
+	ListObjectsWithContext(ctx context.Context, bucket string, prefix string, marker string, delimiter string, maxKeys int, versions bool) (loi ListObjectsInfo, e error)
 	ListObjectsV2WithContext(ctx context.Context, bucket, prefix, continuationToken string, fetchOwner bool, delimiter string, maxKeys int) (loi ListObjectsV2Info, e error)
-	GetObjectInfoWithContext(ctx context.Context, bucket string, object string) (objInfo ObjectInfo, err error)
-	GetObjectWithContext(ctx context.Context, bucket string, key string, startOffset int64, length int64, writer io.Writer) error
+	GetObjectInfoWithContext(ctx context.Context, bucket string, object string, versionId string) (objInfo ObjectInfo, err error)
+	GetObjectWithContext(ctx context.Context, bucket string, key string, startOffset int64, length int64, versionId string, writer io.Writer) error
 	PutObjectWithContext(ctx context.Context, bucket string, object string, size int64, data io.Reader, metadata map[string]string, sha256sum string) (objInfo ObjectInfo, e error)
-	CopyObjectWithContext(ctx context.Context, srcBucket string, srcObject string, destBucket string, destObject string, metadata map[string]string) (objInfo ObjectInfo, e error)
+	CopyObjectWithContext(ctx context.Context, srcBucket string, srcObject string, srcObjectVersionId string, destBucket string, destObject string, metadata map[string]string) (objInfo ObjectInfo, e error)
 	DeleteObjectWithContext(ctx context.Context, bucket string, object string) error
 	ListMultipartUploadsWithContext(ctx context.Context, bucket string, prefix string, keyMarker string, uploadIDMarker string, delimiter string, maxUploads int) (lmi ListMultipartsInfo, e error)
 	NewMultipartUploadWithContext(ctx context.Context, bucket string, object string, metadata map[string]string) (uploadID string, err error)
@@ -67,8 +67,7 @@ type pydioObjects struct {
 // newS3Gateway returns s3 gatewaylayer
 func newPydioGateway() (GatewayLayer, error) {
 
-	router := views.NewStandardRouter(false, false)
-
+	router := views.NewStandardRouter(false, true)
 	api := &pydioObjects{
 		Router: router,
 	}
@@ -83,6 +82,7 @@ func fromPydioNodeObjectInfo(bucket string, node *tree.Node) ObjectInfo {
 	userDefined := map[string]string{
 		"Content-Type": cType,
 	}
+	vId := node.GetStringMeta("versionId")
 
 	nodePath := node.Path
 	if node.Type == tree.NodeType_COLLECTION {
@@ -97,10 +97,13 @@ func fromPydioNodeObjectInfo(bucket string, node *tree.Node) ObjectInfo {
 		UserDefined:     userDefined,
 		ContentType:     cType,
 		ContentEncoding: "",
+		VersionID:       vId,
 	}
 }
 
-func (l *pydioObjects) ListPydioObjects(ctx context.Context, bucket string, prefix string, delimiter string, maxKeys int) (objects []ObjectInfo, prefixes []string, err error) {
+func (l *pydioObjects) ListPydioObjects(ctx context.Context, bucket string, prefix string, delimiter string, maxKeys int, versions bool) (objects []ObjectInfo, prefixes []string, err error) {
+
+	log.Printf("ListPydioObjects With Version? %v", versions)
 
 	treePath := strings.TrimLeft(prefix, "/")
 	recursive := false
@@ -110,13 +113,16 @@ func (l *pydioObjects) ListPydioObjects(ctx context.Context, bucket string, pref
 	var FilterType tree.NodeType
 	if maxKeys == 1 {
 		// We probably want to get only the very first object here (for folders stats)
+		log.Println("Should get only LEAF nodes")
 		FilterType = tree.NodeType_LEAF
+		recursive = false
 	}
 	lNodeClient, err := l.Router.ListNodes(ctx, &tree.ListNodesRequest{
 		Node: &tree.Node{
 			Path: treePath,
 		},
 		Recursive:  recursive,
+		Versions:   versions,
 		Limit:      int64(maxKeys),
 		FilterType: FilterType,
 	})
@@ -131,6 +137,7 @@ func (l *pydioObjects) ListPydioObjects(ctx context.Context, bucket string, pref
 		if clientResponse == nil {
 			continue
 		}
+		log.Println(clientResponse.Node.Path)
 		objectInfo := fromPydioNodeObjectInfo(bucket, clientResponse.Node)
 		if clientResponse.Node.IsLeaf() {
 			objects = append(objects, objectInfo)
@@ -184,14 +191,14 @@ func (l *pydioObjects) ListBucketsWithContext(ctx context.Context) ([]BucketInfo
 }
 
 // ListObjects lists all blobs in S3 bucket filtered by prefix
-func (l *pydioObjects) ListObjectsWithContext(ctx context.Context, bucket string, prefix string, marker string, delimiter string, maxKeys int) (loi ListObjectsInfo, e error) {
+func (l *pydioObjects) ListObjectsWithContext(ctx context.Context, bucket string, prefix string, marker string, delimiter string, maxKeys int, versions bool) (loi ListObjectsInfo, e error) {
 
-	objects, prefixes, err := l.ListPydioObjects(ctx, bucket, prefix, delimiter, maxKeys)
+	objects, prefixes, err := l.ListPydioObjects(ctx, bucket, prefix, delimiter, maxKeys, versions)
 	if err != nil {
 		return loi, s3ToObjectError(traceError(err), bucket)
 	}
 
-	//	log.Printf("[ListObjects] Returning %d objects and %d prefixes (V1) for prefix %s\n", len(objects), len(prefixes), prefix)
+	log.Printf("[ListObjects] Returning %d objects and %d prefixes (V1) for prefix %s\n", len(objects), len(prefixes), prefix)
 
 	return ListObjectsInfo{
 		IsTruncated: false,
@@ -205,12 +212,12 @@ func (l *pydioObjects) ListObjectsWithContext(ctx context.Context, bucket string
 // ListObjectsV2 lists all blobs in S3 bucket filtered by prefix
 func (l *pydioObjects) ListObjectsV2WithContext(ctx context.Context, bucket, prefix, continuationToken string, fetchOwner bool, delimiter string, maxKeys int) (loi ListObjectsV2Info, e error) {
 
-	objects, prefixes, err := l.ListPydioObjects(ctx, bucket, prefix, delimiter, maxKeys)
+	objects, prefixes, err := l.ListPydioObjects(ctx, bucket, prefix, delimiter, maxKeys, false)
 	if err != nil {
 		return loi, s3ToObjectError(traceError(err), bucket)
 	}
 
-	// log.Printf("\n[ListObjectsV2] Returning %d objects and %d prefixes (V2) for prefix %s\n", len(objects), len(prefixes), prefix)
+	log.Printf("\n[ListObjectsV2] Returning %d objects and %d prefixes (V2) for prefix %s\n", len(objects), len(prefixes), prefix)
 
 	return ListObjectsV2Info{
 		IsTruncated: false,
@@ -224,9 +231,9 @@ func (l *pydioObjects) ListObjectsV2WithContext(ctx context.Context, bucket, pre
 }
 
 // GetObjectInfo reads object info and replies back ObjectInfo
-func (l *pydioObjects) GetObjectInfoWithContext(ctx context.Context, bucket string, object string) (objInfo ObjectInfo, err error) {
+func (l *pydioObjects) GetObjectInfoWithContext(ctx context.Context, bucket string, object string, versionId string) (objInfo ObjectInfo, err error) {
 
-	// log.Println("[GetObjectInfo]" + object)
+	log.Println("[GetObjectInfo]" + object)
 
 	path := strings.TrimLeft(object, "/")
 	readNodeResponse, err := l.Router.ReadNode(ctx, &tree.ReadNodeRequest{Node: &tree.Node{
@@ -250,9 +257,9 @@ func (l *pydioObjects) GetObjectInfoWithContext(ctx context.Context, bucket stri
 //
 // startOffset indicates the starting read location of the object.
 // length indicates the total length of the object.
-func (l *pydioObjects) GetObjectWithContext(ctx context.Context, bucket string, key string, startOffset int64, length int64, writer io.Writer) error {
+func (l *pydioObjects) GetObjectWithContext(ctx context.Context, bucket string, key string, startOffset int64, length int64, versionId string, writer io.Writer) error {
 
-	// log.Println("[GetObject] From Router", bucket, key, startOffset, length)
+	log.Println("[GetObject] From Router", bucket, key, startOffset, length)
 
 	path := strings.TrimLeft(key, "/")
 	objectReader, err := l.Router.GetObject(ctx, &tree.Node{
@@ -316,14 +323,14 @@ func (l *pydioObjects) PutObjectWithContext(ctx context.Context, bucket string, 
 }
 
 // CopyObject copies a blob from source container to destination container.
-func (l *pydioObjects) CopyObjectWithContext(ctx context.Context, srcBucket string, srcObject string, destBucket string, destObject string, requestMetadata map[string]string) (objInfo ObjectInfo, e error) {
+func (l *pydioObjects) CopyObjectWithContext(ctx context.Context, srcBucket string, srcObject string, srcObjectVersionId string, destBucket string, destObject string, requestMetadata map[string]string) (objInfo ObjectInfo, e error) {
 
 	if srcObject == destObject {
-		//log.Printf("Coping %v to %v, this is a REPLACE meta directive \n", srcObject, destObject)
-		// log.Println(requestMetadata)
+		log.Printf("Coping %v to %v, this is a REPLACE meta directive \n", srcObject, destObject)
+		log.Println(requestMetadata)
 		return objInfo, traceError(&NotImplemented{})
 	}
-	// log.Println("Received COPY instruction: ", srcBucket, "/", srcObject, "=>", destBucket, "/", destObject)
+	log.Println("Received COPY instruction: ", srcBucket, "/", srcObject, "=>", destBucket, "/", destObject)
 
 	written, err := l.Router.CopyObject(ctx, &tree.Node{
 		Path: strings.TrimLeft(srcObject, "/"),
@@ -345,7 +352,7 @@ func (l *pydioObjects) CopyObjectWithContext(ctx context.Context, srcBucket stri
 // DeleteObject deletes a blob in bucket
 func (l *pydioObjects) DeleteObjectWithContext(ctx context.Context, bucket string, object string) error {
 
-	// log.Println("[DeleteObject]", object)
+	log.Println("[DeleteObject]", object)
 	_, err := l.Router.DeleteNode(ctx, &tree.DeleteNodeRequest{
 		Node: &tree.Node{
 			Path: strings.TrimLeft(object, "/"),

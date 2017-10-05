@@ -113,7 +113,7 @@ func configureServerHandler(endpoints EndpointList) (http.Handler, error) {
 		// invalid/unsupported signatures.
 		setAuthHandler,
 		// Add new handlers here.
-		setPydioAuthHandler,
+		getPydioAuthHandlerFunc(false),
 	}
 
 	// Register rest of the handlers.
