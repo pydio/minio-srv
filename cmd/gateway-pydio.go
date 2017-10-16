@@ -19,17 +19,24 @@ package cmd
 import (
 	"encoding/hex"
 	"io"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"syscall"
 
 	"errors"
 	"strings"
 	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/pydio/minio-go"
 	"github.com/pydio/services/common/proto/tree"
 
 	"context"
 
 	"github.com/pydio/services/common/views"
+
+	miniohttp "github.com/pydio/minio-priv/pkg/http"
 )
 
 type PydioGateway interface {
@@ -75,6 +82,87 @@ func newPydioGateway() (GatewayLayer, error) {
 	return api, nil
 }
 
+func NewPydioGateway(gatewayAddr string, configDir string) {
+
+	// Disallow relative paths, figure out absolute paths.
+	configDirAbs, err := filepath.Abs(configDir)
+	fatalIf(err, "Unable to fetch absolute path for config directory %s", configDir)
+
+	setConfigDir(configDirAbs)
+
+	// Initialize gateway config.
+	initConfig()
+
+	// Enable loggers as per configuration file.
+	enableLoggers()
+
+	// Init the error tracing module.
+	initError()
+
+	// Check and load SSL certificates.
+	globalPublicCerts, globalRootCAs, globalTLSCertificate, globalIsSSL, err = getSSLConfig()
+	fatalIf(err, "Invalid SSL certificate file")
+
+	initNSLock(false) // Enable local namespace lock.
+
+	newObject, err := newPydioGateway()
+	// if err != nil {
+	// 	return err
+	// }
+
+	router := mux.NewRouter().SkipClean(true)
+
+	registerGatewayPydioAPIRouter(router, newObject)
+
+	var handlerFns = []HandlerFunc{
+		// Validate all the incoming paths.
+		setPathValidityHandler,
+		// Limits all requests size to a maximum fixed limit
+		setRequestSizeLimitHandler,
+		// Adds 'crossdomain.xml' policy handler to serve legacy flash clients.
+		setCrossDomainPolicy,
+		// Validates all incoming requests to have a valid date header.
+		// Redirect some pre-defined browser request paths to a static location prefix.
+		setBrowserRedirectHandler,
+		// Validates if incoming request is for restricted buckets.
+		setReservedBucketHandler,
+		// Adds cache control for all browser requests.
+		setBrowserCacheControlHandler,
+		// Validates all incoming requests to have a valid date header.
+		setTimeValidityHandler,
+		// CORS setting for all browser API requests.
+		setCorsHandler,
+		// Validates all incoming URL resources, for invalid/unsupported
+		// resources client receives a HTTP error.
+		setIgnoreResourcesHandler,
+		// Auth handler verifies incoming authorization headers and
+		// routes them accordingly. Client receives a HTTP error for
+		// invalid/unsupported signatures.
+		setAuthHandler,
+		// Add new handlers here.
+		getPydioAuthHandlerFunc(true),
+	}
+
+	globalHTTPServer = miniohttp.NewServer([]string{gatewayAddr}, registerHandlers(router, handlerFns...), globalTLSCertificate)
+
+	// Start server, automatically configures TLS if certs are available.
+	go func() {
+		globalHTTPServerErrorCh <- globalHTTPServer.Start()
+	}()
+
+	signal.Notify(globalOSSignalCh, os.Interrupt, syscall.SIGTERM)
+
+	// Once endpoints are finalized, initialize the new object api.
+	globalObjLayerMutex.Lock()
+	globalObjectAPI = newObject
+	globalObjLayerMutex.Unlock()
+
+	// Prints the formatted startup message once object layer is initialized.
+	printGatewayStartupMessage(getAPIEndpoints(gatewayAddr), pydioBackend)
+
+	handleSignals()
+}
+
 // fromMinioClientObjectInfo converts minio ObjectInfo to gateway ObjectInfo
 func fromPydioNodeObjectInfo(bucket string, node *tree.Node) ObjectInfo {
 
@@ -103,7 +191,7 @@ func fromPydioNodeObjectInfo(bucket string, node *tree.Node) ObjectInfo {
 
 func (l *pydioObjects) ListPydioObjects(ctx context.Context, bucket string, prefix string, delimiter string, maxKeys int, versions bool) (objects []ObjectInfo, prefixes []string, err error) {
 
-	log.Printf("ListPydioObjects With Version? %v", versions)
+	// log.Printf("ListPydioObjects With Version? %v", versions)
 
 	treePath := strings.TrimLeft(prefix, "/")
 	recursive := false
@@ -113,7 +201,7 @@ func (l *pydioObjects) ListPydioObjects(ctx context.Context, bucket string, pref
 	var FilterType tree.NodeType
 	if maxKeys == 1 {
 		// We probably want to get only the very first object here (for folders stats)
-		log.Println("Should get only LEAF nodes")
+		// log.Println("Should get only LEAF nodes")
 		FilterType = tree.NodeType_LEAF
 		recursive = false
 	}
@@ -137,7 +225,7 @@ func (l *pydioObjects) ListPydioObjects(ctx context.Context, bucket string, pref
 		if clientResponse == nil {
 			continue
 		}
-		log.Println(clientResponse.Node.Path)
+		// log.Println(clientResponse.Node.Path)
 		objectInfo := fromPydioNodeObjectInfo(bucket, clientResponse.Node)
 		if clientResponse.Node.IsLeaf() {
 			objects = append(objects, objectInfo)
@@ -198,7 +286,7 @@ func (l *pydioObjects) ListObjectsWithContext(ctx context.Context, bucket string
 		return loi, s3ToObjectError(traceError(err), bucket)
 	}
 
-	log.Printf("[ListObjects] Returning %d objects and %d prefixes (V1) for prefix %s\n", len(objects), len(prefixes), prefix)
+	// log.Printf("[ListObjects] Returning %d objects and %d prefixes (V1) for prefix %s\n", len(objects), len(prefixes), prefix)
 
 	return ListObjectsInfo{
 		IsTruncated: false,
@@ -217,7 +305,7 @@ func (l *pydioObjects) ListObjectsV2WithContext(ctx context.Context, bucket, pre
 		return loi, s3ToObjectError(traceError(err), bucket)
 	}
 
-	log.Printf("\n[ListObjectsV2] Returning %d objects and %d prefixes (V2) for prefix %s\n", len(objects), len(prefixes), prefix)
+	// log.Printf("\n[ListObjectsV2] Returning %d objects and %d prefixes (V2) for prefix %s\n", len(objects), len(prefixes), prefix)
 
 	return ListObjectsV2Info{
 		IsTruncated: false,
@@ -233,7 +321,7 @@ func (l *pydioObjects) ListObjectsV2WithContext(ctx context.Context, bucket, pre
 // GetObjectInfo reads object info and replies back ObjectInfo
 func (l *pydioObjects) GetObjectInfoWithContext(ctx context.Context, bucket string, object string, versionId string) (objInfo ObjectInfo, err error) {
 
-	log.Println("[GetObjectInfo]" + object)
+	// log.Println("[GetObjectInfo]" + object)
 
 	path := strings.TrimLeft(object, "/")
 	readNodeResponse, err := l.Router.ReadNode(ctx, &tree.ReadNodeRequest{Node: &tree.Node{
@@ -259,7 +347,7 @@ func (l *pydioObjects) GetObjectInfoWithContext(ctx context.Context, bucket stri
 // length indicates the total length of the object.
 func (l *pydioObjects) GetObjectWithContext(ctx context.Context, bucket string, key string, startOffset int64, length int64, versionId string, writer io.Writer) error {
 
-	log.Println("[GetObject] From Router", bucket, key, startOffset, length)
+	// log.Println("[GetObject] From Router", bucket, key, startOffset, length)
 
 	path := strings.TrimLeft(key, "/")
 	objectReader, err := l.Router.GetObject(ctx, &tree.Node{
@@ -326,11 +414,11 @@ func (l *pydioObjects) PutObjectWithContext(ctx context.Context, bucket string, 
 func (l *pydioObjects) CopyObjectWithContext(ctx context.Context, srcBucket string, srcObject string, srcObjectVersionId string, destBucket string, destObject string, requestMetadata map[string]string) (objInfo ObjectInfo, e error) {
 
 	if srcObject == destObject {
-		log.Printf("Coping %v to %v, this is a REPLACE meta directive \n", srcObject, destObject)
-		log.Println(requestMetadata)
+		// log.Printf("Coping %v to %v, this is a REPLACE meta directive \n", srcObject, destObject)
+		// log.Println(requestMetadata)
 		return objInfo, traceError(&NotImplemented{})
 	}
-	log.Println("Received COPY instruction: ", srcBucket, "/", srcObject, "=>", destBucket, "/", destObject)
+	// log.Println("Received COPY instruction: ", srcBucket, "/", srcObject, "=>", destBucket, "/", destObject)
 
 	written, err := l.Router.CopyObject(ctx, &tree.Node{
 		Path: strings.TrimLeft(srcObject, "/"),
@@ -352,7 +440,7 @@ func (l *pydioObjects) CopyObjectWithContext(ctx context.Context, srcBucket stri
 // DeleteObject deletes a blob in bucket
 func (l *pydioObjects) DeleteObjectWithContext(ctx context.Context, bucket string, object string) error {
 
-	log.Println("[DeleteObject]", object)
+	// log.Println("[DeleteObject]", object)
 	_, err := l.Router.DeleteNode(ctx, &tree.DeleteNodeRequest{
 		Node: &tree.Node{
 			Path: strings.TrimLeft(object, "/"),
