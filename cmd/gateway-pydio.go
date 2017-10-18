@@ -82,7 +82,7 @@ func newPydioGateway() (GatewayLayer, error) {
 	return api, nil
 }
 
-func NewPydioGateway(gatewayAddr string, configDir string) {
+func NewPydioGateway(ctx context.Context, gatewayAddr string, configDir string) {
 
 	// Disallow relative paths, figure out absolute paths.
 	configDirAbs, err := filepath.Abs(configDir)
@@ -160,7 +160,31 @@ func NewPydioGateway(gatewayAddr string, configDir string) {
 	// Prints the formatted startup message once object layer is initialized.
 	printGatewayStartupMessage(getAPIEndpoints(gatewayAddr), pydioBackend)
 
-	handleSignals()
+	stopProcess := func() bool {
+		var err, oerr error
+		log.Println("Shutting down Minio Server")
+		err = globalHTTPServer.Shutdown()
+		errorIf(err, "Unable to shutdown http server")
+
+		oerr = newObject.Shutdown()
+		errorIf(oerr, "Unable to shutdown object layer")
+		return true
+
+	}
+
+	select{
+		case <-globalHTTPServerErrorCh:
+			stopProcess()
+			return
+		case <-globalOSSignalCh:
+			stopProcess()
+			return
+		case <- ctx.Done():
+			stopProcess()
+			return
+	}
+
+	//handleSignals()
 }
 
 // fromMinioClientObjectInfo converts minio ObjectInfo to gateway ObjectInfo
