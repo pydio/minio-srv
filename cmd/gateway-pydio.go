@@ -234,7 +234,7 @@ func (l *pydioObjects) ListPydioObjects(ctx context.Context, bucket string, pref
 			Path: treePath,
 		},
 		Recursive:  recursive,
-		Versions:   versions,
+		WithVersions:   versions,
 		Limit:      int64(maxKeys),
 		FilterType: FilterType,
 	})
