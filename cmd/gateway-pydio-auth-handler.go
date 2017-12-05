@@ -25,7 +25,7 @@ func getPydioAuthHandlerFunc(gateway bool) HandlerFunc {
 	return func(h http.Handler) http.Handler {
 		return pydioAuthHandler{
 			handler:     h,
-			jwtVerifier: auth.DefaultJWTVerifier(nil),
+			jwtVerifier: auth.DefaultJWTVerifier(),
 			gateway:     gateway,
 		}
 	}
