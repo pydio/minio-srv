@@ -1,5 +1,7 @@
+// +build linux
+
 /*
- * Minio Go Library for Amazon S3 Compatible Cloud Storage (C) 2017 Minio, Inc.
+ * Minio Cloud Storage, (C) 2017 Minio, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +16,23 @@
  * limitations under the License.
  */
 
-package minio
+package sys
 
-import "context"
+import (
+	"io/ioutil"
+	"strconv"
+	"strings"
+)
 
-// GetObjectWithContext - returns an seekable, readable object.
-// The options can be used to specify the GET request further.
-func (c Client) GetObjectWithContext(ctx context.Context, bucketName, objectName string, opts GetObjectOptions) (*Object, error) {
-	return c.getObjectWithContext(ctx, bucketName, objectName, opts)
+// GetMaxThreads returns the maximum number of threads that the system can create.
+func GetMaxThreads() (int, error) {
+	sysMaxThreadsStr, err := ioutil.ReadFile("/proc/sys/kernel/threads-max")
+	if err != nil {
+		return 0, err
+	}
+	sysMaxThreads, err := strconv.Atoi(strings.TrimSpace(string(sysMaxThreadsStr)))
+	if err != nil {
+		return 0, err
+	}
+	return sysMaxThreads, nil
 }

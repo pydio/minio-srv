@@ -55,11 +55,11 @@ func (l *s3Objects) AnonPutObject(bucket string, object string, size int64, data
 
 // AnonGetObject - Get object anonymously
 func (l *s3Objects) AnonGetObject(bucket string, key string, startOffset int64, length int64, writer io.Writer) error {
-	r := minio.GetObjectOptions{}
-	if err := r.SetRange(startOffset, startOffset+length-1); err != nil {
+	opts := minio.GetObjectOptions{}
+	if err := opts.SetRange(startOffset, startOffset+length-1); err != nil {
 		return s3ToObjectError(traceError(err), bucket, key)
 	}
-	object, _, err := l.anonClient.GetObject(bucket, key, r)
+	object, _, err := l.anonClient.GetObject(bucket, key, opts)
 	if err != nil {
 		return s3ToObjectError(traceError(err), bucket, key)
 	}

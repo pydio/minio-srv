@@ -132,16 +132,16 @@
 			"revisionTime": "2016-08-05T00:47:13Z"
 		},
 		{
-			"checksumSHA1": "9SMXUZjn5vV8cpAlpokIDKZe2MA=",
+			"checksumSHA1": "LHwm1G0lFyQ3X0iHZ/MOYnAtjd4=",
 			"path": "github.com/eclipse/paho.mqtt.golang",
-			"revision": "65f43bda5f7edbbf6b7533d3a5a13b2c67cf3545",
-			"revisionTime": "2017-09-08T15:56:42Z"
+			"revision": "d06cc70ac43d625e602946b5ff2346ddebb768e4",
+			"revisionTime": "2017-06-02T16:30:32Z"
 		},
 		{
-			"checksumSHA1": "ITCnG3uKUnqNXrnnulKokjQKfN4=",
+			"checksumSHA1": "g2AaO9VMaxzFQZkrCfxBUV3yAyM=",
 			"path": "github.com/eclipse/paho.mqtt.golang/packets",
-			"revision": "65f43bda5f7edbbf6b7533d3a5a13b2c67cf3545",
-			"revisionTime": "2017-09-08T15:56:42Z"
+			"revision": "d06cc70ac43d625e602946b5ff2346ddebb768e4",
+			"revisionTime": "2017-06-02T16:30:32Z"
 		},
 		{
 			"path": "github.com/elazarl/go-bindata-assetfs",
@@ -463,10 +463,10 @@
 			"revisionTime": "2016-02-29T08:42:30-08:00"
 		},
 		{
-			"checksumSHA1": "oo68yzw7zSFxz/x6e5zmJwuTUe4=",
-			"path": "github.com/minio/minio",
-			"revision": "60cc6184d253efee4a3120683517028342229e21",
-			"revisionTime": "2017-09-29T19:08:23Z"
+			"checksumSHA1": "EkdIh5Mk2bRiARtdoqUfnBuyndk=",
+			"path": "github.com/minio/minio-go",
+			"revision": "9690dc6c40e6ef271727848c04f974e801212ac1",
+			"revisionTime": "2017-10-02T19:34:27Z"
 		},
 		{
 			"checksumSHA1": "qPt3l9ZUjG0J4oZNTSrKy17rts0=",
