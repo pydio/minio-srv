@@ -21,7 +21,7 @@ import (
 	pathutil "path"
 	"sync"
 
-	"github.com/pydio/minio-priv/pkg/lock"
+	"github.com/pydio/minio-srv/pkg/lock"
 )
 
 // fsIOPool represents a protected list to keep track of all

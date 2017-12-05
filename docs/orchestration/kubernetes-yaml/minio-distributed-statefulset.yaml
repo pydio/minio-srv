@@ -19,7 +19,7 @@ spec:
           value: "minio"
         - name: MINIO_SECRET_KEY
           value: "minio123"
-        image: pydio/minio-priv:RELEASE.2017-08-05T00-00-53Z
+        image: pydio/minio-srv:RELEASE.2017-08-05T00-00-53Z
         args:
         - server
         - http://minio-0.minio.default.svc.cluster.local/data

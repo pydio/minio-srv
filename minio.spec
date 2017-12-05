@@ -1,6 +1,6 @@
 %define         tag     RELEASE.2017-04-25T01-27-49Z
 %define         subver  %(echo %{tag} | sed -e 's/[^0-9]//g')
-# git fetch https://github.com/pydio/minio-priv.git refs/tags/RELEASE.2017-02-16T01-47-30Z
+# git fetch https://github.com/pydio/minio-srv.git refs/tags/RELEASE.2017-02-16T01-47-30Z
 # git rev-list -n 1 FETCH_HEAD
 %define         commitid        83abb310b4ce3a0dfc6d7faf78e33cb6f9132cfe
 Summary:        Cloud Storage Server.
@@ -10,7 +10,7 @@ Release:        1
 Vendor:         Minio, Inc.
 License:        Apache v2.0
 Group:          Applications/File
-Source0:        https://github.com/pydio/minio-priv/archive/%{tag}.tar.gz
+Source0:        https://github.com/pydio/minio-srv/archive/%{tag}.tar.gz
 URL:            https://www.minio.io/
 BuildRequires:  golang >= 1.7
 BuildRoot:      %{tmpdir}/%{name}-%{version}-root-%(id -u -n)
@@ -21,7 +21,7 @@ BuildRoot:      %{tmpdir}/%{name}-%{version}-root-%(id -u -n)
 ## Go related tags.
 %define         gobuild(o:) go build -ldflags "${LDFLAGS:-}" %{?**};
 %define         gopath          %{_libdir}/golang
-%define         import_path     github.com/pydio/minio-priv
+%define         import_path     github.com/pydio/minio-srv
 
 %description
 Minio is an object storage server released under Apache License v2.0.

@@ -250,7 +250,7 @@ func retryFormattingXLDisks(firstDisk bool, endpoints EndpointList, storageDisks
 				// initializes the erasure set. This check ensures that the
 				// rest of the other servers do get a chance to see that the
 				// first server has a wrong format and exit gracefully.
-				// refer - https://github.com/pydio/minio-priv/issues/4140
+				// refer - https://github.com/pydio/minio-srv/issues/4140
 				if retryCount > maxRetryAttempts {
 					errorIf(err, "%s : Detected disk in unexpected format",
 						storageDisks[index])

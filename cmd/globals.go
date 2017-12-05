@@ -25,7 +25,7 @@ import (
 
 	humanize "github.com/dustin/go-humanize"
 	"github.com/fatih/color"
-	miniohttp "github.com/pydio/minio-priv/pkg/http"
+	miniohttp "github.com/pydio/minio-srv/pkg/http"
 )
 
 // minio configuration related constants.

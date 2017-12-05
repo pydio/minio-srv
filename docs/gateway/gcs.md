@@ -20,7 +20,7 @@ docker run -p 9000:9000 --name gcs-s3 \
  -e "GOOGLE_APPLICATION_CREDENTIALS=/credentials.json" \
  -e "MINIO_ACCESS_KEY=minioaccountname" \
  -e "MINIO_SECRET_KEY=minioaccountkey" \
- pydio/minio-priv gateway gcs yourprojectid
+ pydio/minio-srv gateway gcs yourprojectid
 ```
 
 ### Using Binary
@@ -34,7 +34,7 @@ minio gateway gcs yourprojectid
 ## Test using Minio Browser
 Minio Gateway comes with an embedded web based object browser. Point your web browser to http://127.0.0.1:9000 ensure your server has started successfully.
 
-![Screenshot](https://github.com/pydio/minio-priv/blob/master/docs/screenshots/minio-browser-gateway.png?raw=true)
+![Screenshot](https://github.com/pydio/minio-srv/blob/master/docs/screenshots/minio-browser-gateway.png?raw=true)
 
 ## Test using Minio Client `mc`
 `mc` provides a modern alternative to UNIX commands such as ls, cat, cp, mirror, diff etc. It supports filesystems and Amazon S3 compatible cloud storage services.
@@ -53,7 +53,7 @@ mc ls mygcs
 ```
 
 ### Known limitations
-[Limitations](https://github.com/pydio/minio-priv/blob/master/docs/gateway/gcs-limitations.md)
+[Limitations](https://github.com/pydio/minio-srv/blob/master/docs/gateway/gcs-limitations.md)
 
 ## Explore Further
 - [`mc` command-line interface](https://docs.minio.io/docs/minio-client-quickstart-guide)

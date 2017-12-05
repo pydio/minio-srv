@@ -1,4 +1,4 @@
-# Minio 快速入门 [![Slack](https://slack.minio.io/slack?type=svg)](https://slack.minio.io) [![Go Report Card](https://goreportcard.com/badge/pydio/minio-priv)](https://goreportcard.com/report/pydio/minio-priv) [![codecov](https://codecov.io/gh/pydio/minio-priv/branch/master/graph/badge.svg)](https://codecov.io/gh/pydio/minio-priv) [![Snap Status](https://build.snapcraft.io/badge/pydio/minio-priv.svg)](https://build.snapcraft.io/user/pydio/minio-priv)
+# Minio 快速入门 [![Slack](https://slack.minio.io/slack?type=svg)](https://slack.minio.io) [![Go Report Card](https://goreportcard.com/badge/pydio/minio-srv)](https://goreportcard.com/report/pydio/minio-srv) [![codecov](https://codecov.io/gh/pydio/minio-srv/branch/master/graph/badge.svg)](https://codecov.io/gh/pydio/minio-srv) [![Snap Status](https://build.snapcraft.io/badge/pydio/minio-srv.svg)](https://build.snapcraft.io/user/pydio/minio-srv)
 
 Minio是一个对象存储服务，基于Apache License v2.0协议. 它完全兼容亚马逊的S3云储存服务，非常适合于存储很多非结构化的数据，例如图片、视频、日志文件、备份数据和容器/虚拟机镜像等，而一个对象文件可以是任意大小，从几kb到最大5T不等。 
 
@@ -28,7 +28,7 @@ $ minio --help
 
 ```sh
 
-$ go get -u github.com/pydio/minio-priv
+$ go get -u github.com/pydio/minio-srv
 
 
 ```
@@ -122,8 +122,8 @@ SecretKey: MOJRH0mkL1IPauahWITSVvyDrQbEEIwljvmxdq03
 
 ```sh
 
-$ docker pull pydio/minio-priv
-$ docker run -p 9000:9000 pydio/minio-priv
+$ docker pull pydio/minio-srv
+$ docker run -p 9000:9000 pydio/minio-srv
 
 ```
 访问minio的docker入门指南获得更多内容 [here](https://docs.minio.io/docs/zh-CN/minio-docker-quickstart-guide)
@@ -161,7 +161,7 @@ SecretKey: MOJRH0mkL1IPauahWITSVvyDrQbEEIwljvmxdq03
 
 打开浏览器并输入 http://127.0.0.1:9000 查看在minio服务器上面的所有bucket
 
-![Screenshot](https://github.com/pydio/minio-priv/blob/master/docs/screenshots/minio-browser.jpg?raw=true)
+![Screenshot](https://github.com/pydio/minio-srv/blob/master/docs/screenshots/minio-browser.jpg?raw=true)
 
 
 ## 4. 使用`mc`测试minio服务
@@ -194,4 +194,4 @@ $ mc ls myminio/
 
 
 ## 6. 给Minio项目贡献
-请按照Minio [贡献者指导手册](https://github.com/pydio/minio-priv/blob/master/CONTRIBUTING.md)
+请按照Minio [贡献者指导手册](https://github.com/pydio/minio-srv/blob/master/CONTRIBUTING.md)

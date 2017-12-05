@@ -26,8 +26,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pydio/minio-priv/pkg/lock"
-	"github.com/pydio/minio-priv/pkg/mimedb"
+	"github.com/pydio/minio-srv/pkg/lock"
+	"github.com/pydio/minio-srv/pkg/mimedb"
 	"github.com/tidwall/gjson"
 )
 

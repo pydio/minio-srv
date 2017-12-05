@@ -1,4 +1,4 @@
-# Deploy distributed Minio locally with minikube [![Slack](https://slack.minio.io/slack?type=svg)](https://slack.minio.io) [![Go Report Card](https://goreportcard.com/badge/pydio/minio-priv)](https://goreportcard.com/report/pydio/minio-priv) [![Docker Pulls](https://img.shields.io/docker/pulls/pydio/minio-priv.svg?maxAge=604800)](https://hub.docker.com/r/pydio/minio-priv/) [![codecov](https://codecov.io/gh/pydio/minio-priv/branch/master/graph/badge.svg)](https://codecov.io/gh/pydio/minio-priv)
+# Deploy distributed Minio locally with minikube [![Slack](https://slack.minio.io/slack?type=svg)](https://slack.minio.io) [![Go Report Card](https://goreportcard.com/badge/pydio/minio-srv)](https://goreportcard.com/report/pydio/minio-srv) [![Docker Pulls](https://img.shields.io/docker/pulls/pydio/minio-srv.svg?maxAge=604800)](https://hub.docker.com/r/pydio/minio-srv/) [![codecov](https://codecov.io/gh/pydio/minio-srv/branch/master/graph/badge.svg)](https://codecov.io/gh/pydio/minio-srv)
 
 Minikube runs a single-node Kubernetes cluster inside a VM on your computer. This makes it easy to deploy distributed Minio server on
 Kubernetes running locally on your computer.
@@ -13,8 +13,8 @@ installed on your system.
 * Download `minio_distributed.sh` and `statefulset.yaml`
 
 ```sh
-wget https://raw.githubusercontent.com/pydio/minio-priv/master/docs/orchestration/minikube/minio_distributed.sh  
-wget https://raw.githubusercontent.com/pydio/minio-priv/master/docs/orchestration/minikube/statefulset.yaml
+wget https://raw.githubusercontent.com/pydio/minio-srv/master/docs/orchestration/minikube/minio_distributed.sh
+wget https://raw.githubusercontent.com/pydio/minio-srv/master/docs/orchestration/minikube/statefulset.yaml
 ```
 
 * Execute the `minio_distributed.sh` script in command prompt.

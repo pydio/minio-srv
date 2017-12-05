@@ -24,8 +24,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/pydio/minio-priv/pkg/mimedb"
-	"github.com/pydio/minio-priv/pkg/objcache"
+	"github.com/pydio/minio-srv/pkg/mimedb"
+	"github.com/pydio/minio-srv/pkg/objcache"
 )
 
 // list all errors which can be ignored in object operations.

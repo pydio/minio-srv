@@ -28,7 +28,7 @@ import (
 	"sort"
 	"syscall"
 
-	"github.com/pydio/minio-priv/pkg/lock"
+	"github.com/pydio/minio-srv/pkg/lock"
 )
 
 // fsObjects - Implements fs object layer.

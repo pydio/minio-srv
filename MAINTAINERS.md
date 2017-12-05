@@ -2,7 +2,7 @@
 
 ### Setup your minio Github Repository
 
-Fork [minio upstream](https://github.com/pydio/minio-priv/fork) source repository to your own personal repository.
+Fork [minio upstream](https://github.com/pydio/minio-srv/fork) source repository to your own personal repository.
 ```bash
 $ mkdir -p $GOPATH/src/github.com/minio
 $ cd $GOPATH/src/github.com/minio

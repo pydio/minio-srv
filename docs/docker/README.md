@@ -1,4 +1,4 @@
-# Minio Docker Quickstart Guide [![Slack](https://slack.minio.io/slack?type=svg)](https://slack.minio.io) [![Go Report Card](https://goreportcard.com/badge/pydio/minio-priv)](https://goreportcard.com/report/pydio/minio-priv) [![Docker Pulls](https://img.shields.io/docker/pulls/pydio/minio-priv.svg?maxAge=604800)](https://hub.docker.com/r/pydio/minio-priv/) [![codecov](https://codecov.io/gh/pydio/minio-priv/branch/master/graph/badge.svg)](https://codecov.io/gh/pydio/minio-priv)
+# Minio Docker Quickstart Guide [![Slack](https://slack.minio.io/slack?type=svg)](https://slack.minio.io) [![Go Report Card](https://goreportcard.com/badge/pydio/minio-srv)](https://goreportcard.com/report/pydio/minio-srv) [![Docker Pulls](https://img.shields.io/docker/pulls/pydio/minio-srv.svg?maxAge=604800)](https://hub.docker.com/r/pydio/minio-srv/) [![codecov](https://codecov.io/gh/pydio/minio-srv/branch/master/graph/badge.svg)](https://codecov.io/gh/pydio/minio-srv)
 
 ## Prerequisites
 Docker installed on your machine. Download the relevant installer from [here](https://www.docker.com/community-edition#/download).
@@ -7,7 +7,7 @@ Docker installed on your machine. Download the relevant installer from [here](ht
 Minio needs a persistent volume to store configuration and application data. However, for testing purposes, you can launch Minio by simply passing a directory (`/data` in the example below). This directory gets created in the container filesystem at the time of container start. But all the data is lost after container exits.
 
 ```sh
-docker run -p 9000:9000 pydio/minio-priv server /data
+docker run -p 9000:9000 pydio/minio-srv server /data
 ```
 
 To create a Minio container with persistent storage, you need to map local persistent directories from the host OS to virtual config `~/.minio` and export `/data` directories. To do this, run the below commands
@@ -17,7 +17,7 @@ To create a Minio container with persistent storage, you need to map local persi
 docker run -p 9000:9000 --name minio1 \
   -v /mnt/data:/data \
   -v /mnt/config:/root/.minio \
-  pydio/minio-priv server /data
+  pydio/minio-srv server /data
 ```
 
 #### Windows
@@ -25,7 +25,7 @@ docker run -p 9000:9000 --name minio1 \
 docker run -p 9000:9000 --name minio1 \
   -v D:\data:/data \
   -v D:\minio\config:/root/.minio \
-  pydio/minio-priv server /data
+  pydio/minio-srv server /data
 ```
 
 ## Run Distributed Minio on Docker
@@ -45,7 +45,7 @@ docker run -p 9000:9000 --name minio1 \
   -e "MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY" \
   -v /mnt/data:/data \
   -v /mnt/config:/root/.minio \
-  pydio/minio-priv server /data
+  pydio/minio-srv server /data
 ```
 
 #### Windows
@@ -55,7 +55,7 @@ docker run -p 9000:9000 --name minio1 \
   -e "MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY" \
   -v D:\data:/data \
   -v D:\minio\config:/root/.minio \
-  pydio/minio-priv server /data
+  pydio/minio-srv server /data
 ```
 
 ### Minio Custom Access and Secret Keys using Docker secrets
@@ -68,7 +68,7 @@ echo "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY" | docker secret create secret_ke
 
 Create a Minio service using `docker service` to read from Docker secrets.
 ```
-docker service create --name="minio-service" --secret="access_key" --secret="secret_key" pydio/minio-priv server /data
+docker service create --name="minio-service" --secret="access_key" --secret="secret_key" pydio/minio-srv server /data
 ```
 
 Read more about `docker service` [here](https://docs.docker.com/engine/swarm/how-swarm-mode-works/services/)

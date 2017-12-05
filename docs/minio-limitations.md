@@ -30,7 +30,7 @@
 |Maximum number of objects returned per list objects request| 1000|
 |Maximum number of multipart uploads returned per list multipart uploads request| 1000|
 
-We found the following APIs to be redundant or less useful outside of AWS S3. If you have a different view on any of the APIs we missed, please open a [github issue](https://github.com/pydio/minio-priv/issues).
+We found the following APIs to be redundant or less useful outside of AWS S3. If you have a different view on any of the APIs we missed, please open a [github issue](https://github.com/pydio/minio-srv/issues).
 
 ###  List of Amazon S3 Bucket API's not supported on Minio.
 

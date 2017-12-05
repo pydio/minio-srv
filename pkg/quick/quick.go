@@ -27,7 +27,7 @@ import (
 	"sync"
 
 	"github.com/fatih/structs"
-	"github.com/pydio/minio-priv/pkg/safe"
+	"github.com/pydio/minio-srv/pkg/safe"
 )
 
 // Config - generic config interface functions

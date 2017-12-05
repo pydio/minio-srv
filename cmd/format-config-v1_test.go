@@ -23,7 +23,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/pydio/minio-priv/pkg/lock"
+	"github.com/pydio/minio-srv/pkg/lock"
 )
 
 // generates a valid format.json for XL backend.

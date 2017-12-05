@@ -25,7 +25,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/pydio/minio-priv/pkg/madmin"
+	"github.com/pydio/minio-srv/pkg/madmin"
 )
 
 var configJSON = []byte(`{

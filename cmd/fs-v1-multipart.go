@@ -25,7 +25,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pydio/minio-priv/pkg/lock"
+	"github.com/pydio/minio-srv/pkg/lock"
 )
 
 const (

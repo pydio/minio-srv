@@ -9,7 +9,7 @@ import (
 	"syscall"
 
 	"github.com/minio/dsync"
-	miniohttp "github.com/pydio/minio-priv/pkg/http"
+	miniohttp "github.com/pydio/minio-srv/pkg/http"
 )
 
 func NewPydioServer(serverAddr string, configDir string, args ...string) {

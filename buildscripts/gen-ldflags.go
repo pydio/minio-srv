@@ -28,11 +28,11 @@ import (
 
 func genLDFlags(version string) string {
 	ldflagsStr := "-s -w"
-	ldflagsStr += " -X github.com/pydio/minio-priv/cmd.Version=" + version
-	ldflagsStr += " -X github.com/pydio/minio-priv/cmd.ReleaseTag=" + releaseTag(version)
-	ldflagsStr += " -X github.com/pydio/minio-priv/cmd.CommitID=" + commitID()
-	ldflagsStr += " -X github.com/pydio/minio-priv/cmd.ShortCommitID=" + commitID()[:12]
-	ldflagsStr += " -X github.com/pydio/minio-priv/cmd.GOPATH=" + os.Getenv("GOPATH")
+	ldflagsStr += " -X github.com/pydio/minio-srv/cmd.Version=" + version
+	ldflagsStr += " -X github.com/pydio/minio-srv/cmd.ReleaseTag=" + releaseTag(version)
+	ldflagsStr += " -X github.com/pydio/minio-srv/cmd.CommitID=" + commitID()
+	ldflagsStr += " -X github.com/pydio/minio-srv/cmd.ShortCommitID=" + commitID()[:12]
+	ldflagsStr += " -X github.com/pydio/minio-srv/cmd.GOPATH=" + os.Getenv("GOPATH")
 	return ldflagsStr
 }
 

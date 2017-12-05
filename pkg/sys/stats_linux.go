@@ -22,7 +22,7 @@ import (
 	"os"
 	"syscall"
 
-	"github.com/pydio/minio-priv/pkg/cgroup"
+	"github.com/pydio/minio-srv/pkg/cgroup"
 )
 
 // Get the final system memory limit chosen by the user.

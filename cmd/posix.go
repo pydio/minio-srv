@@ -29,7 +29,7 @@ import (
 	"syscall"
 
 	humanize "github.com/dustin/go-humanize"
-	"github.com/pydio/minio-priv/pkg/disk"
+	"github.com/pydio/minio-srv/pkg/disk"
 )
 
 const (

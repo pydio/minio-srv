@@ -20,7 +20,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/pydio/minio-priv/pkg/wildcard"
+	"github.com/pydio/minio-srv/pkg/wildcard"
 )
 
 // SQS type.

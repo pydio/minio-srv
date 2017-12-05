@@ -57,7 +57,7 @@ func TestRepeatPutObjectPart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// PutObjectPart should succeed even if part already exists. ref: https://github.com/pydio/minio-priv/issues/1930
+	// PutObjectPart should succeed even if part already exists. ref: https://github.com/pydio/minio-srv/issues/1930
 	_, err = objLayer.PutObjectPart("bucket1", "mpartObj1", uploadID, 1, NewHashReader(bytes.NewReader(fiveMBBytes), 5*humanize.MiByte, md5Hex, ""))
 	if err != nil {
 		t.Fatal(err)

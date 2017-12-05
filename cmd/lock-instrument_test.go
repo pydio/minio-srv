@@ -309,7 +309,7 @@ func TestNsLockMapStatusBlockedToRunning(t *testing.T) {
 		{
 			volume:     "my-bucket",
 			path:       "my-object",
-			lockSource: "/home/vadmeste/work/go/src/github.com/pydio/minio-priv/xl-v1-object.go:683 +0x2a",
+			lockSource: "/home/vadmeste/work/go/src/github.com/pydio/minio-srv/xl-v1-object.go:683 +0x2a",
 			opsID:      "abcd1234",
 			readLock:   true,
 			setBlocked: true,
@@ -322,7 +322,7 @@ func TestNsLockMapStatusBlockedToRunning(t *testing.T) {
 		{
 			volume:     "my-bucket",
 			path:       "my-object-2",
-			lockSource: "/home/vadmeste/work/go/src/github.com/pydio/minio-priv/xl-v1-object.go:683 +0x2a",
+			lockSource: "/home/vadmeste/work/go/src/github.com/pydio/minio-srv/xl-v1-object.go:683 +0x2a",
 			opsID:      "abcd1234",
 			readLock:   false,
 			setBlocked: false,
@@ -334,7 +334,7 @@ func TestNsLockMapStatusBlockedToRunning(t *testing.T) {
 		{
 			volume:     "my-bucket",
 			path:       "my-object",
-			lockSource: "/home/vadmeste/work/go/src/github.com/pydio/minio-priv/xl-v1-object.go:683 +0x2a",
+			lockSource: "/home/vadmeste/work/go/src/github.com/pydio/minio-srv/xl-v1-object.go:683 +0x2a",
 			opsID:      "ops-Id-not-registered",
 			readLock:   true,
 			setBlocked: false,
@@ -358,7 +358,7 @@ func TestNsLockMapStatusBlockedToRunning(t *testing.T) {
 		{
 			volume:     "my-bucket",
 			path:       "my-object",
-			lockSource: "/home/vadmeste/work/go/src/github.com/pydio/minio-priv/xl-v1-object.go:683 +0x2a",
+			lockSource: "/home/vadmeste/work/go/src/github.com/pydio/minio-srv/xl-v1-object.go:683 +0x2a",
 			opsID:      "abcd1234",
 			readLock:   false,
 			setBlocked: true,
@@ -408,7 +408,7 @@ func TestNsLockMapStatusBlockedToRunning(t *testing.T) {
 	// Setting the status of the lock to be "Running".
 	// The initial state of the lock should set to "Blocked", otherwise its not possible to change the state from "Blocked" -> "Running".
 	globalNSMutex.debugLockMap[param].lockInfo[testCases[0].opsID] = debugLockInfo{
-		lockSource: "/home/vadmeste/work/go/src/github.com/pydio/minio-priv/xl-v1-object.go:683 +0x2a",
+		lockSource: "/home/vadmeste/work/go/src/github.com/pydio/minio-srv/xl-v1-object.go:683 +0x2a",
 		status:     "Running", // State set to "Running". Should fail with `LockInfoStateNotBlocked`.
 		since:      UTCNow(),
 	}
@@ -487,7 +487,7 @@ func TestNsLockMapStatusNoneToBlocked(t *testing.T) {
 
 			volume:     "my-bucket",
 			path:       "my-object",
-			lockSource: "/home/vadmeste/work/go/src/github.com/pydio/minio-priv/xl-v1-object.go:683 +0x2a",
+			lockSource: "/home/vadmeste/work/go/src/github.com/pydio/minio-srv/xl-v1-object.go:683 +0x2a",
 			opsID:      "abcd1234",
 			readLock:   true,
 			// expected metrics.
@@ -509,7 +509,7 @@ func TestNsLockMapStatusNoneToBlocked(t *testing.T) {
 
 			volume:     "my-bucket",
 			path:       "my-object-2",
-			lockSource: "/home/vadmeste/work/go/src/github.com/pydio/minio-priv/xl-v1-object.go:683 +0x2a",
+			lockSource: "/home/vadmeste/work/go/src/github.com/pydio/minio-srv/xl-v1-object.go:683 +0x2a",
 			opsID:      "abcd1234",
 			readLock:   false,
 			// expected metrics.
@@ -530,7 +530,7 @@ func TestNsLockMapStatusNoneToBlocked(t *testing.T) {
 		{
 			volume:     "my-bucket",
 			path:       "my-object",
-			lockSource: "/home/vadmeste/work/go/src/github.com/pydio/minio-priv/xl-v1-object.go:683 +0x2a",
+			lockSource: "/home/vadmeste/work/go/src/github.com/pydio/minio-srv/xl-v1-object.go:683 +0x2a",
 			opsID:      "ops-Id-not-registered",
 			readLock:   true,
 			// expected metrics.
@@ -583,7 +583,7 @@ func TestNsLockMapDeleteLockInfoEntryForOps(t *testing.T) {
 		{
 			volume:     "my-bucket",
 			path:       "my-object",
-			lockSource: "/home/vadmeste/work/go/src/github.com/pydio/minio-priv/xl-v1-object.go:683 +0x2a",
+			lockSource: "/home/vadmeste/work/go/src/github.com/pydio/minio-srv/xl-v1-object.go:683 +0x2a",
 			opsID:      "abcd1234",
 			readLock:   true,
 			// expected metrics.
@@ -668,7 +668,7 @@ func TestNsLockMapDeleteLockInfoEntryForVolumePath(t *testing.T) {
 		{
 			volume:     "my-bucket",
 			path:       "my-object",
-			lockSource: "/home/vadmeste/work/go/src/github.com/pydio/minio-priv/xl-v1-object.go:683 +0x2a",
+			lockSource: "/home/vadmeste/work/go/src/github.com/pydio/minio-srv/xl-v1-object.go:683 +0x2a",
 			opsID:      "abcd1234",
 			readLock:   true,
 			// expected metrics.

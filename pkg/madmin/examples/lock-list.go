@@ -23,7 +23,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/pydio/minio-priv/pkg/madmin"
+	"github.com/pydio/minio-srv/pkg/madmin"
 )
 
 func main() {

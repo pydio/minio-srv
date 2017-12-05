@@ -9,7 +9,7 @@ This document assumes that you have a working [Golang setup](https://docs.minio.
 
 ```sh
 
-go get -u github.com/pydio/minio-priv/pkg/madmin
+go get -u github.com/pydio/minio-srv/pkg/madmin
 
 ```
 
@@ -31,7 +31,7 @@ You need four items to connect to Minio admin services.
 package main
 
 import (
-	"github.com/pydio/minio-priv/pkg/madmin"
+	"github.com/pydio/minio-srv/pkg/madmin"
 	"log"
 )
 
@@ -66,7 +66,7 @@ package main
 import (
 	"log"
 
-	"github.com/pydio/minio-priv/pkg/madmin"
+	"github.com/pydio/minio-srv/pkg/madmin"
 )
 
 func main() {
@@ -112,11 +112,11 @@ go run service-status.go
 
 #### Full Examples : Service Operations
 
-* [service-status.go](https://github.com/pydio/minio-priv/blob/master/pkg/madmin/examples/service-status.go)
-* [service-restart.go](https://github.com/pydio/minio-priv/blob/master/pkg/madmin/examples/service-restart.go)
-* [service-set-credentials.go](https://github.com/pydio/minio-priv/blob/master/pkg/madmin/examples/service-set-credentials.go)
+* [service-status.go](https://github.com/pydio/minio-srv/blob/master/pkg/madmin/examples/service-status.go)
+* [service-restart.go](https://github.com/pydio/minio-srv/blob/master/pkg/madmin/examples/service-restart.go)
+* [service-set-credentials.go](https://github.com/pydio/minio-srv/blob/master/pkg/madmin/examples/service-set-credentials.go)
 
 ## Contribute
 
-[Contributors Guide](https://github.com/pydio/minio-priv/blob/master/CONTRIBUTING.md)
+[Contributors Guide](https://github.com/pydio/minio-srv/blob/master/CONTRIBUTING.md)
 

@@ -7,7 +7,7 @@ Minio Gateway adds Amazon S3 compatibility to Microsoft Azure Blob Storage.
 docker run -p 9000:9000 --name azure-s3 \
  -e "MINIO_ACCESS_KEY=azureaccountname" \
  -e "MINIO_SECRET_KEY=azureaccountkey" \
- pydio/minio-priv gateway azure
+ pydio/minio-srv gateway azure
 ```
 
 ### Using Binary
@@ -19,7 +19,7 @@ minio gateway azure
 ## Test using Minio Browser
 Minio Gateway comes with an embedded web based object browser. Point your web browser to http://127.0.0.1:9000 ensure your server has started successfully.
 
-![Screenshot](https://github.com/pydio/minio-priv/blob/master/docs/screenshots/minio-browser-gateway.png?raw=true)
+![Screenshot](https://github.com/pydio/minio-srv/blob/master/docs/screenshots/minio-browser-gateway.png?raw=true)
 ## Test using Minio Client `mc`
 `mc` provides a modern alternative to UNIX commands such as ls, cat, cp, mirror, diff etc. It supports filesystems and Amazon S3 compatible cloud storage services.
 
@@ -37,7 +37,7 @@ mc ls myazure
 ```
 
 ### Known limitations
-[Limitations](https://github.com/pydio/minio-priv/blob/master/docs/gateway/azure-limitations.md)
+[Limitations](https://github.com/pydio/minio-srv/blob/master/docs/gateway/azure-limitations.md)
 
 ## Explore Further
 - [`mc` command-line interface](https://docs.minio.io/docs/minio-client-quickstart-guide)

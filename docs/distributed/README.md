@@ -1,4 +1,4 @@
-# Distributed Minio Quickstart Guide [![Slack](https://slack.minio.io/slack?type=svg)](https://slack.minio.io) [![Go Report Card](https://goreportcard.com/badge/pydio/minio-priv)](https://goreportcard.com/report/pydio/minio-priv) [![Docker Pulls](https://img.shields.io/docker/pulls/pydio/minio-priv.svg?maxAge=604800)](https://hub.docker.com/r/pydio/minio-priv/) [![codecov](https://codecov.io/gh/pydio/minio-priv/branch/master/graph/badge.svg)](https://codecov.io/gh/pydio/minio-priv)
+# Distributed Minio Quickstart Guide [![Slack](https://slack.minio.io/slack?type=svg)](https://slack.minio.io) [![Go Report Card](https://goreportcard.com/badge/pydio/minio-srv)](https://goreportcard.com/report/pydio/minio-srv) [![Docker Pulls](https://img.shields.io/docker/pulls/pydio/minio-srv.svg?maxAge=604800)](https://hub.docker.com/r/pydio/minio-srv/) [![codecov](https://codecov.io/gh/pydio/minio-srv/branch/master/graph/badge.svg)](https://codecov.io/gh/pydio/minio-srv)
 
 Minio in distributed mode lets you pool multiple drives (even on different machines) into a single object storage server. As drives are distributed across several nodes, distributed Minio can withstand multiple node failures and yet ensure full data protection.
 
@@ -8,7 +8,7 @@ Minio in distributed mode can help you setup a highly-available storage system w
 
 ### Data protection
 
-Distributed Minio provides protection against multiple node/drive failures and [bit rot](https://github.com/pydio/minio-priv/blob/master/docs/erasure/README.md#what-is-bit-rot-protection) using [erasure code](https://docs.minio.io/docs/minio-erasure-code-quickstart-guide). As the minimum disks required for distributed Minio is 4 (same as minimum disks required for erasure coding), erasure code automatically kicks in as you launch distributed Minio.
+Distributed Minio provides protection against multiple node/drive failures and [bit rot](https://github.com/pydio/minio-srv/blob/master/docs/erasure/README.md#what-is-bit-rot-protection) using [erasure code](https://docs.minio.io/docs/minio-erasure-code-quickstart-guide). As the minimum disks required for distributed Minio is 4 (same as minimum disks required for erasure coding), erasure code automatically kicks in as you launch distributed Minio.
 
 ### High availability
 
@@ -69,7 +69,7 @@ minio.exe server http://192.168.1.11/C:/data http://192.168.1.12/C:/data ^
                   http://192.168.1.17/C:/data http://192.168.1.18/C:/data
 ```
 
-![Distributed Minio, 8 nodes with 1 disk each](https://github.com/pydio/minio-priv/blob/master/docs/screenshots/Architecture-diagram_distributed_8.jpg?raw=true)
+![Distributed Minio, 8 nodes with 1 disk each](https://github.com/pydio/minio-srv/blob/master/docs/screenshots/Architecture-diagram_distributed_8.jpg?raw=true)
 
 Example 2: Start distributed Minio instance with 4 drives each on 4 nodes, by running this command on all the 4 nodes.
 
@@ -103,7 +103,7 @@ minio.exe server http://192.168.1.11/C:/data1 http://192.168.1.11/C:/data2 ^
                   http://192.168.1.14/C:/data3 http://192.168.1.14/C:/data4
 ```
 
-![Distributed Minio, 4 nodes with 4 disks each](https://github.com/pydio/minio-priv/blob/master/docs/screenshots/Architecture-diagram_distributed_16.jpg?raw=true)
+![Distributed Minio, 4 nodes with 4 disks each](https://github.com/pydio/minio-srv/blob/master/docs/screenshots/Architecture-diagram_distributed_16.jpg?raw=true)
 
 ## 3. Test your setup
 

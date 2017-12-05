@@ -11,14 +11,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/pydio/minio-priv"
+    "url": "https://github.com/pydio/minio-srv"
   },
   "author": "Minio Inc",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/pydio/minio-priv/issues"
+    "url": "https://github.com/pydio/minio-srv/issues"
   },
-  "homepage": "https://github.com/pydio/minio-priv",
+  "homepage": "https://github.com/pydio/minio-srv",
   "devDependencies": {
     "async": "^1.5.2",
     "babel-cli": "^6.14.0",

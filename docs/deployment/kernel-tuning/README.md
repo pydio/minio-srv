@@ -1,4 +1,4 @@
-# Kernel Tuning for Minio Production Deployment on Linux Servers [![Slack](https://slack.minio.io/slack?type=svg)](https://slack.minio.io) [![Go Report Card](https://goreportcard.com/badge/pydio/minio-priv)](https://goreportcard.com/report/pydio/minio-priv) [![Docker Pulls](https://img.shields.io/docker/pulls/pydio/minio-priv.svg?maxAge=604800)](https://hub.docker.com/r/pydio/minio-priv/) [![codecov](https://codecov.io/gh/pydio/minio-priv/branch/master/graph/badge.svg)](https://codecov.io/gh/pydio/minio-priv)
+# Kernel Tuning for Minio Production Deployment on Linux Servers [![Slack](https://slack.minio.io/slack?type=svg)](https://slack.minio.io) [![Go Report Card](https://goreportcard.com/badge/pydio/minio-srv)](https://goreportcard.com/report/pydio/minio-srv) [![Docker Pulls](https://img.shields.io/docker/pulls/pydio/minio-srv.svg?maxAge=604800)](https://hub.docker.com/r/pydio/minio-srv/) [![codecov](https://codecov.io/gh/pydio/minio-srv/branch/master/graph/badge.svg)](https://codecov.io/gh/pydio/minio-srv)
 
 ## Tuning Network Parameters
 
@@ -68,4 +68,4 @@ sysctl -w kernel.sched_wakeup_granularity_ns=15000000
 
 ## Tuning Disks
 
-The recommendations for disk tuning are conveniently packaged in a well commented [shell script](https://github.com/pydio/minio-priv/blob/master/docs/deployment/kernel-tuning/disk-tuning.sh). Please review the shell script for our recommendations.
+The recommendations for disk tuning are conveniently packaged in a well commented [shell script](https://github.com/pydio/minio-srv/blob/master/docs/deployment/kernel-tuning/disk-tuning.sh). Please review the shell script for our recommendations.

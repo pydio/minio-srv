@@ -1,12 +1,12 @@
-# Deploy Minio on Kubernetes [![Slack](https://slack.minio.io/slack?type=svg)](https://slack.minio.io) [![Go Report Card](https://goreportcard.com/badge/pydio/minio-priv)](https://goreportcard.com/report/pydio/minio-priv) [![Docker Pulls](https://img.shields.io/docker/pulls/pydio/minio-priv.svg?maxAge=604800)](https://hub.docker.com/r/pydio/minio-priv/) [![codecov](https://codecov.io/gh/pydio/minio-priv/branch/master/graph/badge.svg)](https://codecov.io/gh/pydio/minio-priv)
+# Deploy Minio on Kubernetes [![Slack](https://slack.minio.io/slack?type=svg)](https://slack.minio.io) [![Go Report Card](https://goreportcard.com/badge/pydio/minio-srv)](https://goreportcard.com/report/pydio/minio-srv) [![Docker Pulls](https://img.shields.io/docker/pulls/pydio/minio-srv.svg?maxAge=604800)](https://hub.docker.com/r/pydio/minio-srv/) [![codecov](https://codecov.io/gh/pydio/minio-srv/branch/master/graph/badge.svg)](https://codecov.io/gh/pydio/minio-srv)
 
 Kubernetes concepts like Deployments and StatefulSets provide perfect platform to deploy Minio server in standalone, distributed or shared mode. There are multiple options to deploy Minio on Kubernetes, you can choose the one that suits you the most.
 
 - Minio [Helm](https://helm.sh) Chart offers a customizable and easy Minio deployment, with a single command. Read more about Minio Helm deployment [here](#prerequisites).
 
-- You can also explore Kubernetes [Minio example](https://github.com/pydio/minio-priv/blob/master/docs/orchestration/kubernetes-yaml/README.md) to deploy Minio using `.yaml` files.
+- You can also explore Kubernetes [Minio example](https://github.com/pydio/minio-srv/blob/master/docs/orchestration/kubernetes-yaml/README.md) to deploy Minio using `.yaml` files.
 
-- If you'd like to get started with Minio on Kubernetes without having to create a real container cluster, you can also [deploy Minio locally](https://raw.githubusercontent.com/pydio/minio-priv/master/docs/orchestration/minikube/README.md) with MiniKube.
+- If you'd like to get started with Minio on Kubernetes without having to create a real container cluster, you can also [deploy Minio locally](https://raw.githubusercontent.com/pydio/minio-srv/master/docs/orchestration/minikube/README.md) with MiniKube.
 
 <a name="prerequisites"></a>
 ## 1. Prerequisites
@@ -29,8 +29,8 @@ Above command deploys Minio on the Kubernetes cluster in the default configurati
 
 | Parameter                  | Description                         | Default                                                 |
 |----------------------------|-------------------------------------|---------------------------------------------------------|
-| `image`                    | Minio image name                    | `pydio/minio-priv`                                           |
-| `imageTag`                 | Minio image tag. Possible values listed [here](https://hub.docker.com/r/pydio/minio-priv/tags/).| `RELEASE.2017-08-05T00-00-53Z`|
+| `image`                    | Minio image name                    | `pydio/minio-srv`                                           |
+| `imageTag`                 | Minio image tag. Possible values listed [here](https://hub.docker.com/r/pydio/minio-srv/tags/).| `RELEASE.2017-08-05T00-00-53Z`|
 | `imagePullPolicy`          | Image pull policy                   | `Always`                                                |
 | `mode`                     | Minio server mode (`standalone`, `shared` or `distributed`)| `standalone`                     |
 | `numberOfNodes`            | Number of nodes (applicable only for Minio distributed mode). Should be 4 <= x <= 16 | `4`    |
@@ -85,7 +85,7 @@ This provisions Minio server in distributed mode with 8 nodes. Note that the `nu
 
 ### Shared Minio
 
-To provision Minio servers in [shared mode](https://github.com/pydio/minio-priv/blob/master/docs/shared-backend/README.md), set the `mode` field to `shared`,
+To provision Minio servers in [shared mode](https://github.com/pydio/minio-srv/blob/master/docs/shared-backend/README.md), set the `mode` field to `shared`,
 
 ```bash
 $ helm install --set mode=shared stable/minio

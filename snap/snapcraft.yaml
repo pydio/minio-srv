@@ -25,7 +25,7 @@ parts:
   minio:
     source: .
     plugin: go
-    go-importpath: github.com/pydio/minio-priv
+    go-importpath: github.com/pydio/minio-srv
     after: [go]
   go:
     source-tag: go1.8.3

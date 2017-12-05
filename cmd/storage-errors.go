@@ -22,7 +22,7 @@ import (
 )
 
 // errUnexpected - unexpected error, requires manual intervention.
-var errUnexpected = errors.New("Unexpected error, please report this issue at https://github.com/pydio/minio-priv/issues")
+var errUnexpected = errors.New("Unexpected error, please report this issue at https://github.com/pydio/minio-srv/issues")
 
 // errCorruptedFormat - corrupted backend format.
 var errCorruptedFormat = errors.New("corrupted backend format, please join https://slack.minio.io for assistance")

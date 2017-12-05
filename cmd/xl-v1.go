@@ -23,8 +23,8 @@ import (
 	"sync"
 
 	humanize "github.com/dustin/go-humanize"
-	"github.com/pydio/minio-priv/pkg/disk"
-	"github.com/pydio/minio-priv/pkg/objcache"
+	"github.com/pydio/minio-srv/pkg/disk"
+	"github.com/pydio/minio-srv/pkg/objcache"
 )
 
 // XL constants.

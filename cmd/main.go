@@ -23,8 +23,8 @@ import (
 
 	"github.com/minio/cli"
 	"github.com/minio/mc/pkg/console"
-	"github.com/pydio/minio-priv/pkg/trie"
-	"github.com/pydio/minio-priv/pkg/words"
+	"github.com/pydio/minio-srv/pkg/trie"
+	"github.com/pydio/minio-srv/pkg/words"
 )
 
 // global flags for minio.

@@ -21,7 +21,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/pydio/minio-priv/pkg/quick"
+	"github.com/pydio/minio-srv/pkg/quick"
 )
 
 // DO NOT EDIT following message template, please open a github issue to discuss instead.

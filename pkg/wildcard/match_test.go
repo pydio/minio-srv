@@ -19,7 +19,7 @@ package wildcard_test
 import (
 	"testing"
 
-	"github.com/pydio/minio-priv/pkg/wildcard"
+	"github.com/pydio/minio-srv/pkg/wildcard"
 )
 
 // TestMatch - Tests validate the logic of wild card matching.

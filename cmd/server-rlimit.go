@@ -18,7 +18,7 @@ package cmd
 
 import (
 	"runtime/debug"
-	"github.com/pydio/minio-priv/pkg/sys"
+	"github.com/pydio/minio-srv/pkg/sys"
 )
 
 func setMaxResources() (err error) {

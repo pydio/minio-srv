@@ -30,7 +30,7 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/pydio/minio-priv/pkg/disk"
+	"github.com/pydio/minio-srv/pkg/disk"
 )
 
 // creates a temp dir and sets up posix layer.

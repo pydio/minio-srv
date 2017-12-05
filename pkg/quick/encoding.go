@@ -27,7 +27,7 @@ import (
 	"runtime"
 	"strings"
 
-	os2 "github.com/pydio/minio-priv/pkg/x/os"
+	os2 "github.com/pydio/minio-srv/pkg/x/os"
 	yaml "gopkg.in/yaml.v2"
 )
 

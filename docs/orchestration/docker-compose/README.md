@@ -1,4 +1,4 @@
-# Deploy Minio on Docker Compose [![Slack](https://slack.minio.io/slack?type=svg)](https://slack.minio.io) [![Go Report Card](https://goreportcard.com/badge/pydio/minio-priv)](https://goreportcard.com/report/pydio/minio-priv) [![Docker Pulls](https://img.shields.io/docker/pulls/pydio/minio-priv.svg?maxAge=604800)](https://hub.docker.com/r/pydio/minio-priv/) [![codecov](https://codecov.io/gh/pydio/minio-priv/branch/master/graph/badge.svg)](https://codecov.io/gh/pydio/minio-priv)
+# Deploy Minio on Docker Compose [![Slack](https://slack.minio.io/slack?type=svg)](https://slack.minio.io) [![Go Report Card](https://goreportcard.com/badge/pydio/minio-srv)](https://goreportcard.com/report/pydio/minio-srv) [![Docker Pulls](https://img.shields.io/docker/pulls/pydio/minio-srv.svg?maxAge=604800)](https://hub.docker.com/r/pydio/minio-srv/) [![codecov](https://codecov.io/gh/pydio/minio-srv/branch/master/graph/badge.svg)](https://codecov.io/gh/pydio/minio-srv)
 
 Docker Compose allows defining and running single host, multi-container Docker applications.
 
@@ -11,7 +11,7 @@ With Compose, you use a Compose file to configure Minio services. Then, using a 
 
 ## 2. Run Distributed Minio on Docker Compose
 
-To deploy Distributed Minio on Docker Compose, please download [docker-compose.yaml](https://github.com/pydio/minio-priv/blob/master/docs/orchestration/docker-compose/docker-compose.yaml?raw=true) to your current working directory. Note that Docker Compose pulls the Minio Docker image, so there is no need to explicitly download Minio binary. Then run one of the below commands
+To deploy Distributed Minio on Docker Compose, please download [docker-compose.yaml](https://github.com/pydio/minio-srv/blob/master/docs/orchestration/docker-compose/docker-compose.yaml?raw=true) to your current working directory. Note that Docker Compose pulls the Minio Docker image, so there is no need to explicitly download Minio binary. Then run one of the below commands
 
 ### GNU/Linux and macOS
 
@@ -31,7 +31,7 @@ Each instance is now accessible on the host at ports 9001 through 9004, proceed 
 
 ### Notes
 
-* By default the Docker Compose file uses the Docker image for latest Minio server release. You can change the image tag to pull a specific [Minio Docker image](https://hub.docker.com/r/pydio/minio-priv/).
+* By default the Docker Compose file uses the Docker image for latest Minio server release. You can change the image tag to pull a specific [Minio Docker image](https://hub.docker.com/r/pydio/minio-srv/).
 
 * There are 4 minio distributed instances created by default. You can add more Minio services (up to total 16) to your Minio Compose deployment. To add a service
   * Replicate a service definition and change the name of the new service appropriately.
