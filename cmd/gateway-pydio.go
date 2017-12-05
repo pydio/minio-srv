@@ -173,13 +173,16 @@ func NewPydioGateway(ctx context.Context, gatewayAddr string, configDir string) 
 	}
 
 	select{
-		case <-globalHTTPServerErrorCh:
+		case e:= <-globalHTTPServerErrorCh:
+			log.Println("Minio Service: Received Error on globalHTTPServerErrorCh", e)
 			stopProcess()
 			return
 		case <-globalOSSignalCh:
+			log.Println("Minio Service: Received globalOSSignalCh")
 			stopProcess()
 			return
 		case <- ctx.Done():
+			log.Println("Minio Service: Received ctx.Done()")
 			stopProcess()
 			return
 	}
