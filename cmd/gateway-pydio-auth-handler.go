@@ -11,6 +11,7 @@ import (
 	"github.com/pydio/services/common"
 	"github.com/pydio/services/common/auth"
 	pydiolog "github.com/pydio/services/common/log"
+	"github.com/pydio/services/common/service/context"
 )
 
 // authHandler - handles all the incoming authorization headers and validates them if possible.
@@ -38,6 +39,7 @@ func (a pydioAuthHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var md map[string]string
 	var userName string
 	ctx := r.Context()
+	ctx = servicecontext.HttpRequestInfoToMetadata(ctx, r)
 
 	jwt := r.URL.Query().Get("pydio_jwt")
 	if a.gateway && len(jwt) > 0 {
@@ -81,7 +83,10 @@ func (a pydioAuthHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//pydiolog.Logger(ctx).Debug("S3 Gateway: Detected user in headers", zap.String("username", userName))
-	md = make(map[string]string)
+	var ok bool
+	if md, ok = metadata.FromContext(ctx); !ok {
+		md = make(map[string]string)
+	}
 	md[common.PYDIO_CONTEXT_USER_KEY] = userName
 	newContext := metadata.NewContext(ctx, md)
 
