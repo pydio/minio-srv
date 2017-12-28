@@ -351,9 +351,13 @@ func (l *pydioObjects) GetObjectInfoWithContext(ctx context.Context, bucket stri
 	// log.Println("[GetObjectInfo]" + object)
 
 	path := strings.TrimLeft(object, "/")
-	readNodeResponse, err := l.Router.ReadNode(ctx, &tree.ReadNodeRequest{Node: &tree.Node{
-		Path: path,
-	}})
+	node := &tree.Node{
+		Path:path,
+	}
+	if versionId != "" {
+		node.SetMeta("versionId", versionId)
+	}
+	readNodeResponse, err := l.Router.ReadNode(ctx, &tree.ReadNodeRequest{Node: node})
 	if err != nil {
 		return ObjectInfo{}, s3ToObjectError(traceError(err), bucket, object)
 	}
@@ -382,6 +386,7 @@ func (l *pydioObjects) GetObjectWithContext(ctx context.Context, bucket string, 
 	}, &views.GetRequestData{
 		StartOffset: startOffset,
 		Length:      length,
+		VersionId:   versionId,
 	})
 	if err != nil {
 		return s3ToObjectError(traceError(err), bucket, key)
@@ -445,13 +450,16 @@ func (l *pydioObjects) CopyObjectWithContext(ctx context.Context, srcBucket stri
 		// log.Println(requestMetadata)
 		return objInfo, traceError(&NotImplemented{})
 	}
-	// log.Println("Received COPY instruction: ", srcBucket, "/", srcObject, "=>", destBucket, "/", destObject)
-
+	if srcObjectVersionId != "" {
+		srcObject = strings.Replace(srcObject, "?versionId=" + srcObjectVersionId, "", 1)
+	}
 	written, err := l.Router.CopyObject(ctx, &tree.Node{
 		Path: strings.TrimLeft(srcObject, "/"),
 	}, &tree.Node{
 		Path: strings.TrimLeft(destObject, "/"),
-	}, &views.CopyRequestData{})
+	}, &views.CopyRequestData{
+		SrcVersionId:srcObjectVersionId,
+	})
 
 	if err != nil {
 		return objInfo, s3ToObjectError(traceError(&BucketNotFound{}), srcBucket, srcObject)

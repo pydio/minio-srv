@@ -33,6 +33,7 @@ import (
 
 	router "github.com/gorilla/mux"
 	"github.com/pydio/minio-go/pkg/policy"
+	"strings"
 )
 
 // GetObjectHandler - GET Object
@@ -364,6 +365,14 @@ func (api gatewayPydioAPIHandlers) CopyObjectHandler(w http.ResponseWriter, r *h
 		// Save unescaped string as is.
 		cpSrcPath = r.Header.Get("X-Amz-Copy-Source")
 	}
+	// Remove ?versionId= in source
+	var versionId string
+	cleanPath := cpSrcPath
+	if strings.Contains(cpSrcPath, "?versionId=") {
+		parts := strings.Split(cpSrcPath, "?versionId=")
+		cleanPath = parts[0]
+		versionId = parts[1]
+	}
 
 	srcBucket, srcObject := path2BucketAndObject(cpSrcPath)
 	// If source object is empty or bucket is empty, reply back invalid copy source.
@@ -371,6 +380,7 @@ func (api gatewayPydioAPIHandlers) CopyObjectHandler(w http.ResponseWriter, r *h
 		writeErrorResponse(w, ErrInvalidCopySource, r.URL)
 		return
 	}
+	_, cleanSrcObject := path2BucketAndObject(cleanPath)
 
 	// Check if metadata directive is valid.
 	if !isMetadataDirectiveValid(r.Header) {
@@ -405,9 +415,7 @@ func (api gatewayPydioAPIHandlers) CopyObjectHandler(w http.ResponseWriter, r *h
 
 	}
 
-	versionId := r.URL.Query().Get("versionId")
-
-	objInfo, err := pydioApi.GetObjectInfoWithContext(r.Context(), srcBucket, srcObject, versionId)
+	objInfo, err := pydioApi.GetObjectInfoWithContext(r.Context(), srcBucket, cleanSrcObject, versionId)
 	if err != nil {
 		errorIf(err, "Unable to fetch object info.")
 		writeErrorResponse(w, toAPIErrorCode(err), r.URL)
