@@ -37,6 +37,7 @@ import (
 	"github.com/pydio/services/common/views"
 
 	miniohttp "github.com/pydio/minio-srv/pkg/http"
+	"crypto/tls"
 )
 
 type PydioGateway interface {
@@ -82,7 +83,7 @@ func newPydioGateway() (GatewayLayer, error) {
 	return api, nil
 }
 
-func NewPydioGateway(ctx context.Context, gatewayAddr string, configDir string) {
+func NewPydioGateway(ctx context.Context, gatewayAddr string, configDir string, certFile string, certKey string) {
 
 	// Disallow relative paths, figure out absolute paths.
 	configDirAbs, err := filepath.Abs(configDir)
@@ -102,6 +103,14 @@ func NewPydioGateway(ctx context.Context, gatewayAddr string, configDir string) 
 	// Check and load SSL certificates.
 	globalPublicCerts, globalRootCAs, globalTLSCertificate, globalIsSSL, err = getSSLConfig()
 	fatalIf(err, "Invalid SSL certificate file")
+
+	if certFile != "" && certKey != "" {
+		var cert tls.Certificate
+		cert, err = tls.LoadX509KeyPair(certFile, certKey)
+		fatalIf(err, "Cannot load SSL certificate files")
+		globalTLSCertificate = &cert
+		globalIsSSL = true
+	}
 
 	initNSLock(false) // Enable local namespace lock.
 
