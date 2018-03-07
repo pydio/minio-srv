@@ -75,7 +75,7 @@ type pydioObjects struct {
 // newS3Gateway returns s3 gatewaylayer
 func newPydioGateway() (GatewayLayer, error) {
 
-	router := views.NewStandardRouter(views.RouterOptions{WatchRegistry:true, LogReadEvents:true})
+	router := views.NewStandardRouter(views.RouterOptions{WatchRegistry:true, LogReadEvents:true, AuditEvent:true})
 	api := &pydioObjects{
 		Router: router,
 	}
