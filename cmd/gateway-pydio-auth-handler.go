@@ -41,6 +41,7 @@ func (a pydioAuthHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var userName string
 	ctx := r.Context()
 	ctx = servicecontext.HttpRequestInfoToMetadata(ctx, r)
+	ctx = servicecontext.WithServiceName(ctx, common.SERVICE_GATEWAY_DATA)
 
 	jwt := r.URL.Query().Get("pydio_jwt")
 	if a.gateway && len(jwt) > 0 {
