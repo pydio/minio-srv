@@ -12,6 +12,7 @@ import (
 	"github.com/pydio/services/common/auth"
 	pydiolog "github.com/pydio/services/common/log"
 	"github.com/pydio/services/common/service/context"
+	"github.com/pydio/services/common/auth/claim"
 )
 
 // authHandler - handles all the incoming authorization headers and validates them if possible.
@@ -52,7 +53,7 @@ func (a pydioAuthHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		rawIDToken := strings.Join(bearer, "")
 		var err error
-		var claims auth.Claims
+		var claims claim.Claims
 		ctx, claims, err = a.jwtVerifier.Verify(ctx, rawIDToken)
 		if err != nil {
 			w.WriteHeader(http.StatusUnauthorized)
