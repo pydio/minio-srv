@@ -27,6 +27,7 @@ import (
 	minio "github.com/pydio/minio-go"
 	"github.com/pydio/minio-go/pkg/policy"
 	"github.com/pydio/minio-go/pkg/s3utils"
+	"fmt"
 )
 
 // s3ToObjectError converts Minio errors to minio object layer errors.
@@ -141,10 +142,14 @@ func newS3Gateway(host string) (GatewayLayer, error) {
 	}
 	anonClient.SetCustomTransport(newCustomHTTPTransport())
 
-	return &s3Objects{
-		Client:     client,
-		anonClient: anonClient,
-	}, nil
+	gatewayLayer := &s3Objects{Client:client, anonClient:client}
+
+	// Initialize a new event notifier.
+	if err = initEventNotifier(gatewayLayer); err != nil {
+		return nil, fmt.Errorf("Unable to initialize event notification. %s", err)
+	}
+
+	return gatewayLayer, nil
 }
 
 // Shutdown saves any gateway metadata to disk

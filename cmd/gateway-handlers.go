@@ -325,6 +325,10 @@ func (api gatewayAPIHandlers) PutObjectHandler(w http.ResponseWriter, r *http.Re
 		host, port = "", ""
 	}
 
+	if objInfo.Name == "" {
+		objInfo.Name = object
+	}
+
 	// Notify object created event.
 	eventNotify(eventData{
 		Type:      ObjectCreatedPut,
@@ -566,6 +570,7 @@ func (api gatewayAPIHandlers) GetBucketPolicyHandler(w http.ResponseWriter, r *h
 	w.Write(policyBytes)
 }
 
+/*
 // GetBucketNotificationHandler - This implementation of the GET
 // operation uses the notification subresource to return the
 // notification configuration of a bucket. If notifications are
@@ -591,6 +596,7 @@ func (api gatewayAPIHandlers) PutBucketNotificationHandler(w http.ResponseWriter
 func (api gatewayAPIHandlers) ListenBucketNotificationHandler(w http.ResponseWriter, r *http.Request) {
 	writeErrorResponse(w, ErrNotImplemented, r.URL)
 }
+*/
 
 // PutBucketHandler - PUT Bucket
 // ----------

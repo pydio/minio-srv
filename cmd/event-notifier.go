@@ -770,16 +770,66 @@ func initEventNotifier(objAPI ObjectLayer) error {
 		return errInvalidArgument
 	}
 
+	// Initializes all queue targets.
+	queueTargets, err := loadAllQueueTargets()
+	if err != nil {
+		return err
+	}
+
+
+	if _, isGateway := objAPI.(GatewayLayer); isGateway {
+
+		nConfigs := make(map[string]*notificationConfig)
+		lConfigs := make(map[string][]listenerConfig)
+
+		// List buckets to proceed loading all notification configuration.
+		if buckets, err := objAPI.ListBuckets(); err != nil {
+			return err
+		} else {
+			for _, bucket := range buckets {
+				lConfigs[bucket.Name] = []listenerConfig{}
+			}
+		}
+
+		// Initialize internal listener targets
+		listenTargets := make(map[string]*listenerLogger)
+		for _, listeners := range lConfigs {
+			for _, listener := range listeners {
+				ln, err := newListenerLogger(
+					listener.TopicConfig.TopicARN,
+					listener.TargetServer,
+				)
+				if err != nil {
+					errorIf(err, "Unable to initialize listener target logger.")
+					return fmt.Errorf("Error initializing listner target logger - %v", err)
+				}
+				listenTargets[listener.TopicConfig.TopicARN] = ln
+			}
+		}
+
+		// Initialize event notifier queue.
+		globalEventNotifier = &eventNotifier{
+			external: externalNotifier{
+				notificationConfigs: nConfigs,
+				targets:             queueTargets,
+				rwMutex:             &sync.RWMutex{},
+			},
+			internal: internalNotifier{
+				rwMutex:            &sync.RWMutex{},
+				targets:            listenTargets,
+				listenerConfigs:    lConfigs,
+				connectedListeners: make(map[string]chan []NotificationEvent),
+			},
+		}
+
+		return nil
+	}
+
+
 	// Read all saved bucket notifications.
 	nConfigs, lConfigs, err := loadAllBucketNotifications(objAPI)
 	if err != nil {
 		errorIf(err, "Error loading bucket notifications - %v", err)
-		return err
-	}
-
-	// Initializes all queue targets.
-	queueTargets, err := loadAllQueueTargets()
-	if err != nil {
 		return err
 	}
 

@@ -315,6 +315,7 @@ func gatewayMain(ctx *cli.Context, backendType gatewayBackend) {
 	if gatewayAddr == ":"+globalMinioPort {
 		gatewayAddr = ctx.String("address")
 	}
+	globalMinioAddr = gatewayAddr
 
 	// Handle common command args.
 	handleCommonCmdArgs(ctx)
@@ -345,6 +346,11 @@ func gatewayMain(ctx *cli.Context, backendType gatewayBackend) {
 	fatalIf(err, "Invalid SSL certificate file")
 
 	initNSLock(false) // Enable local namespace lock.
+
+	// Initialize S3 Peers inter-node communication only in distributed setup.
+	endpoint, _ := NewEndpoint(gatewayAddr)
+	globalEndpoints = EndpointList{endpoint}
+	initGlobalS3Peers(globalEndpoints)
 
 	newObject, err := newGatewayLayer(backendType, ctx.Args().First())
 	fatalIf(err, "Unable to initialize gateway layer")
