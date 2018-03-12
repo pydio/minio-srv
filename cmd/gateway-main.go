@@ -396,7 +396,7 @@ func gatewayMain(ctx *cli.Context, backendType gatewayBackend) {
 
 	}
 
-	if backendType == pydioBackend {
+	if backendType == pydioBackend || backendType == s3Backend {
 		handlerFns = append(handlerFns, getPydioAuthHandlerFunc(true))
 	}
 
