@@ -95,6 +95,7 @@ func NewPydioGateway(ctx context.Context, gatewayAddr string, configDir string, 
 	initConfig()
 
 	// Enable loggers as per configuration file.
+	log.EnableQuiet()
 	enableLoggers()
 
 	// Init the error tracing module.
