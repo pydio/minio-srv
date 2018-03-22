@@ -293,7 +293,7 @@ func (l *pydioObjects) StorageInfo() (si StorageInfo) {
 // GetBucketInfo gets bucket metadata..
 func (l *pydioObjects) GetBucketInfoWithContext(ctx context.Context, bucket string) (bi BucketInfo, e error) {
 
-	if bucket != "pydio" {
+	if bucket != "io" {
 		return bi, traceError(BucketNotFound{Bucket: bucket})
 	}
 	return BucketInfo{
@@ -308,7 +308,7 @@ func (l *pydioObjects) ListBucketsWithContext(ctx context.Context) ([]BucketInfo
 
 	b := make([]BucketInfo, 1)
 	b[0] = BucketInfo{
-		Name:    "pydio",
+		Name:    "io",
 		Created: time.Now(),
 	}
 	return b, nil
