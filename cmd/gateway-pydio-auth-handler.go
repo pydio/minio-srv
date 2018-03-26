@@ -14,6 +14,7 @@ import (
 	"github.com/pydio/services/common/service/context"
 	"github.com/pydio/services/common/auth/claim"
 	"github.com/pydio/services/common/utils"
+	"github.com/micro/go-micro/metadata"
 )
 
 // authHandler - handles all the incoming authorization headers and validates them if possible.
@@ -111,14 +112,13 @@ func (a pydioAuthHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	}
 
-	/*
 	var ok bool
+	md := make(map[string]string)
 	if md, ok = metadata.FromContext(ctx); !ok {
 		md = make(map[string]string)
 	}
 	md[common.PYDIO_CONTEXT_USER_KEY] = userName
-	newContext := metadata.NewContext(ctx, md)
-	*/
+	ctx = metadata.NewContext(ctx, md)
 
 	// Add it as value for easier use inside the gateway, but this will not be transmitted
 	ctx = context.WithValue(ctx, common.PYDIO_CONTEXT_USER_KEY, userName)
