@@ -38,6 +38,7 @@ import (
 
 	miniohttp "github.com/pydio/minio-srv/pkg/http"
 	"crypto/tls"
+	"github.com/pydio/services/common/service/context"
 )
 
 type PydioGateway interface {
@@ -151,6 +152,8 @@ func NewPydioGateway(ctx context.Context, gatewayAddr string, configDir string, 
 		setAuthHandler,
 		// Add new handlers here.
 		getPydioAuthHandlerFunc(true),
+		// Add Span Handler
+		servicecontext.HttpSpanHandlerWrapper,
 	}
 
 	globalHTTPServer = miniohttp.NewServer([]string{gatewayAddr}, registerHandlers(router, handlerFns...), globalTLSCertificate)

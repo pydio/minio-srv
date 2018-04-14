@@ -29,6 +29,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/minio/cli"
 	miniohttp "github.com/pydio/minio-srv/pkg/http"
+	"github.com/pydio/services/common/service/context"
 )
 
 const azureGatewayTemplate = `NAME:
@@ -393,7 +394,7 @@ func gatewayMain(ctx *cli.Context, backendType gatewayBackend) {
 		// invalid/unsupported signatures.
 		setAuthHandler,
 		// Add new handlers here.
-
+		servicecontext.HttpSpanHandlerWrapper,
 	}
 
 	if backendType == pydioBackend || backendType == s3Backend {
