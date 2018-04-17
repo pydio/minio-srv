@@ -112,10 +112,11 @@ func (a pydioAuthHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	}
 
-	var ok bool
 	md := make(map[string]string)
-	if md, ok = metadata.FromContext(ctx); !ok {
-		md = make(map[string]string)
+	if meta, ok := metadata.FromContext(ctx); ok {
+		for k, v := range meta{
+			md[k] = v
+		}
 	}
 	md[common.PYDIO_CONTEXT_USER_KEY] = userName
 	ctx = metadata.NewContext(ctx, md)
