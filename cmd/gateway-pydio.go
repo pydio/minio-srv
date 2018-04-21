@@ -30,15 +30,15 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/pydio/minio-go"
-	"github.com/pydio/services/common/proto/tree"
+	"github.com/pydio/cells/common/proto/tree"
 
 	"context"
 
-	"github.com/pydio/services/common/views"
+	"github.com/pydio/cells/common/views"
 
 	miniohttp "github.com/pydio/minio-srv/pkg/http"
 	"crypto/tls"
-	"github.com/pydio/services/common/service/context"
+	"github.com/pydio/cells/common/service/context"
 )
 
 type PydioGateway interface {

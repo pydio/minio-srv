@@ -29,7 +29,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/minio/cli"
 	miniohttp "github.com/pydio/minio-srv/pkg/http"
-	"github.com/pydio/services/common/service/context"
+	"github.com/pydio/cells/common/service/context"
 )
 
 const azureGatewayTemplate = `NAME:

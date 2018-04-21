@@ -8,12 +8,12 @@ import (
 	"go.uber.org/zap"
 
 //	"github.com/micro/go-micro/metadata"
-	"github.com/pydio/services/common"
-	"github.com/pydio/services/common/auth"
-	pydiolog "github.com/pydio/services/common/log"
-	"github.com/pydio/services/common/service/context"
-	"github.com/pydio/services/common/auth/claim"
-	"github.com/pydio/services/common/utils"
+	"github.com/pydio/cells/common"
+	"github.com/pydio/cells/common/auth"
+	pydiolog "github.com/pydio/cells/common/log"
+	"github.com/pydio/cells/common/service/context"
+	"github.com/pydio/cells/common/auth/claim"
+	"github.com/pydio/cells/common/utils"
 	"github.com/micro/go-micro/metadata"
 )
 
