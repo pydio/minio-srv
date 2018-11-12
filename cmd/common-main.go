@@ -26,7 +26,6 @@ import (
 	"strings"
 	"time"
 
-	etcd "github.com/coreos/etcd/clientv3"
 	dns2 "github.com/miekg/dns"
 	"github.com/minio/cli"
 	"github.com/pydio/minio-go/pkg/set"
@@ -35,6 +34,7 @@ import (
 	"github.com/pydio/minio-srv/pkg/auth"
 	"github.com/pydio/minio-srv/pkg/dns"
 	xnet "github.com/pydio/minio-srv/pkg/net"
+	etcd "go.etcd.io/etcd/clientv3"
 )
 
 // Check for updates and print a notification message

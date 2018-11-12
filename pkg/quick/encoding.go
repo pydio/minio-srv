@@ -30,8 +30,8 @@ import (
 	"strings"
 	"time"
 
-	etcd "github.com/coreos/etcd/clientv3"
 	dns "github.com/pydio/minio-srv/pkg/dns"
+	etcd "go.etcd.io/etcd/clientv3"
 	yaml "gopkg.in/yaml.v2"
 )
 

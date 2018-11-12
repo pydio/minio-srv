@@ -19,11 +19,7 @@ package certs
 import (
 	"crypto/tls"
 	"os"
-	"path/filepath"
 	"sync"
-	"time"
-
-	"github.com/rjeczalik/notify"
 )
 
 // A Certs represents a certificate manager able to watch certificate
@@ -40,7 +36,7 @@ type Certs struct {
 
 	// internal param to track for events, also
 	// used to close the watcher.
-	e chan notify.EventInfo
+	// e chan notify.EventInfo
 }
 
 // LoadX509KeyPairFunc - provides a type for custom cert loader function.
@@ -48,11 +44,11 @@ type LoadX509KeyPairFunc func(certFile, keyFile string) (tls.Certificate, error)
 
 // New initializes a new certs monitor.
 func New(certFile, keyFile string, loadCert LoadX509KeyPairFunc) (*Certs, error) {
-	certFileIsLink, err := checkSymlink(certFile)
+	_, err := checkSymlink(certFile)
 	if err != nil {
 		return nil, err
 	}
-	keyFileIsLink, err := checkSymlink(keyFile)
+	_, err = checkSymlink(keyFile)
 	if err != nil {
 		return nil, err
 	}
@@ -62,18 +58,20 @@ func New(certFile, keyFile string, loadCert LoadX509KeyPairFunc) (*Certs, error)
 		loadCert: loadCert,
 		// Make the channel buffered to ensure no event is dropped. Notify will drop
 		// an event if the receiver is not able to keep up the sending pace.
-		e: make(chan notify.EventInfo, 1),
+		// e: make(chan notify.EventInfo, 1),
 	}
 
-	if certFileIsLink && keyFileIsLink {
-		if err := c.watchSymlinks(); err != nil {
-			return nil, err
+	/*
+		if certFileIsLink && keyFileIsLink {
+			if err := c.watchSymlinks(); err != nil {
+				return nil, err
+			}
+		} else {
+			if err := c.watch(); err != nil {
+				return nil, err
+			}
 		}
-	} else {
-		if err := c.watch(); err != nil {
-			return nil, err
-		}
-	}
+	*/
 
 	return c, nil
 }
@@ -88,6 +86,7 @@ func checkSymlink(file string) (bool, error) {
 
 // watchSymlinks reloads symlinked files since fsnotify cannot watch
 // on symbolic links.
+/*
 func (c *Certs) watchSymlinks() (err error) {
 	c.Lock()
 	c.cert, err = c.loadCert(c.certFile, c.keyFile)
@@ -114,12 +113,14 @@ func (c *Certs) watchSymlinks() (err error) {
 	}()
 	return nil
 }
+*/
 
 // watch starts watching for changes to the certificate
 // and key files. On any change the certificate and key
 // are reloaded. If there is an issue the loading will fail
 // and the old (if any) certificates and keys will continue
 // to be used.
+/*
 func (c *Certs) watch() (err error) {
 	defer func() {
 		if err != nil {
@@ -147,7 +148,8 @@ func (c *Certs) watch() (err error) {
 	go c.run()
 	return nil
 }
-
+*/
+/*
 func (c *Certs) run() {
 	for event := range c.e {
 		base := filepath.Base(event.Path())
@@ -168,6 +170,7 @@ func (c *Certs) run() {
 		}
 	}
 }
+*/
 
 // GetCertificateFunc provides a GetCertificate type for custom client implementations.
 type GetCertificateFunc func(hello *tls.ClientHelloInfo) (*tls.Certificate, error)
@@ -184,6 +187,6 @@ func (c *Certs) GetCertificate(hello *tls.ClientHelloInfo) (*tls.Certificate, er
 // certificate and key files.
 func (c *Certs) Stop() {
 	if c != nil {
-		notify.Stop(c.e)
+		//notify.Stop(c.e)
 	}
 }

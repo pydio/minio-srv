@@ -62,7 +62,7 @@ import (
 	"strings"
 	"time"
 
-	_ "github.com/lib/pq" // Register postgres driver
+	//_ "github.com/lib/pq" // Register postgres driver
 
 	"github.com/pydio/minio-srv/pkg/event"
 	xnet "github.com/pydio/minio-srv/pkg/net"

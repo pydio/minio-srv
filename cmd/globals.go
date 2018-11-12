@@ -26,7 +26,6 @@ import (
 	isatty "github.com/mattn/go-isatty"
 	"github.com/pydio/minio-go/pkg/set"
 
-	etcd "github.com/coreos/etcd/clientv3"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/fatih/color"
 	"github.com/pydio/minio-srv/cmd/crypto"
@@ -36,6 +35,7 @@ import (
 	"github.com/pydio/minio-srv/pkg/dns"
 	"github.com/pydio/minio-srv/pkg/iam/policy"
 	"github.com/pydio/minio-srv/pkg/iam/validator"
+	etcd "go.etcd.io/etcd/clientv3"
 )
 
 // minio configuration related constants.

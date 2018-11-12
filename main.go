@@ -20,7 +20,7 @@
  * more information refer https://golang.org/doc/go1.4#canonicalimports
  */
 
-package main // import "github.com/minio/minio"
+package main
 
 import (
 	"fmt"

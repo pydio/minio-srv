@@ -62,7 +62,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-sql-driver/mysql"
+	//"github.com/go-sql-driver/mysql"
 	"github.com/pydio/minio-srv/pkg/event"
 	xnet "github.com/pydio/minio-srv/pkg/net"
 )
@@ -108,9 +108,9 @@ func (m MySQLArgs) Validate() error {
 	}
 
 	if m.DSN != "" {
-		if _, err := mysql.ParseDSN(m.DSN); err != nil {
-			return err
-		}
+		//		if _, err := mysql.ParseDSN(m.DSN); err != nil {
+		//			return err
+		//		}
 	} else {
 		// Some fields need to be specified when DSN is unspecified
 		if m.Port == "" {
@@ -203,17 +203,19 @@ func (target *MySQLTarget) Close() error {
 
 // NewMySQLTarget - creates new MySQL target.
 func NewMySQLTarget(id string, args MySQLArgs) (*MySQLTarget, error) {
-	if args.DSN == "" {
-		config := mysql.Config{
-			User:   args.User,
-			Passwd: args.Password,
-			Net:    "tcp",
-			Addr:   args.Host.String() + ":" + args.Port,
-			DBName: args.Database,
-		}
+	/*
+		if args.DSN == "" {
+			config := mysql.Config{
+				User:   args.User,
+				Passwd: args.Password,
+				Net:    "tcp",
+				Addr:   args.Host.String() + ":" + args.Port,
+				DBName: args.Database,
+			}
 
-		args.DSN = config.FormatDSN()
-	}
+			args.DSN = config.FormatDSN()
+		}
+	*/
 
 	db, err := sql.Open("mysql", args.DSN)
 	if err != nil {
