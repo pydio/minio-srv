@@ -21,7 +21,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/minio/minio/pkg/s3select/format"
+	"github.com/pydio/minio-srv/pkg/s3select/format"
 )
 
 // Unit Test for the checkForDuplicates function.

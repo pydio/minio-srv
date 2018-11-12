@@ -24,7 +24,7 @@ import (
 	"encoding/json"
 	"log"
 
-	"github.com/minio/minio/pkg/madmin"
+	"github.com/pydio/minio-srv/pkg/madmin"
 )
 
 func main() {

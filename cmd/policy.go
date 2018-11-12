@@ -26,11 +26,11 @@ import (
 	"sync"
 	"time"
 
-	miniogopolicy "github.com/minio/minio-go/pkg/policy"
-	"github.com/minio/minio-go/pkg/set"
-	"github.com/minio/minio/cmd/logger"
-	"github.com/minio/minio/pkg/handlers"
-	"github.com/minio/minio/pkg/policy"
+	miniogopolicy "github.com/pydio/minio-go/pkg/policy"
+	"github.com/pydio/minio-go/pkg/set"
+	"github.com/pydio/minio-srv/cmd/logger"
+	"github.com/pydio/minio-srv/pkg/handlers"
+	"github.com/pydio/minio-srv/pkg/policy"
 )
 
 // PolicySys - policy subsystem.

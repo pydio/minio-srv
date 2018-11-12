@@ -20,8 +20,8 @@ import (
 	"context"
 	"sort"
 
-	"github.com/minio/minio/cmd/logger"
-	"github.com/minio/minio/pkg/bpool"
+	"github.com/pydio/minio-srv/cmd/logger"
+	"github.com/pydio/minio-srv/pkg/bpool"
 )
 
 // XL constants.

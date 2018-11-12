@@ -27,9 +27,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/minio/minio/cmd/logger"
-	"github.com/minio/minio/pkg/hash"
-	"github.com/minio/minio/pkg/mimedb"
+	"github.com/pydio/minio-srv/cmd/logger"
+	"github.com/pydio/minio-srv/pkg/hash"
+	"github.com/pydio/minio-srv/pkg/mimedb"
 )
 
 // list all errors which can be ignored in object operations.

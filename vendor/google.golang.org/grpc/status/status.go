@@ -187,39 +187,3 @@ func Code(err error) codes.Code {
 	}
 	return codes.Unknown
 }
-
-// WithDetails returns a new status with the provided details messages appended to the status.
-// If any errors are encountered, it returns nil and the first error encountered.
-func (s *Status) WithDetails(details ...proto.Message) (*Status, error) {
-	if s.Code() == codes.OK {
-		return nil, errors.New("no error details for status with code OK")
-	}
-	// s.Code() != OK implies that s.Proto() != nil.
-	p := s.Proto()
-	for _, detail := range details {
-		any, err := ptypes.MarshalAny(detail)
-		if err != nil {
-			return nil, err
-		}
-		p.Details = append(p.Details, any)
-	}
-	return &Status{s: p}, nil
-}
-
-// Details returns a slice of details messages attached to the status.
-// If a detail cannot be decoded, the error is returned in place of the detail.
-func (s *Status) Details() []interface{} {
-	if s == nil || s.s == nil {
-		return nil
-	}
-	details := make([]interface{}, 0, len(s.s.Details))
-	for _, any := range s.s.Details {
-		detail := &ptypes.DynamicAny{}
-		if err := ptypes.UnmarshalAny(any, detail); err != nil {
-			details = append(details, err)
-			continue
-		}
-		details = append(details, detail.Message)
-	}
-	return details
-}

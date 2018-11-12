@@ -25,9 +25,9 @@ import (
 	"os"
 	pathutil "path"
 
-	"github.com/minio/minio/cmd/logger"
-	"github.com/minio/minio/pkg/lock"
-	"github.com/minio/minio/pkg/mimedb"
+	"github.com/pydio/minio-srv/cmd/logger"
+	"github.com/pydio/minio-srv/pkg/lock"
+	"github.com/pydio/minio-srv/pkg/mimedb"
 	"github.com/tidwall/gjson"
 )
 

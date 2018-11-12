@@ -20,9 +20,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/minio/minio/pkg/event"
-	"github.com/minio/minio/pkg/net"
-	xnet "github.com/minio/minio/pkg/net"
+	"github.com/pydio/minio-srv/pkg/event"
+	"github.com/pydio/minio-srv/pkg/net"
+	xnet "github.com/pydio/minio-srv/pkg/net"
 	"github.com/nsqio/go-nsq"
 )
 

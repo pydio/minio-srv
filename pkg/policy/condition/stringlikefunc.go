@@ -21,8 +21,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/minio/minio-go/pkg/set"
-	"github.com/minio/minio/pkg/wildcard"
+	"github.com/pydio/minio-go/pkg/set"
+	"github.com/pydio/minio-srv/pkg/wildcard"
 )
 
 func toStringLikeFuncString(n name, key Key, values set.StringSet) string {

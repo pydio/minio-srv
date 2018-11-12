@@ -26,7 +26,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/minio/minio/pkg/certs"
+	"github.com/pydio/minio-srv/pkg/certs"
 )
 
 // TLSPrivateKeyPassword is the environment variable which contains the password used

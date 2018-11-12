@@ -22,7 +22,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/minio/minio/cmd/logger"
+	"github.com/pydio/minio-srv/cmd/logger"
 )
 
 var printEndpointError = func() func(Endpoint, error) {

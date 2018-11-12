@@ -22,8 +22,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/minio/minio-go/pkg/set"
-	"github.com/minio/minio/pkg/ellipses"
+	"github.com/pydio/minio-go/pkg/set"
+	"github.com/pydio/minio-srv/pkg/ellipses"
 )
 
 // This file implements and supports ellipses pattern for

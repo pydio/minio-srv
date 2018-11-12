@@ -19,7 +19,7 @@ import (
 	"encoding/base64"
 	"fmt"
 
-	"github.com/minio/minio/cmd/logger"
+	"github.com/pydio/minio-srv/cmd/logger"
 )
 
 // IsMultiPart returns true if the object metadata indicates

@@ -22,7 +22,7 @@ import (
 	"testing"
 
 	humanize "github.com/dustin/go-humanize"
-	"github.com/minio/minio/cmd/crypto"
+	"github.com/pydio/minio-srv/cmd/crypto"
 	"github.com/minio/sio"
 )
 

@@ -20,7 +20,7 @@ import (
 	"context"
 	"io"
 
-	"github.com/minio/minio/cmd/logger"
+	"github.com/pydio/minio-srv/cmd/logger"
 )
 
 // Reads in parallel from bitrotReaders.

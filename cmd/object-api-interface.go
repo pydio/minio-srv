@@ -21,15 +21,16 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/minio/minio-go/pkg/encrypt"
-	"github.com/minio/minio/pkg/hash"
-	"github.com/minio/minio/pkg/madmin"
-	"github.com/minio/minio/pkg/policy"
+	"github.com/pydio/minio-go/pkg/encrypt"
+	"github.com/pydio/minio-srv/pkg/hash"
+	"github.com/pydio/minio-srv/pkg/madmin"
+	"github.com/pydio/minio-srv/pkg/policy"
 )
 
 // ObjectOptions represents object options for ObjectLayer operations
 type ObjectOptions struct {
 	ServerSideEncryption encrypt.ServerSide
+	VersionID            string
 }
 
 // LockType represents required locking for ObjectLayer operations

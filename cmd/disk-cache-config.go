@@ -22,7 +22,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/minio/minio/pkg/ellipses"
+	"github.com/pydio/minio-srv/pkg/ellipses"
 )
 
 // CacheConfig represents cache config settings

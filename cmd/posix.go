@@ -34,9 +34,9 @@ import (
 	"bytes"
 
 	humanize "github.com/dustin/go-humanize"
-	"github.com/minio/minio/cmd/logger"
-	"github.com/minio/minio/pkg/disk"
-	"github.com/minio/minio/pkg/mountinfo"
+	"github.com/pydio/minio-srv/cmd/logger"
+	"github.com/pydio/minio-srv/pkg/disk"
+	"github.com/pydio/minio-srv/pkg/mountinfo"
 )
 
 const (

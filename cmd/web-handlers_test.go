@@ -35,10 +35,10 @@ import (
 
 	jwtgo "github.com/dgrijalva/jwt-go"
 	humanize "github.com/dustin/go-humanize"
-	miniogopolicy "github.com/minio/minio-go/pkg/policy"
-	"github.com/minio/minio/pkg/hash"
-	"github.com/minio/minio/pkg/policy"
-	"github.com/minio/minio/pkg/policy/condition"
+	miniogopolicy "github.com/pydio/minio-go/pkg/policy"
+	"github.com/pydio/minio-srv/pkg/hash"
+	"github.com/pydio/minio-srv/pkg/policy"
+	"github.com/pydio/minio-srv/pkg/policy/condition"
 )
 
 // Implement a dummy flush writer.

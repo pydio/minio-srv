@@ -21,7 +21,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	xnet "github.com/minio/minio/pkg/net"
+	xnet "github.com/pydio/minio-srv/pkg/net"
 )
 
 func TestClientCall(t *testing.T) {

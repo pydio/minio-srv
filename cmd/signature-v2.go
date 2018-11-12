@@ -28,7 +28,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/minio/minio/pkg/auth"
+	"github.com/pydio/minio-srv/pkg/auth"
 )
 
 // Signature and API related constants.

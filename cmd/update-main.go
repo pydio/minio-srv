@@ -32,7 +32,7 @@ import (
 
 	"github.com/inconshreveable/go-update"
 	"github.com/minio/cli"
-	"github.com/minio/minio/cmd/logger"
+	"github.com/pydio/minio-srv/cmd/logger"
 	_ "github.com/minio/sha256-simd" // Needed for sha256 hash verifier.
 	"github.com/segmentio/go-prompt"
 )

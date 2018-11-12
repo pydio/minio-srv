@@ -15,69 +15,49 @@
  * limitations under the License.
  */
 
-package minio
+package cmd
 
 import (
-	"context"
-	"io"
-	"io/ioutil"
-	"net/http"
-
-	"github.com/minio/minio-go/pkg/encrypt"
+	"github.com/pydio/minio-srv/pkg/auth"
+	"github.com/pydio/minio-srv/pkg/event/target"
 )
 
-// CopyObject - copy a source object into a new object
-func (c Client) CopyObject(dst DestinationInfo, src SourceInfo) error {
-	return c.CopyObjectWithProgress(dst, src, nil)
+func CreateEmptyMinioConfig() *serverConfigV19 {
+	return newServerConfigV19()
 }
 
-// CopyObjectWithProgress - copy a source object into a new object, optionally takes
-// progress bar input to notify current progress.
-func (c Client) CopyObjectWithProgress(dst DestinationInfo, src SourceInfo, progress io.Reader) error {
-	header := make(http.Header)
-	for k, v := range src.Headers {
-		header[k] = v
+func newServerConfigV19() *serverConfigV19 {
+	srvCfg := &serverConfigV19{
+		Version:    "32",
+		Credential: auth.Credentials{},
+		Region:     globalMinioDefaultRegion,
+		Browser:    true,
+		Logger:     &loggers{},
+		Notify:     &notifierV3{},
 	}
 
-	var err error
-	var size int64
-	// If progress bar is specified, size should be requested as well initiate a StatObject request.
-	if progress != nil {
-		size, _, _, err = src.getProps(c)
-		if err != nil {
-			return err
-		}
-	}
+	// Enable console logger by default on a fresh run.
+	//srvCfg.Logger.Console = NewConsoleLogger()
 
-	if src.encryption != nil {
-		encrypt.SSECopy(src.encryption).Marshal(header)
-	}
+	// Make sure to initialize notification configs.
+	srvCfg.Notify.AMQP = make(map[string]target.AMQPArgs)
+	srvCfg.Notify.AMQP["1"] = target.AMQPArgs{}
+	srvCfg.Notify.MQTT = make(map[string]target.MQTTArgs)
+	srvCfg.Notify.MQTT["1"] = target.MQTTArgs{}
+	srvCfg.Notify.Elasticsearch = make(map[string]target.ElasticsearchArgs)
+	srvCfg.Notify.Elasticsearch["1"] = target.ElasticsearchArgs{}
+	srvCfg.Notify.Redis = make(map[string]target.RedisArgs)
+	srvCfg.Notify.Redis["1"] = target.RedisArgs{}
+	srvCfg.Notify.NATS = make(map[string]target.NATSArgs)
+	srvCfg.Notify.NATS["1"] = target.NATSArgs{}
+	srvCfg.Notify.PostgreSQL = make(map[string]target.PostgreSQLArgs)
+	srvCfg.Notify.PostgreSQL["1"] = target.PostgreSQLArgs{}
+	srvCfg.Notify.MySQL = make(map[string]target.MySQLArgs)
+	srvCfg.Notify.MySQL["1"] = target.MySQLArgs{}
+	srvCfg.Notify.Kafka = make(map[string]target.KafkaArgs)
+	srvCfg.Notify.Kafka["1"] = target.KafkaArgs{}
+	srvCfg.Notify.Webhook = make(map[string]target.WebhookArgs)
+	srvCfg.Notify.Webhook["1"] = target.WebhookArgs{}
 
-	if dst.encryption != nil {
-		dst.encryption.Marshal(header)
-	}
-	for k, v := range dst.getUserMetaHeadersMap(true) {
-		header.Set(k, v)
-	}
-
-	resp, err := c.executeMethod(context.Background(), "PUT", requestMetadata{
-		bucketName:   dst.bucket,
-		objectName:   dst.object,
-		customHeader: header,
-	})
-	if err != nil {
-		return err
-	}
-	defer closeResponse(resp)
-
-	if resp.StatusCode != http.StatusOK {
-		return httpRespToErrorResponse(resp, dst.bucket, dst.object)
-	}
-
-	// Update the progress properly after successful copy.
-	if progress != nil {
-		io.CopyN(ioutil.Discard, progress, size)
-	}
-
-	return nil
+	return srvCfg
 }

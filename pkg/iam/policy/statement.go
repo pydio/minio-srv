@@ -21,8 +21,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/minio/minio/pkg/policy"
-	"github.com/minio/minio/pkg/policy/condition"
+	"github.com/pydio/minio-srv/pkg/policy"
+	"github.com/pydio/minio-srv/pkg/policy/condition"
 )
 
 // Statement - iam policy statement.

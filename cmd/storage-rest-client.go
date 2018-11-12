@@ -29,9 +29,9 @@ import (
 	"encoding/gob"
 	"encoding/hex"
 
-	"github.com/minio/minio/cmd/logger"
-	"github.com/minio/minio/cmd/rest"
-	xnet "github.com/minio/minio/pkg/net"
+	"github.com/pydio/minio-srv/cmd/logger"
+	"github.com/pydio/minio-srv/cmd/rest"
+	xnet "github.com/pydio/minio-srv/pkg/net"
 )
 
 func isNetworkDisconnectError(err error) bool {

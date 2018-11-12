@@ -21,9 +21,9 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/minio/minio/pkg/hash"
-	"github.com/minio/minio/pkg/madmin"
-	"github.com/minio/minio/pkg/policy"
+	"github.com/pydio/minio-srv/pkg/hash"
+	"github.com/pydio/minio-srv/pkg/madmin"
+	"github.com/pydio/minio-srv/pkg/policy"
 )
 
 type DummyObjectLayer struct{}

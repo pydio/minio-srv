@@ -22,7 +22,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/minio/minio/pkg/ellipses"
+	"github.com/pydio/minio-srv/pkg/ellipses"
 )
 
 // Tests create endpoints with ellipses and without.

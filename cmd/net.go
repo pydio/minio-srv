@@ -30,8 +30,8 @@ import (
 	"time"
 
 	humanize "github.com/dustin/go-humanize"
-	"github.com/minio/minio-go/pkg/set"
-	"github.com/minio/minio/cmd/logger"
+	"github.com/pydio/minio-go/pkg/set"
+	"github.com/pydio/minio-srv/cmd/logger"
 )
 
 // IPv4 addresses of local host.

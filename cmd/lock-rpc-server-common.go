@@ -21,7 +21,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/minio/minio/cmd/logger"
+	"github.com/pydio/minio-srv/cmd/logger"
 )
 
 // nameLockRequesterInfoPair is a helper type for lock maintenance

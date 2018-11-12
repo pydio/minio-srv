@@ -32,11 +32,11 @@ import (
 	"unicode/utf8"
 
 	snappy "github.com/golang/snappy"
-	"github.com/minio/minio/cmd/crypto"
-	"github.com/minio/minio/cmd/logger"
-	"github.com/minio/minio/pkg/dns"
-	"github.com/minio/minio/pkg/ioutil"
-	"github.com/minio/minio/pkg/wildcard"
+	"github.com/pydio/minio-srv/cmd/crypto"
+	"github.com/pydio/minio-srv/cmd/logger"
+	"github.com/pydio/minio-srv/pkg/dns"
+	"github.com/pydio/minio-srv/pkg/ioutil"
+	"github.com/pydio/minio-srv/pkg/wildcard"
 	"github.com/skyrings/skyring-common/tools/uuid"
 )
 

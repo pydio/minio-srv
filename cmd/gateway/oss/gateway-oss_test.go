@@ -25,7 +25,7 @@ import (
 
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
 
-	minio "github.com/minio/minio/cmd"
+	minio "github.com/pydio/minio-srv/cmd"
 )
 
 func ossErrResponse(code string) error {

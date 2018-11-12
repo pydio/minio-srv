@@ -19,7 +19,7 @@ package s3select
 import (
 	"errors"
 
-	"github.com/minio/minio/pkg/s3select/format"
+	"github.com/pydio/minio-srv/pkg/s3select/format"
 )
 
 //S3 errors below

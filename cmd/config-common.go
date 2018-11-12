@@ -22,8 +22,8 @@ import (
 	"errors"
 
 	etcd "github.com/coreos/etcd/clientv3"
-	"github.com/minio/minio/cmd/logger"
-	"github.com/minio/minio/pkg/hash"
+	"github.com/pydio/minio-srv/cmd/logger"
+	"github.com/pydio/minio-srv/pkg/hash"
 )
 
 var errConfigNotFound = errors.New("config file not found")

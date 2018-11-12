@@ -25,7 +25,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/minio/minio/cmd/crypto"
+	"github.com/pydio/minio-srv/cmd/crypto"
 )
 
 // Returns a hexadecimal representation of time at the

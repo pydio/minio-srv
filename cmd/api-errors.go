@@ -22,12 +22,12 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/minio/minio/cmd/crypto"
-	"github.com/minio/minio/pkg/auth"
-	"github.com/minio/minio/pkg/dns"
-	"github.com/minio/minio/pkg/event"
-	"github.com/minio/minio/pkg/hash"
-	"github.com/minio/minio/pkg/s3select"
+	"github.com/pydio/minio-srv/cmd/crypto"
+	"github.com/pydio/minio-srv/pkg/auth"
+	"github.com/pydio/minio-srv/pkg/dns"
+	"github.com/pydio/minio-srv/pkg/event"
+	"github.com/pydio/minio-srv/pkg/hash"
+	"github.com/pydio/minio-srv/pkg/s3select"
 )
 
 // APIError structure

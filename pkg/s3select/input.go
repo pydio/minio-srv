@@ -25,9 +25,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/minio/minio/pkg/s3select/format"
-	"github.com/minio/minio/pkg/s3select/format/csv"
-	"github.com/minio/minio/pkg/s3select/format/json"
+	"github.com/pydio/minio-srv/pkg/s3select/format"
+	"github.com/pydio/minio-srv/pkg/s3select/format/csv"
+	"github.com/pydio/minio-srv/pkg/s3select/format/json"
 
 	humanize "github.com/dustin/go-humanize"
 )

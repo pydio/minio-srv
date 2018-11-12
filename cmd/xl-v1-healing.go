@@ -22,8 +22,8 @@ import (
 	"path"
 	"sync"
 
-	"github.com/minio/minio/cmd/logger"
-	"github.com/minio/minio/pkg/madmin"
+	"github.com/pydio/minio-srv/cmd/logger"
+	"github.com/pydio/minio-srv/pkg/madmin"
 )
 
 func (xl xlObjects) ReloadFormat(ctx context.Context, dryRun bool) error {

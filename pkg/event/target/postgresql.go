@@ -64,8 +64,8 @@ import (
 
 	_ "github.com/lib/pq" // Register postgres driver
 
-	"github.com/minio/minio/pkg/event"
-	xnet "github.com/minio/minio/pkg/net"
+	"github.com/pydio/minio-srv/pkg/event"
+	xnet "github.com/pydio/minio-srv/pkg/net"
 )
 
 const (

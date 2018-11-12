@@ -24,7 +24,7 @@ import (
 	"testing"
 
 	"github.com/Azure/azure-sdk-for-go/storage"
-	minio "github.com/minio/minio/cmd"
+	minio "github.com/pydio/minio-srv/cmd"
 )
 
 // Test canonical metadata.

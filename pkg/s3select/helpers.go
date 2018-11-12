@@ -24,7 +24,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/minio/minio/pkg/s3select/format"
+	"github.com/pydio/minio-srv/pkg/s3select/format"
 	"github.com/tidwall/gjson"
 	"github.com/xwb1989/sqlparser"
 )

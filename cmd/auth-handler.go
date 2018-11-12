@@ -29,11 +29,11 @@ import (
 	"strings"
 
 	jwtgo "github.com/dgrijalva/jwt-go"
-	"github.com/minio/minio/cmd/logger"
-	"github.com/minio/minio/pkg/auth"
-	"github.com/minio/minio/pkg/hash"
-	"github.com/minio/minio/pkg/iam/policy"
-	"github.com/minio/minio/pkg/policy"
+	"github.com/pydio/minio-srv/cmd/logger"
+	"github.com/pydio/minio-srv/pkg/auth"
+	"github.com/pydio/minio-srv/pkg/hash"
+	"github.com/pydio/minio-srv/pkg/iam/policy"
+	"github.com/pydio/minio-srv/pkg/policy"
 )
 
 // Verify if request has JWT.
@@ -301,7 +301,7 @@ func reqSignatureV4Verify(r *http.Request, region string) (s3Error APIErrorCode)
 	sha256sum := getContentSha256Cksum(r)
 	switch {
 	case isRequestSignatureV4(r):
-		return doesSignatureMatch(sha256sum, r, region, false)
+		return doesSignatureMatch(sha256sum, r, region)
 	case isRequestPresignedSignatureV4(r):
 		return doesPresignedSignatureMatch(sha256sum, r, region)
 	default:

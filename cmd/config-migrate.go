@@ -24,16 +24,16 @@ import (
 	"path"
 	"path/filepath"
 
-	"github.com/minio/minio/cmd/crypto"
-	"github.com/minio/minio/cmd/logger"
-	"github.com/minio/minio/pkg/auth"
-	"github.com/minio/minio/pkg/dns"
-	"github.com/minio/minio/pkg/event"
-	"github.com/minio/minio/pkg/event/target"
-	"github.com/minio/minio/pkg/iam/policy"
-	"github.com/minio/minio/pkg/iam/validator"
-	xnet "github.com/minio/minio/pkg/net"
-	"github.com/minio/minio/pkg/quick"
+	"github.com/pydio/minio-srv/cmd/crypto"
+	"github.com/pydio/minio-srv/cmd/logger"
+	"github.com/pydio/minio-srv/pkg/auth"
+	"github.com/pydio/minio-srv/pkg/dns"
+	"github.com/pydio/minio-srv/pkg/event"
+	"github.com/pydio/minio-srv/pkg/event/target"
+	"github.com/pydio/minio-srv/pkg/iam/policy"
+	"github.com/pydio/minio-srv/pkg/iam/validator"
+	xnet "github.com/pydio/minio-srv/pkg/net"
+	"github.com/pydio/minio-srv/pkg/quick"
 )
 
 // DO NOT EDIT following message template, please open a github issue to discuss instead.

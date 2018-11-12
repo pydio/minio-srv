@@ -112,10 +112,6 @@ func (c *ConnectPacket) Validate() byte {
 		//Bad size field
 		return ErrProtocolViolation
 	}
-	if len(c.ClientIdentifier) == 0 && !c.CleanSession {
-		//Bad client identifier
-		return ErrRefusedIDRejected
-	}
 	return Accepted
 }
 

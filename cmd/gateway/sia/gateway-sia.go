@@ -34,12 +34,12 @@ import (
 	humanize "github.com/dustin/go-humanize"
 	"github.com/fatih/color"
 	"github.com/minio/cli"
-	"github.com/minio/minio-go/pkg/set"
-	minio "github.com/minio/minio/cmd"
-	"github.com/minio/minio/cmd/logger"
-	"github.com/minio/minio/pkg/auth"
-	"github.com/minio/minio/pkg/hash"
 	"github.com/minio/sha256-simd"
+	"github.com/pydio/minio-go/pkg/set"
+	minio "github.com/pydio/minio-srv/cmd"
+	"github.com/pydio/minio-srv/cmd/logger"
+	"github.com/pydio/minio-srv/pkg/auth"
+	"github.com/pydio/minio-srv/pkg/hash"
 )
 
 const (

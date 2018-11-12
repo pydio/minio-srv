@@ -25,14 +25,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/minio/minio-go/pkg/set"
+	"github.com/pydio/minio-go/pkg/set"
 
 	humanize "github.com/dustin/go-humanize"
-	"github.com/minio/minio/cmd/crypto"
-	"github.com/minio/minio/cmd/logger"
-	"github.com/minio/minio/pkg/dns"
-	"github.com/minio/minio/pkg/handlers"
-	"github.com/minio/minio/pkg/sys"
+	"github.com/pydio/minio-srv/cmd/crypto"
+	"github.com/pydio/minio-srv/cmd/logger"
+	"github.com/pydio/minio-srv/pkg/dns"
+	"github.com/pydio/minio-srv/pkg/handlers"
+	"github.com/pydio/minio-srv/pkg/sys"
 	"github.com/rs/cors"
 	"golang.org/x/time/rate"
 )

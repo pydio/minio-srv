@@ -20,8 +20,8 @@ import (
 	"path"
 
 	"github.com/gorilla/mux"
-	"github.com/minio/minio/cmd/logger"
-	xrpc "github.com/minio/minio/cmd/rpc"
+	"github.com/pydio/minio-srv/cmd/logger"
+	xrpc "github.com/pydio/minio-srv/cmd/rpc"
 )
 
 const adminServiceName = "Admin"

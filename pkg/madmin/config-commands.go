@@ -26,7 +26,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/minio/minio/pkg/quick"
+	"github.com/pydio/minio-srv/pkg/quick"
 )
 
 // GetConfig - returns the config.json of a minio setup, incoming data is encrypted.

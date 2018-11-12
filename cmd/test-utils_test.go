@@ -54,13 +54,13 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/gorilla/mux"
-	"github.com/minio/minio-go/pkg/s3signer"
-	"github.com/minio/minio-go/pkg/s3utils"
-	"github.com/minio/minio/cmd/logger"
-	"github.com/minio/minio/pkg/auth"
-	"github.com/minio/minio/pkg/bpool"
-	"github.com/minio/minio/pkg/hash"
-	"github.com/minio/minio/pkg/policy"
+	"github.com/pydio/minio-go/pkg/s3signer"
+	"github.com/pydio/minio-go/pkg/s3utils"
+	"github.com/pydio/minio-srv/cmd/logger"
+	"github.com/pydio/minio-srv/pkg/auth"
+	"github.com/pydio/minio-srv/pkg/bpool"
+	"github.com/pydio/minio-srv/pkg/hash"
+	"github.com/pydio/minio-srv/pkg/policy"
 )
 
 // Tests should initNSLock only once.

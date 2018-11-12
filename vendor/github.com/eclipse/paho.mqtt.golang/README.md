@@ -18,12 +18,11 @@ This client is designed to work with the standard Go tools, so installation is a
 go get github.com/eclipse/paho.mqtt.golang
 ```
 
-The client depends on Google's [websockets](https://godoc.org/golang.org/x/net/websocket) and [proxy](https://godoc.org/golang.org/x/net/proxy) package, 
-also easily installed with the commands:
+The client depends on Google's [websockets](https://godoc.org/golang.org/x/net/websocket) package, 
+also easily installed with the command:
 
 ```
 go get golang.org/x/net/websocket
-go get golang.org/x/net/proxy
 ```
 
 

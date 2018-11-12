@@ -20,7 +20,7 @@ import (
 	"testing"
 
 	"github.com/minio/dsync"
-	xnet "github.com/minio/minio/pkg/net"
+	xnet "github.com/pydio/minio-srv/pkg/net"
 )
 
 // Tests lock rpc client.

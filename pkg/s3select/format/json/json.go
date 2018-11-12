@@ -22,7 +22,7 @@ import (
 	"io"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/minio/minio/pkg/s3select/format"
+	"github.com/pydio/minio-srv/pkg/s3select/format"
 )
 
 // Options options are passed to the underlying encoding/json reader.

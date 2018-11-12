@@ -20,8 +20,8 @@ import (
 	"io"
 	"time"
 
-	"github.com/minio/minio/pkg/hash"
-	"github.com/minio/minio/pkg/madmin"
+	"github.com/pydio/minio-srv/pkg/hash"
+	"github.com/pydio/minio-srv/pkg/madmin"
 )
 
 // BackendType - represents different backend types.
@@ -115,6 +115,9 @@ type ObjectInfo struct {
 
 	// backendType indicates which backend filled this structure
 	backendType BackendType
+	
+	// Support for versioning
+	VersionID string
 }
 
 // ListPartsInfo - represents list of all parts.

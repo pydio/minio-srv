@@ -25,8 +25,8 @@ import (
 	"testing"
 	"time"
 
-	xrpc "github.com/minio/minio/cmd/rpc"
-	xnet "github.com/minio/minio/pkg/net"
+	xrpc "github.com/pydio/minio-srv/cmd/rpc"
+	xnet "github.com/pydio/minio-srv/pkg/net"
 )
 
 func TestAuthArgsAuthenticate(t *testing.T) {

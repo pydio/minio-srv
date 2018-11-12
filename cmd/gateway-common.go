@@ -19,9 +19,9 @@ package cmd
 import (
 	"net/http"
 
-	"github.com/minio/minio/pkg/hash"
+	"github.com/pydio/minio-srv/pkg/hash"
 
-	minio "github.com/minio/minio-go"
+	minio "github.com/pydio/minio-go"
 )
 
 var (

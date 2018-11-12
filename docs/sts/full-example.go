@@ -30,7 +30,7 @@ import (
 
 	minio "github.com/minio/minio-go"
 	"github.com/minio/minio-go/pkg/credentials"
-	"github.com/minio/minio/pkg/auth"
+	"github.com/pydio/minio-srv/pkg/auth"
 )
 
 // AssumedRoleUser - The identifiers for the temporary security credentials that

@@ -19,12 +19,12 @@ package cmd
 import (
 	"sync"
 
-	"github.com/minio/minio/cmd/crypto"
-	"github.com/minio/minio/pkg/auth"
-	"github.com/minio/minio/pkg/event/target"
-	"github.com/minio/minio/pkg/iam/policy"
-	"github.com/minio/minio/pkg/iam/validator"
-	"github.com/minio/minio/pkg/quick"
+	"github.com/pydio/minio-srv/cmd/crypto"
+	"github.com/pydio/minio-srv/pkg/auth"
+	"github.com/pydio/minio-srv/pkg/event/target"
+	"github.com/pydio/minio-srv/pkg/iam/policy"
+	"github.com/pydio/minio-srv/pkg/iam/validator"
+	"github.com/pydio/minio-srv/pkg/quick"
 )
 
 /////////////////// Config V1 ///////////////////

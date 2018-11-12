@@ -25,7 +25,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/minio/minio/pkg/madmin"
+	"github.com/pydio/minio-srv/pkg/madmin"
 )
 
 func main() {

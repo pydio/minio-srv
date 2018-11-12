@@ -20,10 +20,10 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/minio/minio/cmd/crypto"
-	"github.com/minio/minio/cmd/logger"
+	"github.com/pydio/minio-srv/cmd/crypto"
+	"github.com/pydio/minio-srv/cmd/logger"
 
-	"github.com/minio/minio/pkg/policy"
+	"github.com/pydio/minio-srv/pkg/policy"
 )
 
 // Validate all the ListObjects query arguments, returns an APIErrorCode

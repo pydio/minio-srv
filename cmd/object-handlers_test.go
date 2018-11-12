@@ -35,9 +35,9 @@ import (
 	"testing"
 
 	humanize "github.com/dustin/go-humanize"
-	"github.com/minio/minio/cmd/crypto"
-	"github.com/minio/minio/pkg/auth"
-	ioutilx "github.com/minio/minio/pkg/ioutil"
+	"github.com/pydio/minio-srv/cmd/crypto"
+	"github.com/pydio/minio-srv/pkg/auth"
+	ioutilx "github.com/pydio/minio-srv/pkg/ioutil"
 )
 
 // Type to capture different modifications to API request to simulate failure cases.

@@ -21,7 +21,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/minio/minio/pkg/auth"
+	"github.com/pydio/minio-srv/pkg/auth"
 )
 
 func testAuthenticate(authType string, t *testing.T) {

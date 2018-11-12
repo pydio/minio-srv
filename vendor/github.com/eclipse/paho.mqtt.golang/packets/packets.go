@@ -112,14 +112,10 @@ func ReadPacket(r io.Reader) (cp ControlPacket, err error) {
 		return nil, errors.New("Bad data from client")
 	}
 	packetBytes := make([]byte, fh.RemainingLength)
-	n, err := io.ReadFull(r, packetBytes)
+	_, err = io.ReadFull(r, packetBytes)
 	if err != nil {
 		return nil, err
 	}
-	if n != fh.RemainingLength {
-		return nil, errors.New("Failed to read expected data")
-	}
-
 	err = cp.Unpack(bytes.NewBuffer(packetBytes))
 	return cp, err
 }
@@ -268,12 +264,16 @@ func encodeUint16(num uint16) []byte {
 }
 
 func encodeString(field string) []byte {
-
-	return encodeBytes([]byte(field))
+	fieldLength := make([]byte, 2)
+	binary.BigEndian.PutUint16(fieldLength, uint16(len(field)))
+	return append(fieldLength, []byte(field)...)
 }
 
 func decodeString(b io.Reader) string {
-	return string(decodeBytes(b))
+	fieldLength := decodeUint16(b)
+	field := make([]byte, fieldLength)
+	b.Read(field)
+	return string(field)
 }
 
 func decodeBytes(b io.Reader) []byte {

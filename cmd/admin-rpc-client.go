@@ -26,8 +26,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/minio/minio/cmd/logger"
-	xnet "github.com/minio/minio/pkg/net"
+	"github.com/pydio/minio-srv/cmd/logger"
+	xnet "github.com/pydio/minio-srv/pkg/net"
 )
 
 var errUnsupportedSignal = fmt.Errorf("unsupported signal: only restart and stop signals are supported")

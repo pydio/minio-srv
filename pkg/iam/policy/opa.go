@@ -25,7 +25,7 @@ import (
 	"os"
 	"time"
 
-	xnet "github.com/minio/minio/pkg/net"
+	xnet "github.com/pydio/minio-srv/pkg/net"
 )
 
 // OpaArgs opa general purpose policy engine configuration.

@@ -35,8 +35,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/minio/minio-go/pkg/s3utils"
 	sha256 "github.com/minio/sha256-simd"
+	"github.com/pydio/minio-go/pkg/s3utils"
 )
 
 // AWS Signature Version '4' constants.

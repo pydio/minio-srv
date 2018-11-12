@@ -22,7 +22,7 @@ import (
 	"hash"
 
 	"github.com/minio/highwayhash"
-	"github.com/minio/minio/cmd/logger"
+	"github.com/pydio/minio-srv/cmd/logger"
 	sha256 "github.com/minio/sha256-simd"
 	"golang.org/x/crypto/blake2b"
 )

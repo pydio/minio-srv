@@ -20,7 +20,7 @@ import (
 	"context"
 
 	"github.com/klauspost/reedsolomon"
-	"github.com/minio/minio/cmd/logger"
+	"github.com/pydio/minio-srv/cmd/logger"
 )
 
 // Erasure - erasure encoding details.

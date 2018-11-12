@@ -24,7 +24,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/minio/minio/pkg/handlers"
+	"github.com/pydio/minio-srv/pkg/handlers"
 )
 
 const (

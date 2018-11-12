@@ -135,11 +135,10 @@ func (r *router) matchAndDispatch(messages <-chan *packets.PublishPacket, order 
 			case message := <-messages:
 				sent := false
 				r.RLock()
-				handlers := []MessageHandler{}
 				for e := r.routes.Front(); e != nil; e = e.Next() {
 					if e.Value.(*route).match(message.TopicName) {
 						if order {
-							handlers = append(handlers, e.Value.(*route).callback)
+							e.Value.(*route).callback(client, messageFromPublish(message))
 						} else {
 							go e.Value.(*route).callback(client, messageFromPublish(message))
 						}
@@ -148,15 +147,12 @@ func (r *router) matchAndDispatch(messages <-chan *packets.PublishPacket, order 
 				}
 				if !sent && r.defaultHandler != nil {
 					if order {
-						handlers = append(handlers, r.defaultHandler)
+						r.defaultHandler(client, messageFromPublish(message))
 					} else {
 						go r.defaultHandler(client, messageFromPublish(message))
 					}
 				}
 				r.RUnlock()
-				for _, handler := range handlers {
-					handler(client, messageFromPublish(message))
-				}
 			case <-r.stop:
 				return
 			}

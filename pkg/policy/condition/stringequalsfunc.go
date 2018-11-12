@@ -21,7 +21,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/minio/minio-go/pkg/set"
+	"github.com/pydio/minio-go/pkg/set"
 )
 
 func toStringEqualsFuncString(n name, key Key, values set.StringSet) string {

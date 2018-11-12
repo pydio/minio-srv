@@ -20,7 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/minio/minio/pkg/policy/condition"
+	"github.com/pydio/minio-srv/pkg/policy/condition"
 )
 
 // Action - policy action.

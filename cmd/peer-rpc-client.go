@@ -20,10 +20,10 @@ import (
 	"context"
 	"crypto/tls"
 
-	"github.com/minio/minio/cmd/logger"
-	"github.com/minio/minio/pkg/event"
-	xnet "github.com/minio/minio/pkg/net"
-	"github.com/minio/minio/pkg/policy"
+	"github.com/pydio/minio-srv/cmd/logger"
+	"github.com/pydio/minio-srv/pkg/event"
+	xnet "github.com/pydio/minio-srv/pkg/net"
+	"github.com/pydio/minio-srv/pkg/policy"
 )
 
 // PeerRPCClient - peer RPC client talks to peer RPC server.

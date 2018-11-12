@@ -24,18 +24,18 @@ import (
 	"time"
 
 	isatty "github.com/mattn/go-isatty"
-	"github.com/minio/minio-go/pkg/set"
+	"github.com/pydio/minio-go/pkg/set"
 
 	etcd "github.com/coreos/etcd/clientv3"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/fatih/color"
-	"github.com/minio/minio/cmd/crypto"
-	xhttp "github.com/minio/minio/cmd/http"
-	"github.com/minio/minio/pkg/auth"
-	"github.com/minio/minio/pkg/certs"
-	"github.com/minio/minio/pkg/dns"
-	"github.com/minio/minio/pkg/iam/policy"
-	"github.com/minio/minio/pkg/iam/validator"
+	"github.com/pydio/minio-srv/cmd/crypto"
+	xhttp "github.com/pydio/minio-srv/cmd/http"
+	"github.com/pydio/minio-srv/pkg/auth"
+	"github.com/pydio/minio-srv/pkg/certs"
+	"github.com/pydio/minio-srv/pkg/dns"
+	"github.com/pydio/minio-srv/pkg/iam/policy"
+	"github.com/pydio/minio-srv/pkg/iam/validator"
 )
 
 // minio configuration related constants.

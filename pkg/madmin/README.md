@@ -31,7 +31,7 @@ You need four items to connect to Minio admin services.
 package main
 
 import (
-	"github.com/minio/minio/pkg/madmin"
+	"github.com/pydio/minio-srv/pkg/madmin"
 	"log"
 )
 
@@ -65,7 +65,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/minio/minio/pkg/madmin"
+	"github.com/pydio/minio-srv/pkg/madmin"
 )
 
 func main() {

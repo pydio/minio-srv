@@ -21,8 +21,8 @@ import (
 	"errors"
 	"net/url"
 
-	"github.com/minio/minio/pkg/event"
-	xnet "github.com/minio/minio/pkg/net"
+	"github.com/pydio/minio-srv/pkg/event"
+	xnet "github.com/pydio/minio-srv/pkg/net"
 	"github.com/nats-io/go-nats-streaming"
 	"github.com/nats-io/nats"
 )

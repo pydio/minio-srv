@@ -22,7 +22,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/minio/minio/pkg/auth"
+	"github.com/pydio/minio-srv/pkg/auth"
 )
 
 // AccountStatus - account status.

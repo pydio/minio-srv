@@ -24,7 +24,7 @@ import (
 	"os"
 	"reflect"
 
-	"github.com/minio/minio/cmd/logger"
+	"github.com/pydio/minio-srv/cmd/logger"
 )
 
 const (

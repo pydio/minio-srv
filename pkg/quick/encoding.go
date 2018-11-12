@@ -31,7 +31,7 @@ import (
 	"time"
 
 	etcd "github.com/coreos/etcd/clientv3"
-	dns "github.com/minio/minio/pkg/dns"
+	dns "github.com/pydio/minio-srv/pkg/dns"
 	yaml "gopkg.in/yaml.v2"
 )
 

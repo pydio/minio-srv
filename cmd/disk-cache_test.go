@@ -23,7 +23,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/minio/minio/pkg/hash"
+	"github.com/pydio/minio-srv/pkg/hash"
 )
 
 // Initialize cache FS objects.

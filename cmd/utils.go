@@ -37,8 +37,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/minio/minio/cmd/logger"
-	"github.com/minio/minio/pkg/handlers"
+	"github.com/pydio/minio-srv/cmd/logger"
+	"github.com/pydio/minio-srv/pkg/handlers"
 
 	humanize "github.com/dustin/go-humanize"
 	"github.com/gorilla/mux"

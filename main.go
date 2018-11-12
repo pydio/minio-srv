@@ -29,10 +29,10 @@ import (
 
 	version "github.com/hashicorp/go-version"
 	"github.com/minio/mc/pkg/console"
-	minio "github.com/minio/minio/cmd"
+	minio "github.com/pydio/minio-srv/cmd"
 
 	// Import gateway
-	_ "github.com/minio/minio/cmd/gateway"
+	_ "github.com/pydio/minio-srv/cmd/gateway"
 )
 
 const (

@@ -24,7 +24,7 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
-	xnet "github.com/minio/minio/pkg/net"
+	xnet "github.com/pydio/minio-srv/pkg/net"
 )
 
 ///////////////////////////////////////////////////////////////////////////////

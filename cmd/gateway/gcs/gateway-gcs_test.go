@@ -28,8 +28,8 @@ import (
 	"cloud.google.com/go/storage"
 	"google.golang.org/api/googleapi"
 
-	miniogo "github.com/minio/minio-go"
-	minio "github.com/minio/minio/cmd"
+	miniogo "github.com/pydio/minio-go"
+	minio "github.com/pydio/minio-srv/cmd"
 )
 
 func TestToGCSPageToken(t *testing.T) {

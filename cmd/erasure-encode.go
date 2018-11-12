@@ -22,7 +22,7 @@ import (
 
 	"sync"
 
-	"github.com/minio/minio/cmd/logger"
+	"github.com/pydio/minio-srv/cmd/logger"
 )
 
 // Writes in parallel to bitrotWriters

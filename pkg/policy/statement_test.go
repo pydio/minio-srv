@@ -22,7 +22,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/minio/minio/pkg/policy/condition"
+	"github.com/pydio/minio-srv/pkg/policy/condition"
 )
 
 func TestStatementIsAllowed(t *testing.T) {
