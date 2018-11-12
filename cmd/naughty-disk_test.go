@@ -18,8 +18,6 @@ package cmd
 
 import (
 	"sync"
-
-	"github.com/pydio/minio-srv/pkg/disk"
 )
 
 // naughtyDisk wraps a POSIX disk and returns programmed errors
@@ -28,7 +26,7 @@ import (
 // Programmed errors are stored in errors field.
 type naughtyDisk struct {
 	// The real disk
-	disk *retryStorage
+	disk StorageAPI
 	// Programmed errors: API call number => error to return
 	errors map[int]error
 	// The error to return when no error value is programmed
@@ -39,7 +37,7 @@ type naughtyDisk struct {
 	mu sync.Mutex
 }
 
-func newNaughtyDisk(d *retryStorage, errs map[int]error, defaultErr error) *naughtyDisk {
+func newNaughtyDisk(d StorageAPI, errs map[int]error, defaultErr error) *naughtyDisk {
 	return &naughtyDisk{disk: d, errors: errs, defaultErr: defaultErr}
 }
 
@@ -47,11 +45,15 @@ func (d *naughtyDisk) String() string {
 	return d.disk.String()
 }
 
-func (d *naughtyDisk) Init() (err error) {
-	if err = d.calcError(); err != nil {
-		return err
+func (d *naughtyDisk) IsOnline() bool {
+	if err := d.calcError(); err != nil {
+		return err == errDiskNotFound
 	}
-	return d.disk.Init()
+	return d.disk.IsOnline()
+}
+
+func (d *naughtyDisk) LastError() (err error) {
+	return nil
 }
 
 func (d *naughtyDisk) Close() (err error) {
@@ -74,7 +76,7 @@ func (d *naughtyDisk) calcError() (err error) {
 	return nil
 }
 
-func (d *naughtyDisk) DiskInfo() (info disk.Info, err error) {
+func (d *naughtyDisk) DiskInfo() (info DiskInfo, err error) {
 	if err := d.calcError(); err != nil {
 		return info, err
 	}
@@ -108,11 +110,11 @@ func (d *naughtyDisk) DeleteVol(volume string) (err error) {
 	return d.disk.DeleteVol(volume)
 }
 
-func (d *naughtyDisk) ListDir(volume, path string) (entries []string, err error) {
+func (d *naughtyDisk) ListDir(volume, path string, count int) (entries []string, err error) {
 	if err := d.calcError(); err != nil {
 		return []string{}, err
 	}
-	return d.disk.ListDir(volume, path)
+	return d.disk.ListDir(volume, path, count)
 }
 
 func (d *naughtyDisk) ReadFile(volume string, path string, offset int64, buf []byte, verifier *BitrotVerifier) (n int64, err error) {

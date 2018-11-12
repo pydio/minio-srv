@@ -7,6 +7,10 @@
 <!--- Why is this change required? What problem does it solve? -->
 <!--- If it fixes an open issue, please link to the issue here. -->
 
+## Regression
+<!-- Is this PR fixing a regression? (Yes / No) -->
+<!-- If Yes, optionally please include minio version or commit id or PR# that caused this regression, if you have these details. -->
+
 ## How Has This Been Tested?
 <!--- Please describe in detail how you tested your changes. -->
 <!--- Include details of your testing environment, and the tests you ran to -->
@@ -24,5 +28,6 @@
 - [ ] My code follows the code style of this project.
 - [ ] My change requires a change to the documentation.
 - [ ] I have updated the documentation accordingly.
-- [ ] I have added tests to cover my changes.
+- [ ] I have added unit tests to cover my changes.
+- [ ] I have added/updated functional tests in [mint](https://github.com/minio/mint). (If yes, add `mint` PR # here: )
 - [ ] All new and existing tests passed.

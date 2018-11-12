@@ -1,5 +1,5 @@
 /*
- * Minio Cloud Storage, (C) 2016 Minio, Inc.
+ * Minio Cloud Storage, (C) 2016, 2017 Minio, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"testing"
 )
 
@@ -29,18 +30,27 @@ func TestGetObjectInfo(t *testing.T) {
 // Testing GetObjectInfo().
 func testGetObjectInfo(obj ObjectLayer, instanceType string, t TestErrHandler) {
 	// This bucket is used for testing getObjectInfo operations.
-	err := obj.MakeBucketWithLocation("test-getobjectinfo", "")
+	err := obj.MakeBucketWithLocation(context.Background(), "test-getobjectinfo", "")
 	if err != nil {
 		t.Fatalf("%s : %s", instanceType, err.Error())
 	}
-	_, err = obj.PutObject("test-getobjectinfo", "Asia/asiapics.jpg", NewHashReader(bytes.NewBufferString("asiapics"), int64(len("asiapics")), "", ""), nil)
+	opts := ObjectOptions{}
+	_, err = obj.PutObject(context.Background(), "test-getobjectinfo", "Asia/asiapics.jpg", mustGetHashReader(t, bytes.NewBufferString("asiapics"), int64(len("asiapics")), "", ""), nil, opts)
 	if err != nil {
 		t.Fatalf("%s : %s", instanceType, err.Error())
 	}
+
+	// Put an empty directory
+	_, err = obj.PutObject(context.Background(), "test-getobjectinfo", "Asia/empty-dir/", mustGetHashReader(t, bytes.NewBufferString(""), int64(len("")), "", ""), nil, opts)
+	if err != nil {
+		t.Fatalf("%s : %s", instanceType, err.Error())
+	}
+
 	resultCases := []ObjectInfo{
 		// ObjectInfo -1.
 		// ObjectName set to a existing object in the test case (Test case 14).
 		{Bucket: "test-getobjectinfo", Name: "Asia/asiapics.jpg", ContentType: "image/jpeg", IsDir: false},
+		{Bucket: "test-getobjectinfo", Name: "Asia/empty-dir/", ContentType: "application/octet-stream", IsDir: true},
 	}
 	testCases := []struct {
 		bucketName string
@@ -67,13 +77,12 @@ func testGetObjectInfo(obj ObjectLayer, instanceType string, t TestErrHandler) {
 		{"test-getobjectinfo", "Africa", ObjectInfo{}, ObjectNotFound{Bucket: "test-getobjectinfo", Object: "Africa"}, false},
 		{"test-getobjectinfo", "Antartica", ObjectInfo{}, ObjectNotFound{Bucket: "test-getobjectinfo", Object: "Antartica"}, false},
 		{"test-getobjectinfo", "Asia/myfile", ObjectInfo{}, ObjectNotFound{Bucket: "test-getobjectinfo", Object: "Asia/myfile"}, false},
-		// Test case with existing bucket but object name set to a directory (Test number 12).
-		{"test-getobjectinfo", "Asia/", ObjectInfo{}, ObjectNotFound{Bucket: "test-getobjectinfo", Object: "Asia/"}, false},
-		// Valid case with existing object (Test number 14).
+		// Valid case with existing object (Test number 12).
 		{"test-getobjectinfo", "Asia/asiapics.jpg", resultCases[0], nil, true},
+		{"test-getobjectinfo", "Asia/empty-dir/", resultCases[1], nil, true},
 	}
 	for i, testCase := range testCases {
-		result, err := obj.GetObjectInfo(testCase.bucketName, testCase.objectName)
+		result, err := obj.GetObjectInfo(context.Background(), testCase.bucketName, testCase.objectName, opts)
 		if err != nil && testCase.shouldPass {
 			t.Errorf("Test %d: %s: Expected to pass, but failed with: <ERROR> %s", i+1, instanceType, err.Error())
 		}

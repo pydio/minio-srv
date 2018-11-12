@@ -18,8 +18,12 @@ package cmd
 
 import (
 	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"strconv"
 	"testing"
+
+	"github.com/minio/minio/cmd/crypto"
 )
 
 // Tests getRedirectLocation function for all its criteria.
@@ -76,7 +80,7 @@ func TestGuessIsRPC(t *testing.T) {
 	}
 	r := &http.Request{
 		Proto:  "HTTP/1.0",
-		Method: http.MethodConnect,
+		Method: http.MethodPost,
 	}
 	if !guessIsRPCReq(r) {
 		t.Fatal("Test shouldn't fail for a possible net/rpc request.")
@@ -141,6 +145,79 @@ func TestIsHTTPHeaderSizeTooLarge(t *testing.T) {
 	for i, test := range isHTTPHeaderSizeTooLargeTests {
 		if res := isHTTPHeaderSizeTooLarge(test.header); res != test.shouldFail {
 			t.Errorf("Test %d: Expected %v got %v", i, res, test.shouldFail)
+		}
+	}
+}
+
+var containsReservedMetadataTests = []struct {
+	header     http.Header
+	shouldFail bool
+}{
+	{
+		header: http.Header{"X-Minio-Key": []string{"value"}},
+	},
+	{
+		header:     http.Header{crypto.SSEIV: []string{"iv"}},
+		shouldFail: true,
+	},
+	{
+		header:     http.Header{crypto.SSESealAlgorithm: []string{SSESealAlgorithmDareSha256}},
+		shouldFail: true,
+	},
+	{
+		header:     http.Header{crypto.SSECSealedKey: []string{"mac"}},
+		shouldFail: true,
+	},
+	{
+		header:     http.Header{ReservedMetadataPrefix + "Key": []string{"value"}},
+		shouldFail: true,
+	},
+}
+
+func TestContainsReservedMetadata(t *testing.T) {
+	for i, test := range containsReservedMetadataTests {
+		if contains := containsReservedMetadata(test.header); contains && !test.shouldFail {
+			t.Errorf("Test %d: contains reserved header but should not fail", i)
+		} else if !contains && test.shouldFail {
+			t.Errorf("Test %d: does not contain reserved header but failed", i)
+		}
+	}
+}
+
+var sseTLSHandlerTests = []struct {
+	URL               *url.URL
+	Header            http.Header
+	IsTLS, ShouldFail bool
+}{
+	{URL: &url.URL{}, Header: http.Header{}, IsTLS: false, ShouldFail: false},                                        // 0
+	{URL: &url.URL{}, Header: http.Header{crypto.SSECAlgorithm: []string{"AES256"}}, IsTLS: false, ShouldFail: true}, // 1
+	{URL: &url.URL{}, Header: http.Header{crypto.SSECAlgorithm: []string{"AES256"}}, IsTLS: true, ShouldFail: false}, // 2
+	{URL: &url.URL{}, Header: http.Header{crypto.SSECKey: []string{""}}, IsTLS: true, ShouldFail: false},             // 3
+	{URL: &url.URL{}, Header: http.Header{crypto.SSECopyAlgorithm: []string{""}}, IsTLS: false, ShouldFail: true},    // 4
+}
+
+func TestSSETLSHandler(t *testing.T) {
+	defer func(isSSL bool) { globalIsSSL = isSSL }(globalIsSSL) // reset globalIsSSL after test
+
+	var okHandler http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}
+	for i, test := range sseTLSHandlerTests {
+		globalIsSSL = test.IsTLS
+
+		w := httptest.NewRecorder()
+		r := new(http.Request)
+		r.Header = test.Header
+		r.URL = test.URL
+
+		h := setSSETLSHandler(okHandler)
+		h.ServeHTTP(w, r)
+
+		switch {
+		case test.ShouldFail && w.Code == http.StatusOK:
+			t.Errorf("Test %d: should fail but status code is HTTP %d", i, w.Code)
+		case !test.ShouldFail && w.Code != http.StatusOK:
+			t.Errorf("Test %d: should not fail but status code is HTTP %d and not 200 OK", i, w.Code)
 		}
 	}
 }

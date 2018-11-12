@@ -18,19 +18,14 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"testing"
 )
 
 // Tests for if parent directory is object
 func TestXLParentDirIsObject(t *testing.T) {
-	rootPath, err := newTestConfig(globalMinioDefaultRegion)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(rootPath)
-
-	obj, fsDisks, err := prepareXL()
+	obj, fsDisks, err := prepareXL16()
 	if err != nil {
 		t.Fatalf("Unable to initialize 'XL' object layer.")
 	}
@@ -43,12 +38,12 @@ func TestXLParentDirIsObject(t *testing.T) {
 	bucketName := "testbucket"
 	objectName := "object"
 
-	if err = obj.MakeBucketWithLocation(bucketName, ""); err != nil {
+	if err = obj.MakeBucketWithLocation(context.Background(), bucketName, ""); err != nil {
 		t.Fatal(err)
 	}
 	objectContent := "12345"
-	objInfo, err := obj.PutObject(bucketName, objectName,
-		NewHashReader(bytes.NewReader([]byte(objectContent)), int64(len(objectContent)), "", ""), nil)
+	objInfo, err := obj.PutObject(context.Background(), bucketName, objectName,
+		mustGetHashReader(t, bytes.NewReader([]byte(objectContent)), int64(len(objectContent)), "", ""), nil, ObjectOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,7 +86,7 @@ func TestXLParentDirIsObject(t *testing.T) {
 	}
 
 	for i, testCase := range testCases {
-		gotValue := fs.parentDirIsObject(bucketName, testCase.objectName)
+		gotValue := fs.parentDirIsObject(context.Background(), bucketName, testCase.objectName)
 		if testCase.parentIsObject != gotValue {
 			t.Errorf("Test %d: Unexpected value returned got %t, expected %t", i+1, gotValue, testCase.parentIsObject)
 		}

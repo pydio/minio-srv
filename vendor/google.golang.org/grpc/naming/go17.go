@@ -1,8 +1,6 @@
-// +build go1.6, !go1.8
-
 /*
- *
- * Copyright 2017 gRPC authors.
+ * Minio Go Library for Amazon S3 Compatible Cloud Storage
+ * Copyright 2015-2017 Minio, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,20 +13,15 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
-package naming
+package minio
 
 import (
-	"net"
-
-	"golang.org/x/net/context"
+	"context"
 )
 
-var (
-	lookupHost = func(ctx context.Context, host string) ([]string, error) { return net.LookupHost(host) }
-	lookupSRV  = func(ctx context.Context, service, proto, name string) (string, []*net.SRV, error) {
-		return net.LookupSRV(service, proto, name)
-	}
-)
+// FPutObject - Create an object in a bucket, with contents from file at filePath
+func (c Client) FPutObject(bucketName, objectName, filePath string, opts PutObjectOptions) (n int64, err error) {
+	return c.FPutObjectWithContext(context.Background(), bucketName, objectName, filePath, opts)
+}

@@ -15,7 +15,10 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"runtime"
 	"sync"
+
+	"github.com/klauspost/cpuid"
 )
 
 // Encoder is an interface to encode Reed-Salomon parity sets for your data.
@@ -183,6 +186,26 @@ func buildMatrixPAR1(dataShards, totalShards int) (matrix, error) {
 	return result, nil
 }
 
+func buildMatrixCauchy(dataShards, totalShards int) (matrix, error) {
+	result, err := newMatrix(totalShards, dataShards)
+	if err != nil {
+		return nil, err
+	}
+
+	for r, row := range result {
+		// The top portion of the matrix is the identity
+		// matrix, and the bottom is a transposed Cauchy matrix.
+		if r < dataShards {
+			result[r][r] = 1
+		} else {
+			for c := range row {
+				result[r][c] = invTable[(byte(r ^ c))]
+			}
+		}
+	}
+	return result, nil
+}
+
 // New creates a new encoder and initializes it to
 // the number of data shards and parity shards that
 // you want to use. You can reuse this encoder.
@@ -208,13 +231,43 @@ func New(dataShards, parityShards int, opts ...Option) (Encoder, error) {
 	}
 
 	var err error
-	if r.o.usePAR1Matrix {
+	switch {
+	case r.o.useCauchy:
+		r.m, err = buildMatrixCauchy(dataShards, r.Shards)
+	case r.o.usePAR1Matrix:
 		r.m, err = buildMatrixPAR1(dataShards, r.Shards)
-	} else {
+	default:
 		r.m, err = buildMatrix(dataShards, r.Shards)
 	}
 	if err != nil {
 		return nil, err
+	}
+	if r.o.shardSize > 0 {
+		cacheSize := cpuid.CPU.Cache.L2
+		if cacheSize <= 0 {
+			// Set to 128K if undetectable.
+			cacheSize = 128 << 10
+		}
+		p := runtime.NumCPU()
+
+		// 1 input + parity must fit in cache, and we add one more to be safer.
+		shards := 1 + parityShards
+		g := (r.o.shardSize * shards) / (cacheSize - (cacheSize >> 4))
+
+		if cpuid.CPU.ThreadsPerCore > 1 {
+			// If multiple threads per core, make sure they don't contend for cache.
+			g *= cpuid.CPU.ThreadsPerCore
+		}
+		g *= 2
+		if g < p {
+			g = p
+		}
+
+		// Have g be multiple of p
+		g += p - 1
+		g -= g % p
+
+		r.o.maxGoroutines = g
 	}
 
 	// Inverted matrices are cached in a tree keyed by the indices
@@ -408,6 +461,8 @@ func (r reedSolomon) codeSomeShardsP(matrixRows, inputs, outputs [][]byte, outpu
 	if do < r.o.minSplitSize {
 		do = r.o.minSplitSize
 	}
+	// Make sizes divisible by 16
+	do = (do + 15) & (^15)
 	start := 0
 	for start < byteCount {
 		if start+do > byteCount {
@@ -467,6 +522,8 @@ func (r reedSolomon) checkSomeShardsP(matrixRows, inputs, toCheck [][]byte, outp
 	if do < r.o.minSplitSize {
 		do = r.o.minSplitSize
 	}
+	// Make sizes divisible by 16
+	do = (do + 15) & (^15)
 	start := 0
 	for start < byteCount {
 		if start+do > byteCount {

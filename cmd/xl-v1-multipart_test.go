@@ -17,60 +17,50 @@
 package cmd
 
 import (
-	"os"
+	"context"
 	"testing"
 	"time"
 )
 
-func TestUpdateUploadJSON(t *testing.T) {
-	// Initialize configuration
-	root, err := newTestConfig(globalMinioDefaultRegion)
-	if err != nil {
-		t.Fatalf("%s", err)
-	}
-	defer os.RemoveAll(root)
-
+// Tests cleanup multipart uploads for erasure coded backend.
+func TestXLCleanupStaleMultipartUploads(t *testing.T) {
 	// Create an instance of xl backend
-	obj, fsDirs, err := prepareXL()
+	obj, fsDirs, err := prepareXL16()
 	if err != nil {
 		t.Fatal(err)
 	}
 	// Defer cleanup of backend directories
 	defer removeRoots(fsDirs)
 
-	bucket, object := "bucket", "object"
-	err = obj.MakeBucketWithLocation(bucket, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	testCases := []struct {
-		uploadID  string
-		initiated time.Time
-		isRemove  bool
-		errVal    error
-	}{
-		{"111abc", UTCNow(), false, nil},
-		{"222abc", UTCNow(), false, nil},
-		{"111abc", time.Time{}, true, nil},
-	}
-
 	xl := obj.(*xlObjects)
-	for i, test := range testCases {
-		testErrVal := xl.updateUploadJSON(bucket, object, test.uploadID, test.initiated, test.isRemove)
-		if testErrVal != test.errVal {
-			t.Errorf("Test %d: Expected error value %v, but got %v",
-				i+1, test.errVal, testErrVal)
+
+	// Close the go-routine, we are going to
+	// manually start it and test in this test case.
+	globalServiceDoneCh <- struct{}{}
+
+	bucketName := "bucket"
+	objectName := "object"
+	var opts ObjectOptions
+
+	obj.MakeBucketWithLocation(context.Background(), bucketName, "")
+	uploadID, err := obj.NewMultipartUpload(context.Background(), bucketName, objectName, nil, opts)
+	if err != nil {
+		t.Fatal("Unexpected err: ", err)
+	}
+
+	go xl.cleanupStaleMultipartUploads(context.Background(), 20*time.Millisecond, 0, globalServiceDoneCh)
+
+	// Wait for 40ms such that - we have given enough time for
+	// cleanup routine to kick in.
+	time.Sleep(40 * time.Millisecond)
+
+	// Close the routine we do not need it anymore.
+	globalServiceDoneCh <- struct{}{}
+
+	// Check if upload id was already purged.
+	if err = obj.AbortMultipartUpload(context.Background(), bucketName, objectName, uploadID); err != nil {
+		if _, ok := err.(InvalidUploadID); !ok {
+			t.Fatal("Unexpected err: ", err)
 		}
-	}
-
-	// make some disks faulty to simulate a failure.
-	for i := range xl.storageDisks[:9] {
-		xl.storageDisks[i] = newNaughtyDisk(xl.storageDisks[i].(*retryStorage), nil, errFaultyDisk)
-	}
-
-	testErrVal := xl.updateUploadJSON(bucket, object, "222abc", UTCNow(), false)
-	if testErrVal == nil || testErrVal.Error() != errXLWriteQuorum.Error() {
-		t.Errorf("Expected write quorum error, but got: %v", testErrVal)
 	}
 }

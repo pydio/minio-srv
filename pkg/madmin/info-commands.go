@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"time"
 )
 
@@ -39,22 +38,29 @@ const (
 	// Add your own backend.
 )
 
+// DriveInfo - represents each drive info, describing
+// status, uuid and endpoint.
+type DriveInfo HealDriveInfo
+
 // StorageInfo - represents total capacity of underlying storage.
 type StorageInfo struct {
-	// Total disk space.
-	Total int64
-	// Free available disk space.
-	Free int64
+	Used uint64 // Total used spaced per tenant.
+
 	// Backend type.
 	Backend struct {
 		// Represents various backend types, currently on FS and Erasure.
 		Type BackendType
 
 		// Following fields are only meaningful if BackendType is Erasure.
-		OnlineDisks  int // Online disks during server startup.
-		OfflineDisks int // Offline disks during server startup.
-		ReadQuorum   int // Minimum disks required for successful read operations.
-		WriteQuorum  int // Minimum disks required for successful write operations.
+		OnlineDisks      int // Online disks during server startup.
+		OfflineDisks     int // Offline disks during server startup.
+		StandardSCData   int // Data disks for currently configured Standard storage class.
+		StandardSCParity int // Parity disks for currently configured Standard storage class.
+		RRSCData         int // Data disks for currently configured Reduced Redundancy storage class.
+		RRSCParity       int // Parity disks for currently configured Reduced Redundancy storage class.
+
+		// List of all disk status, this is only meaningful if BackendType is Erasure.
+		Sets [][]DriveInfo
 	}
 }
 
@@ -74,11 +80,34 @@ type ServerConnStats struct {
 	TotalOutputBytes uint64 `json:"received"`
 }
 
+// ServerHTTPMethodStats holds total number of HTTP operations from/to the server,
+// including the average duration the call was spent.
+type ServerHTTPMethodStats struct {
+	Count       uint64 `json:"count"`
+	AvgDuration string `json:"avgDuration"`
+}
+
+// ServerHTTPStats holds all type of http operations performed to/from the server
+// including their average execution time.
+type ServerHTTPStats struct {
+	TotalHEADStats     ServerHTTPMethodStats `json:"totalHEADs"`
+	SuccessHEADStats   ServerHTTPMethodStats `json:"successHEADs"`
+	TotalGETStats      ServerHTTPMethodStats `json:"totalGETs"`
+	SuccessGETStats    ServerHTTPMethodStats `json:"successGETs"`
+	TotalPUTStats      ServerHTTPMethodStats `json:"totalPUTs"`
+	SuccessPUTStats    ServerHTTPMethodStats `json:"successPUTs"`
+	TotalPOSTStats     ServerHTTPMethodStats `json:"totalPOSTs"`
+	SuccessPOSTStats   ServerHTTPMethodStats `json:"successPOSTs"`
+	TotalDELETEStats   ServerHTTPMethodStats `json:"totalDELETEs"`
+	SuccessDELETEStats ServerHTTPMethodStats `json:"successDELETEs"`
+}
+
 // ServerInfoData holds storage, connections and other
 // information of a given server
 type ServerInfoData struct {
 	StorageInfo StorageInfo      `json:"storage"`
 	ConnStats   ServerConnStats  `json:"network"`
+	HTTPStats   ServerHTTPStats  `json:"http"`
 	Properties  ServerProperties `json:"server"`
 }
 
@@ -92,13 +121,7 @@ type ServerInfo struct {
 // ServerInfo - Connect to a minio server and call Server Info Management API
 // to fetch server's information represented by ServerInfo structure
 func (adm *AdminClient) ServerInfo() ([]ServerInfo, error) {
-	// Prepare web service request
-	reqData := requestData{}
-	reqData.queryValues = make(url.Values)
-	reqData.queryValues.Set("info", "")
-	reqData.customHeaders = make(http.Header)
-
-	resp, err := adm.executeMethod("GET", reqData)
+	resp, err := adm.executeMethod("GET", requestData{relPath: "/v1/info"})
 	defer closeResponse(resp)
 	if err != nil {
 		return nil, err

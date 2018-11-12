@@ -18,6 +18,7 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"crypto/md5"
 	"encoding/hex"
 	"io/ioutil"
@@ -26,6 +27,7 @@ import (
 	"testing"
 
 	humanize "github.com/dustin/go-humanize"
+	"github.com/minio/minio/pkg/hash"
 )
 
 func md5Header(data []byte) map[string]string {
@@ -33,7 +35,7 @@ func md5Header(data []byte) map[string]string {
 }
 
 // Wrapper for calling PutObject tests for both XL multiple disks and single node setup.
-func TestObjectAPIPutObject(t *testing.T) {
+func TestObjectAPIPutObjectSingle(t *testing.T) {
 	ExecObjectLayerTest(t, testObjectAPIPutObject)
 }
 
@@ -44,14 +46,14 @@ func testObjectAPIPutObject(obj ObjectLayer, instanceType string, t TestErrHandl
 	object := "minio-object"
 
 	// Create bucket.
-	err := obj.MakeBucketWithLocation(bucket, "")
+	err := obj.MakeBucketWithLocation(context.Background(), bucket, "")
 	if err != nil {
 		// Failed to create newbucket, abort.
 		t.Fatalf("%s : %s", instanceType, err.Error())
 	}
 
 	// Creating a dummy bucket for tests.
-	err = obj.MakeBucketWithLocation("unused-bucket", "")
+	err = obj.MakeBucketWithLocation(context.Background(), "unused-bucket", "")
 	if err != nil {
 		// Failed to create newbucket, abort.
 		t.Fatalf("%s : %s", instanceType, err.Error())
@@ -78,11 +80,11 @@ func testObjectAPIPutObject(obj ObjectLayer, instanceType string, t TestErrHandl
 	}{
 		// Test case  1-4.
 		// Cases with invalid bucket name.
-		{".test", "obj", []byte(""), nil, "", 0, "", BucketNameInvalid{Bucket: ".test"}},
-		{"------", "obj", []byte(""), nil, "", 0, "", BucketNameInvalid{Bucket: "------"}},
+		{".test", "obj", []byte(""), nil, "", 0, "", BucketNotFound{Bucket: ".test"}},
+		{"------", "obj", []byte(""), nil, "", 0, "", BucketNotFound{Bucket: "------"}},
 		{"$this-is-not-valid-too", "obj", []byte(""), nil, "", 0, "",
-			BucketNameInvalid{Bucket: "$this-is-not-valid-too"}},
-		{"a", "obj", []byte(""), nil, "", 0, "", BucketNameInvalid{Bucket: "a"}},
+			BucketNotFound{Bucket: "$this-is-not-valid-too"}},
+		{"a", "obj", []byte(""), nil, "", 0, "", BucketNotFound{Bucket: "a"}},
 
 		// Test case - 5.
 		// Case with invalid object names.
@@ -94,22 +96,25 @@ func testObjectAPIPutObject(obj ObjectLayer, instanceType string, t TestErrHandl
 
 		// Test case - 7.
 		// Input to replicate Md5 mismatch.
-		{bucket, object, []byte(""), map[string]string{"etag": "a35"}, "", 0, "",
-			BadDigest{ExpectedMD5: "a35", CalculatedMD5: "d41d8cd98f00b204e9800998ecf8427e"}},
+		{bucket, object, []byte(""), map[string]string{"etag": "d41d8cd98f00b204e9800998ecf8427f"}, "", 0, "",
+			hash.BadDigest{"d41d8cd98f00b204e9800998ecf8427f", "d41d8cd98f00b204e9800998ecf8427e"}},
 
 		// Test case - 8.
 		// With incorrect sha256.
-		{bucket, object, []byte("abcd"), map[string]string{"etag": "e2fc714c4727ee9395f324cd2e7f331f"}, "incorrect-sha256", int64(len("abcd")), "", SHA256Mismatch{}},
+		{bucket, object, []byte("abcd"), map[string]string{"etag": "e2fc714c4727ee9395f324cd2e7f331f"},
+			"88d4266fd4e6338d13b845fcf289579d209c897823b9217da3e161936f031580", int64(len("abcd")),
+			"", hash.SHA256Mismatch{"88d4266fd4e6338d13b845fcf289579d209c897823b9217da3e161936f031580",
+				"88d4266fd4e6338d13b845fcf289579d209c897823b9217da3e161936f031589"}},
 
 		// Test case - 9.
 		// Input with size more than the size of actual data inside the reader.
-		{bucket, object, []byte("abcd"), map[string]string{"etag": "a35"}, "", int64(len("abcd") + 1), "",
-			IncompleteBody{}},
+		{bucket, object, []byte("abcd"), map[string]string{"etag": "e2fc714c4727ee9395f324cd2e7f331e"}, "", int64(len("abcd") + 1), "",
+			hash.BadDigest{"e2fc714c4727ee9395f324cd2e7f331e", "e2fc714c4727ee9395f324cd2e7f331f"}},
 
 		// Test case - 10.
 		// Input with size less than the size of actual data inside the reader.
-		{bucket, object, []byte("abcd"), map[string]string{"etag": "a35"}, "", int64(len("abcd") - 1), "",
-			BadDigest{ExpectedMD5: "a35", CalculatedMD5: "900150983cd24fb0d6963f7d28e17f72"}},
+		{bucket, object, []byte("abcd"), map[string]string{"etag": "900150983cd24fb0d6963f7d28e17f73"}, "", int64(len("abcd") - 1), "",
+			hash.BadDigest{"900150983cd24fb0d6963f7d28e17f73", "900150983cd24fb0d6963f7d28e17f72"}},
 
 		// Test case - 11-14.
 		// Validating for success cases.
@@ -138,9 +143,12 @@ func testObjectAPIPutObject(obj ObjectLayer, instanceType string, t TestErrHandl
 
 		// Test case 24-26.
 		// data with invalid md5sum in header
-		{bucket, object, data, invalidMD5Header, "", int64(len(data)), getMD5Hash(data), BadDigest{invalidMD5, getMD5Hash(data)}},
-		{bucket, object, nilBytes, invalidMD5Header, "", int64(len(nilBytes)), getMD5Hash(nilBytes), BadDigest{invalidMD5, getMD5Hash(nilBytes)}},
-		{bucket, object, fiveMBBytes, invalidMD5Header, "", int64(len(fiveMBBytes)), getMD5Hash(fiveMBBytes), BadDigest{invalidMD5, getMD5Hash(fiveMBBytes)}},
+		{bucket, object, data, invalidMD5Header, "", int64(len(data)), getMD5Hash(data),
+			hash.BadDigest{invalidMD5, getMD5Hash(data)}},
+		{bucket, object, nilBytes, invalidMD5Header, "", int64(len(nilBytes)), getMD5Hash(nilBytes),
+			hash.BadDigest{invalidMD5, getMD5Hash(nilBytes)}},
+		{bucket, object, fiveMBBytes, invalidMD5Header, "", int64(len(fiveMBBytes)), getMD5Hash(fiveMBBytes),
+			hash.BadDigest{invalidMD5, getMD5Hash(fiveMBBytes)}},
 
 		// Test case 27-29.
 		// data with size different from the actual number of bytes available in the reader
@@ -151,11 +159,20 @@ func testObjectAPIPutObject(obj ObjectLayer, instanceType string, t TestErrHandl
 		// Test case 30
 		// valid data with X-Amz-Meta- meta
 		{bucket, object, data, map[string]string{"X-Amz-Meta-AppID": "a42"}, "", int64(len(data)), getMD5Hash(data), nil},
+
+		// Test case 31
+		// Put an empty object with a trailing slash
+		{bucket, "emptydir/", []byte{}, nil, "", 0, getMD5Hash([]byte{}), nil},
+		// Test case 32
+		// Put an object inside the empty directory
+		{bucket, "emptydir/" + object, data, nil, "", int64(len(data)), getMD5Hash(data), nil},
+		// Test case 33
+		// Put the empty object with a trailing slash again (refer to Test case 31), this needs to succeed
+		{bucket, "emptydir/", []byte{}, nil, "", 0, getMD5Hash([]byte{}), nil},
 	}
 
 	for i, testCase := range testCases {
-		objInfo, actualErr := obj.PutObject(testCase.bucketName, testCase.objName, NewHashReader(bytes.NewReader(testCase.inputData), testCase.intputDataSize, testCase.inputMeta["etag"], testCase.inputSHA256), testCase.inputMeta)
-		actualErr = errorCause(actualErr)
+		objInfo, actualErr := obj.PutObject(context.Background(), testCase.bucketName, testCase.objName, mustGetHashReader(t, bytes.NewReader(testCase.inputData), testCase.intputDataSize, testCase.inputMeta["etag"], testCase.inputSHA256), testCase.inputMeta, ObjectOptions{})
 		if actualErr != nil && testCase.expectedError == nil {
 			t.Errorf("Test %d: %s: Expected to pass, but failed with: error %s.", i+1, instanceType, actualErr.Error())
 		}
@@ -164,7 +181,7 @@ func testObjectAPIPutObject(obj ObjectLayer, instanceType string, t TestErrHandl
 		}
 		// Failed as expected, but does it fail for the expected reason.
 		if actualErr != nil && actualErr != testCase.expectedError {
-			t.Errorf("Test %d: %s: Expected to fail with error \"%s\", but instead failed with error \"%s\" instead.", i+1, instanceType, testCase.expectedError.Error(), actualErr.Error())
+			t.Errorf("Test %d: %s: Expected to fail with error \"%v\", but instead failed with error \"%v\" instead.", i+1, instanceType, testCase.expectedError, actualErr)
 		}
 		// Test passes as expected, but the output values are verified for correctness here.
 		if actualErr == nil {
@@ -189,14 +206,14 @@ func testObjectAPIPutObjectDiskNotFound(obj ObjectLayer, instanceType string, di
 	object := "minio-object"
 
 	// Create bucket.
-	err := obj.MakeBucketWithLocation(bucket, "")
+	err := obj.MakeBucketWithLocation(context.Background(), bucket, "")
 	if err != nil {
 		// Failed to create newbucket, abort.
 		t.Fatalf("%s : %s", instanceType, err.Error())
 	}
 
 	// Creating a dummy bucket for tests.
-	err = obj.MakeBucketWithLocation("unused-bucket", "")
+	err = obj.MakeBucketWithLocation(context.Background(), "unused-bucket", "")
 	if err != nil {
 		// Failed to create newbucket, abort.
 		t.Fatalf("%s : %s", instanceType, err.Error())
@@ -228,8 +245,7 @@ func testObjectAPIPutObjectDiskNotFound(obj ObjectLayer, instanceType string, di
 
 	sha256sum := ""
 	for i, testCase := range testCases {
-		objInfo, actualErr := obj.PutObject(testCase.bucketName, testCase.objName, NewHashReader(bytes.NewReader(testCase.inputData), testCase.intputDataSize, testCase.inputMeta["etag"], sha256sum), testCase.inputMeta)
-		actualErr = errorCause(actualErr)
+		objInfo, actualErr := obj.PutObject(context.Background(), testCase.bucketName, testCase.objName, mustGetHashReader(t, bytes.NewReader(testCase.inputData), testCase.intputDataSize, testCase.inputMeta["etag"], sha256sum), testCase.inputMeta, ObjectOptions{})
 		if actualErr != nil && testCase.shouldPass {
 			t.Errorf("Test %d: %s: Expected to pass, but failed with: <ERROR> %s.", i+1, instanceType, actualErr.Error())
 		}
@@ -278,8 +294,7 @@ func testObjectAPIPutObjectDiskNotFound(obj ObjectLayer, instanceType string, di
 		InsufficientWriteQuorum{},
 	}
 
-	_, actualErr := obj.PutObject(testCase.bucketName, testCase.objName, NewHashReader(bytes.NewReader(testCase.inputData), testCase.intputDataSize, testCase.inputMeta["etag"], sha256sum), testCase.inputMeta)
-	actualErr = errorCause(actualErr)
+	_, actualErr := obj.PutObject(context.Background(), testCase.bucketName, testCase.objName, mustGetHashReader(t, bytes.NewReader(testCase.inputData), testCase.intputDataSize, testCase.inputMeta["etag"], sha256sum), testCase.inputMeta, ObjectOptions{})
 	if actualErr != nil && testCase.shouldPass {
 		t.Errorf("Test %d: %s: Expected to pass, but failed with: <ERROR> %s.", len(testCases)+1, instanceType, actualErr.Error())
 	}
@@ -303,7 +318,7 @@ func testObjectAPIPutObjectStaleFiles(obj ObjectLayer, instanceType string, disk
 	object := "minio-object"
 
 	// Create bucket.
-	err := obj.MakeBucketWithLocation(bucket, "")
+	err := obj.MakeBucketWithLocation(context.Background(), bucket, "")
 	if err != nil {
 		// Failed to create newbucket, abort.
 		t.Fatalf("%s : %s", instanceType, err.Error())
@@ -311,7 +326,7 @@ func testObjectAPIPutObjectStaleFiles(obj ObjectLayer, instanceType string, disk
 
 	data := []byte("hello, world")
 	// Create object.
-	_, err = obj.PutObject(bucket, object, NewHashReader(bytes.NewReader(data), int64(len(data)), "", ""), nil)
+	_, err = obj.PutObject(context.Background(), bucket, object, mustGetHashReader(t, bytes.NewReader(data), int64(len(data)), "", ""), nil, ObjectOptions{})
 	if err != nil {
 		// Failed to create object, abort.
 		t.Fatalf("%s : %s", instanceType, err.Error())
@@ -337,14 +352,14 @@ func testObjectAPIMultipartPutObjectStaleFiles(obj ObjectLayer, instanceType str
 	object := "minio-object"
 
 	// Create bucket.
-	err := obj.MakeBucketWithLocation(bucket, "")
+	err := obj.MakeBucketWithLocation(context.Background(), bucket, "")
 	if err != nil {
 		// Failed to create newbucket, abort.
 		t.Fatalf("%s : %s", instanceType, err.Error())
 	}
-
+	opts := ObjectOptions{}
 	// Initiate Multipart Upload on the above created bucket.
-	uploadID, err := obj.NewMultipartUpload(bucket, object, nil)
+	uploadID, err := obj.NewMultipartUpload(context.Background(), bucket, object, nil, opts)
 	if err != nil {
 		// Failed to create NewMultipartUpload, abort.
 		t.Fatalf("%s : %s", instanceType, err.Error())
@@ -356,7 +371,7 @@ func testObjectAPIMultipartPutObjectStaleFiles(obj ObjectLayer, instanceType str
 	md5Writer.Write(fiveMBBytes)
 	etag1 := hex.EncodeToString(md5Writer.Sum(nil))
 	sha256sum := ""
-	_, err = obj.PutObjectPart(bucket, object, uploadID, 1, NewHashReader(bytes.NewReader(fiveMBBytes), int64(len(fiveMBBytes)), etag1, sha256sum))
+	_, err = obj.PutObjectPart(context.Background(), bucket, object, uploadID, 1, mustGetHashReader(t, bytes.NewReader(fiveMBBytes), int64(len(fiveMBBytes)), etag1, sha256sum), opts)
 	if err != nil {
 		// Failed to upload object part, abort.
 		t.Fatalf("%s : %s", instanceType, err.Error())
@@ -367,18 +382,18 @@ func testObjectAPIMultipartPutObjectStaleFiles(obj ObjectLayer, instanceType str
 	md5Writer = md5.New()
 	md5Writer.Write(data)
 	etag2 := hex.EncodeToString(md5Writer.Sum(nil))
-	_, err = obj.PutObjectPart(bucket, object, uploadID, 2, NewHashReader(bytes.NewReader(data), int64(len(data)), etag2, sha256sum))
+	_, err = obj.PutObjectPart(context.Background(), bucket, object, uploadID, 2, mustGetHashReader(t, bytes.NewReader(data), int64(len(data)), etag2, sha256sum), opts)
 	if err != nil {
 		// Failed to upload object part, abort.
 		t.Fatalf("%s : %s", instanceType, err.Error())
 	}
 
 	// Complete multipart.
-	parts := []completePart{
+	parts := []CompletePart{
 		{ETag: etag1, PartNumber: 1},
 		{ETag: etag2, PartNumber: 2},
 	}
-	_, err = obj.CompleteMultipartUpload(bucket, object, uploadID, parts)
+	_, err = obj.CompleteMultipartUpload(context.Background(), bucket, object, uploadID, parts)
 	if err != nil {
 		// Failed to complete multipart upload, abort.
 		t.Fatalf("%s : %s", instanceType, err.Error())

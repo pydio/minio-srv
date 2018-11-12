@@ -21,12 +21,10 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/fatih/color"
 )
 
 // Tests update notifier string builder.
-func TestComputeUpdateMessage(t *testing.T) {
+func TestPrepareUpdateMessage(t *testing.T) {
 	testCases := []struct {
 		older time.Duration
 		dlURL string
@@ -67,13 +65,11 @@ func TestComputeUpdateMessage(t *testing.T) {
 	}
 
 	plainMsg := "You are running an older version of Minio released"
-	yellow := color.New(color.FgYellow, color.Bold).SprintfFunc()
-	cyan := color.New(color.FgCyan, color.Bold).SprintFunc()
 
 	for i, testCase := range testCases {
-		output := computeUpdateMessage(testCase.dlURL, testCase.older)
-		line1 := fmt.Sprintf("%s %s", plainMsg, yellow(testCase.expectedSubStr))
-		line2 := fmt.Sprintf("Update: %s", cyan(testCase.dlURL))
+		output := prepareUpdateMessage(testCase.dlURL, testCase.older)
+		line1 := fmt.Sprintf("%s %s", plainMsg, colorYellowBold(testCase.expectedSubStr))
+		line2 := fmt.Sprintf("Update: %s", colorCyanBold(testCase.dlURL))
 		// Uncomment below to see message appearance:
 		// fmt.Println(output)
 		switch {

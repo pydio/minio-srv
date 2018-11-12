@@ -18,10 +18,10 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"io/ioutil"
 	"math"
 	"math/rand"
-	"os"
 	"strconv"
 	"testing"
 
@@ -40,7 +40,7 @@ func runPutObjectBenchmark(b *testing.B, obj ObjectLayer, objSize int) {
 	// obtains random bucket name.
 	bucket := getRandomBucketName()
 	// create bucket.
-	err = obj.MakeBucketWithLocation(bucket, "")
+	err = obj.MakeBucketWithLocation(context.Background(), bucket, "")
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -50,20 +50,23 @@ func runPutObjectBenchmark(b *testing.B, obj ObjectLayer, objSize int) {
 	// generate md5sum for the generated data.
 	// md5sum of the data to written is required as input for PutObject.
 	metadata := make(map[string]string)
-	metadata["etag"] = getMD5Hash(textData)
-	sha256sum := ""
+
+	md5hex := getMD5Hash(textData)
+	sha256hex := ""
+
 	// benchmark utility which helps obtain number of allocations and bytes allocated per ops.
 	b.ReportAllocs()
 	// the actual benchmark for PutObject starts here. Reset the benchmark timer.
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		// insert the object.
-		objInfo, err := obj.PutObject(bucket, "object"+strconv.Itoa(i), NewHashReader(bytes.NewBuffer(textData), int64(len(textData)), metadata["etag"], sha256sum), metadata)
+		objInfo, err := obj.PutObject(context.Background(), bucket, "object"+strconv.Itoa(i),
+			mustGetHashReader(b, bytes.NewBuffer(textData), int64(len(textData)), md5hex, sha256hex), metadata, ObjectOptions{})
 		if err != nil {
 			b.Fatal(err)
 		}
-		if objInfo.ETag != metadata["etag"] {
-			b.Fatalf("Write no: %d: Md5Sum mismatch during object write into the bucket: Expected %s, got %s", i+1, objInfo.ETag, metadata["etag"])
+		if objInfo.ETag != md5hex {
+			b.Fatalf("Write no: %d: Md5Sum mismatch during object write into the bucket: Expected %s, got %s", i+1, objInfo.ETag, md5hex)
 		}
 	}
 	// Benchmark ends here. Stop timer.
@@ -79,7 +82,7 @@ func runPutObjectPartBenchmark(b *testing.B, obj ObjectLayer, partSize int) {
 	object := getRandomObjectName()
 
 	// create bucket.
-	err = obj.MakeBucketWithLocation(bucket, "")
+	err = obj.MakeBucketWithLocation(context.Background(), bucket, "")
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -94,12 +97,14 @@ func runPutObjectPartBenchmark(b *testing.B, obj ObjectLayer, partSize int) {
 	// generate md5sum for the generated data.
 	// md5sum of the data to written is required as input for NewMultipartUpload.
 	metadata := make(map[string]string)
-	metadata["etag"] = getMD5Hash(textData)
-	sha256sum := ""
-	uploadID, err = obj.NewMultipartUpload(bucket, object, metadata)
+	opts := ObjectOptions{}
+	uploadID, err = obj.NewMultipartUpload(context.Background(), bucket, object, metadata, opts)
 	if err != nil {
 		b.Fatal(err)
 	}
+
+	md5hex := getMD5Hash(textData)
+	sha256hex := ""
 
 	var textPartData []byte
 	// benchmark utility which helps obtain number of allocations and bytes allocated per ops.
@@ -115,15 +120,15 @@ func runPutObjectPartBenchmark(b *testing.B, obj ObjectLayer, partSize int) {
 			} else {
 				textPartData = textData[j*partSize:]
 			}
-			metadata := make(map[string]string)
-			metadata["etag"] = getMD5Hash([]byte(textPartData))
+			md5hex = getMD5Hash([]byte(textPartData))
 			var partInfo PartInfo
-			partInfo, err = obj.PutObjectPart(bucket, object, uploadID, j, NewHashReader(bytes.NewBuffer(textPartData), int64(len(textPartData)), metadata["etag"], sha256sum))
+			partInfo, err = obj.PutObjectPart(context.Background(), bucket, object, uploadID, j,
+				mustGetHashReader(b, bytes.NewBuffer(textPartData), int64(len(textPartData)), md5hex, sha256hex), opts)
 			if err != nil {
 				b.Fatal(err)
 			}
-			if partInfo.ETag != metadata["etag"] {
-				b.Fatalf("Write no: %d: Md5Sum mismatch during object write into the bucket: Expected %s, got %s", i+1, etag, metadata["etag"])
+			if partInfo.ETag != md5hex {
+				b.Fatalf("Write no: %d: Md5Sum mismatch during object write into the bucket: Expected %s, got %s", i+1, etag, md5hex)
 			}
 		}
 	}
@@ -133,12 +138,6 @@ func runPutObjectPartBenchmark(b *testing.B, obj ObjectLayer, partSize int) {
 
 // creates XL/FS backend setup, obtains the object layer and calls the runPutObjectPartBenchmark function.
 func benchmarkPutObjectPart(b *testing.B, instanceType string, objSize int) {
-	rootPath, err := newTestConfig(globalMinioDefaultRegion)
-	if err != nil {
-		b.Fatalf("Unable to initialize config. %s", err)
-	}
-	defer os.RemoveAll(rootPath)
-
 	// create a temp XL/FS backend.
 	objLayer, disks, err := prepareBenchmarkBackend(instanceType)
 	if err != nil {
@@ -146,18 +145,13 @@ func benchmarkPutObjectPart(b *testing.B, instanceType string, objSize int) {
 	}
 	// cleaning up the backend by removing all the directories and files created on function return.
 	defer removeRoots(disks)
+
 	// uses *testing.B and the object Layer to run the benchmark.
 	runPutObjectPartBenchmark(b, objLayer, objSize)
 }
 
 // creates XL/FS backend setup, obtains the object layer and calls the runPutObjectBenchmark function.
 func benchmarkPutObject(b *testing.B, instanceType string, objSize int) {
-	rootPath, err := newTestConfig(globalMinioDefaultRegion)
-	if err != nil {
-		b.Fatalf("Unable to initialize config. %s", err)
-	}
-	defer os.RemoveAll(rootPath)
-
 	// create a temp XL/FS backend.
 	objLayer, disks, err := prepareBenchmarkBackend(instanceType)
 	if err != nil {
@@ -165,18 +159,13 @@ func benchmarkPutObject(b *testing.B, instanceType string, objSize int) {
 	}
 	// cleaning up the backend by removing all the directories and files created on function return.
 	defer removeRoots(disks)
+
 	// uses *testing.B and the object Layer to run the benchmark.
 	runPutObjectBenchmark(b, objLayer, objSize)
 }
 
 // creates XL/FS backend setup, obtains the object layer and runs parallel benchmark for put object.
 func benchmarkPutObjectParallel(b *testing.B, instanceType string, objSize int) {
-	rootPath, err := newTestConfig(globalMinioDefaultRegion)
-	if err != nil {
-		b.Fatalf("Unable to initialize config. %s", err)
-	}
-	defer os.RemoveAll(rootPath)
-
 	// create a temp XL/FS backend.
 	objLayer, disks, err := prepareBenchmarkBackend(instanceType)
 	if err != nil {
@@ -184,6 +173,7 @@ func benchmarkPutObjectParallel(b *testing.B, instanceType string, objSize int) 
 	}
 	// cleaning up the backend by removing all the directories and files created on function return.
 	defer removeRoots(disks)
+
 	// uses *testing.B and the object Layer to run the benchmark.
 	runPutObjectBenchmarkParallel(b, objLayer, objSize)
 }
@@ -191,37 +181,35 @@ func benchmarkPutObjectParallel(b *testing.B, instanceType string, objSize int) 
 // Benchmark utility functions for ObjectLayer.GetObject().
 // Creates Object layer setup ( MakeBucket, PutObject) and then runs the benchmark.
 func runGetObjectBenchmark(b *testing.B, obj ObjectLayer, objSize int) {
-	rootPath, err := newTestConfig(globalMinioDefaultRegion)
-	if err != nil {
-		b.Fatalf("Unable to initialize config. %s", err)
-	}
-	defer os.RemoveAll(rootPath)
-
 	// obtains random bucket name.
 	bucket := getRandomBucketName()
 	// create bucket.
-	err = obj.MakeBucketWithLocation(bucket, "")
+	err := obj.MakeBucketWithLocation(context.Background(), bucket, "")
 	if err != nil {
 		b.Fatal(err)
 	}
 
-	sha256sum := ""
+	textData := generateBytesData(objSize)
+
+	// generate etag for the generated data.
+	// etag of the data to written is required as input for PutObject.
+	// PutObject is the functions which writes the data onto the FS/XL backend.
+	metadata := make(map[string]string)
+
+	// get text data generated for number of bytes equal to object size.
+	md5hex := getMD5Hash(textData)
+	sha256hex := ""
+
 	for i := 0; i < 10; i++ {
-		// get text data generated for number of bytes equal to object size.
-		textData := generateBytesData(objSize)
-		// generate etag for the generated data.
-		// etag of the data to written is required as input for PutObject.
-		// PutObject is the functions which writes the data onto the FS/XL backend.
-		metadata := make(map[string]string)
-		metadata["etag"] = getMD5Hash(textData)
 		// insert the object.
 		var objInfo ObjectInfo
-		objInfo, err = obj.PutObject(bucket, "object"+strconv.Itoa(i), NewHashReader(bytes.NewBuffer(textData), int64(len(textData)), metadata["etag"], sha256sum), metadata)
+		objInfo, err = obj.PutObject(context.Background(), bucket, "object"+strconv.Itoa(i),
+			mustGetHashReader(b, bytes.NewBuffer(textData), int64(len(textData)), md5hex, sha256hex), metadata, ObjectOptions{})
 		if err != nil {
 			b.Fatal(err)
 		}
-		if objInfo.ETag != metadata["etag"] {
-			b.Fatalf("Write no: %d: Md5Sum mismatch during object write into the bucket: Expected %s, got %s", i+1, objInfo.ETag, metadata["etag"])
+		if objInfo.ETag != md5hex {
+			b.Fatalf("Write no: %d: Md5Sum mismatch during object write into the bucket: Expected %s, got %s", i+1, objInfo.ETag, md5hex)
 		}
 	}
 
@@ -231,7 +219,7 @@ func runGetObjectBenchmark(b *testing.B, obj ObjectLayer, objSize int) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		var buffer = new(bytes.Buffer)
-		err = obj.GetObject(bucket, "object"+strconv.Itoa(i%10), 0, int64(objSize), buffer)
+		err = obj.GetObject(context.Background(), bucket, "object"+strconv.Itoa(i%10), 0, int64(objSize), buffer, "", ObjectOptions{})
 		if err != nil {
 			b.Error(err)
 		}
@@ -260,12 +248,6 @@ func generateBytesData(size int) []byte {
 
 // creates XL/FS backend setup, obtains the object layer and calls the runGetObjectBenchmark function.
 func benchmarkGetObject(b *testing.B, instanceType string, objSize int) {
-	rootPath, err := newTestConfig(globalMinioDefaultRegion)
-	if err != nil {
-		b.Fatalf("Unable to initialize config. %s", err)
-	}
-	defer os.RemoveAll(rootPath)
-
 	// create a temp XL/FS backend.
 	objLayer, disks, err := prepareBenchmarkBackend(instanceType)
 	if err != nil {
@@ -273,18 +255,13 @@ func benchmarkGetObject(b *testing.B, instanceType string, objSize int) {
 	}
 	// cleaning up the backend by removing all the directories and files created.
 	defer removeRoots(disks)
+
 	//  uses *testing.B and the object Layer to run the benchmark.
 	runGetObjectBenchmark(b, objLayer, objSize)
 }
 
 // creates XL/FS backend setup, obtains the object layer and runs parallel benchmark for ObjectLayer.GetObject() .
 func benchmarkGetObjectParallel(b *testing.B, instanceType string, objSize int) {
-	rootPath, err := newTestConfig(globalMinioDefaultRegion)
-	if err != nil {
-		b.Fatalf("Unable to initialize config. %s", err)
-	}
-	defer os.RemoveAll(rootPath)
-
 	// create a temp XL/FS backend.
 	objLayer, disks, err := prepareBenchmarkBackend(instanceType)
 	if err != nil {
@@ -292,6 +269,7 @@ func benchmarkGetObjectParallel(b *testing.B, instanceType string, objSize int) 
 	}
 	// cleaning up the backend by removing all the directories and files created.
 	defer removeRoots(disks)
+
 	//  uses *testing.B and the object Layer to run the benchmark.
 	runGetObjectBenchmarkParallel(b, objLayer, objSize)
 }
@@ -299,16 +277,10 @@ func benchmarkGetObjectParallel(b *testing.B, instanceType string, objSize int) 
 // Parallel benchmark utility functions for ObjectLayer.PutObject().
 // Creates Object layer setup ( MakeBucket ) and then runs the PutObject benchmark.
 func runPutObjectBenchmarkParallel(b *testing.B, obj ObjectLayer, objSize int) {
-	rootPath, err := newTestConfig(globalMinioDefaultRegion)
-	if err != nil {
-		b.Fatalf("Unable to initialize config. %s", err)
-	}
-	defer os.RemoveAll(rootPath)
-
 	// obtains random bucket name.
 	bucket := getRandomBucketName()
 	// create bucket.
-	err = obj.MakeBucketWithLocation(bucket, "")
+	err := obj.MakeBucketWithLocation(context.Background(), bucket, "")
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -318,8 +290,10 @@ func runPutObjectBenchmarkParallel(b *testing.B, obj ObjectLayer, objSize int) {
 	// generate md5sum for the generated data.
 	// md5sum of the data to written is required as input for PutObject.
 	metadata := make(map[string]string)
-	metadata["etag"] = getMD5Hash([]byte(textData))
-	sha256sum := ""
+
+	md5hex := getMD5Hash([]byte(textData))
+	sha256hex := ""
+
 	// benchmark utility which helps obtain number of allocations and bytes allocated per ops.
 	b.ReportAllocs()
 	// the actual benchmark for PutObject starts here. Reset the benchmark timer.
@@ -329,12 +303,13 @@ func runPutObjectBenchmarkParallel(b *testing.B, obj ObjectLayer, objSize int) {
 		i := 0
 		for pb.Next() {
 			// insert the object.
-			objInfo, err := obj.PutObject(bucket, "object"+strconv.Itoa(i), NewHashReader(bytes.NewBuffer(textData), int64(len(textData)), metadata["etag"], sha256sum), metadata)
+			objInfo, err := obj.PutObject(context.Background(), bucket, "object"+strconv.Itoa(i),
+				mustGetHashReader(b, bytes.NewBuffer(textData), int64(len(textData)), md5hex, sha256hex), metadata, ObjectOptions{})
 			if err != nil {
 				b.Fatal(err)
 			}
-			if objInfo.ETag != metadata["etag"] {
-				b.Fatalf("Write no: Md5Sum mismatch during object write into the bucket: Expected %s, got %s", objInfo.ETag, metadata["etag"])
+			if objInfo.ETag != md5hex {
+				b.Fatalf("Write no: Md5Sum mismatch during object write into the bucket: Expected %s, got %s", objInfo.ETag, md5hex)
 			}
 			i++
 		}
@@ -347,37 +322,34 @@ func runPutObjectBenchmarkParallel(b *testing.B, obj ObjectLayer, objSize int) {
 // Parallel benchmark utility functions for ObjectLayer.GetObject().
 // Creates Object layer setup ( MakeBucket, PutObject) and then runs the benchmark.
 func runGetObjectBenchmarkParallel(b *testing.B, obj ObjectLayer, objSize int) {
-	rootPath, err := newTestConfig(globalMinioDefaultRegion)
-	if err != nil {
-		b.Fatalf("Unable to initialize config. %s", err)
-	}
-	defer os.RemoveAll(rootPath)
-
 	// obtains random bucket name.
 	bucket := getRandomBucketName()
 	// create bucket.
-	err = obj.MakeBucketWithLocation(bucket, "")
+	err := obj.MakeBucketWithLocation(context.Background(), bucket, "")
 	if err != nil {
 		b.Fatal(err)
 	}
 
+	// get text data generated for number of bytes equal to object size.
+	textData := generateBytesData(objSize)
+	// generate md5sum for the generated data.
+	// md5sum of the data to written is required as input for PutObject.
+	// PutObject is the functions which writes the data onto the FS/XL backend.
+	metadata := make(map[string]string)
+
+	md5hex := getMD5Hash([]byte(textData))
+	sha256hex := ""
+
 	for i := 0; i < 10; i++ {
-		// get text data generated for number of bytes equal to object size.
-		textData := generateBytesData(objSize)
-		// generate md5sum for the generated data.
-		// md5sum of the data to written is required as input for PutObject.
-		// PutObject is the functions which writes the data onto the FS/XL backend.
-		metadata := make(map[string]string)
-		metadata["etag"] = getMD5Hash([]byte(textData))
-		sha256sum := ""
 		// insert the object.
 		var objInfo ObjectInfo
-		objInfo, err = obj.PutObject(bucket, "object"+strconv.Itoa(i), NewHashReader(bytes.NewBuffer(textData), int64(len(textData)), metadata["etag"], sha256sum), metadata)
+		objInfo, err = obj.PutObject(context.Background(), bucket, "object"+strconv.Itoa(i),
+			mustGetHashReader(b, bytes.NewBuffer(textData), int64(len(textData)), md5hex, sha256hex), metadata, ObjectOptions{})
 		if err != nil {
 			b.Fatal(err)
 		}
-		if objInfo.ETag != metadata["etag"] {
-			b.Fatalf("Write no: %d: Md5Sum mismatch during object write into the bucket: Expected %s, got %s", i+1, objInfo.ETag, metadata["etag"])
+		if objInfo.ETag != md5hex {
+			b.Fatalf("Write no: %d: Md5Sum mismatch during object write into the bucket: Expected %s, got %s", i+1, objInfo.ETag, md5hex)
 		}
 	}
 
@@ -388,7 +360,7 @@ func runGetObjectBenchmarkParallel(b *testing.B, obj ObjectLayer, objSize int) {
 	b.RunParallel(func(pb *testing.PB) {
 		i := 0
 		for pb.Next() {
-			err = obj.GetObject(bucket, "object"+strconv.Itoa(i), 0, int64(objSize), ioutil.Discard)
+			err = obj.GetObject(context.Background(), bucket, "object"+strconv.Itoa(i), 0, int64(objSize), ioutil.Discard, "", ObjectOptions{})
 			if err != nil {
 				b.Error(err)
 			}

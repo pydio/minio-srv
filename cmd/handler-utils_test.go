@@ -18,6 +18,7 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"encoding/xml"
 	"io/ioutil"
 	"net/http"
@@ -29,11 +30,14 @@ import (
 
 // Tests validate bucket LocationConstraint.
 func TestIsValidLocationContraint(t *testing.T) {
-	path, err := newTestConfig(globalMinioDefaultRegion)
+	obj, fsDir, err := prepareFS()
 	if err != nil {
-		t.Fatalf("unable initialize config file, %s", err)
+		t.Fatal(err)
 	}
-	defer os.RemoveAll(path)
+	defer os.RemoveAll(fsDir)
+	if err = newTestConfig(globalMinioDefaultRegion, obj); err != nil {
+		t.Fatal(err)
+	}
 
 	// Test with corrupted XML
 	malformedReq := &http.Request{
@@ -75,7 +79,7 @@ func TestIsValidLocationContraint(t *testing.T) {
 		if e != nil {
 			t.Fatalf("Test %d: Failed to Marshal bucket configuration", i+1)
 		}
-		serverConfig.SetRegion(testCase.serverConfigRegion)
+		globalServerConfig.SetRegion(testCase.serverConfigRegion)
 		_, actualCode := parseLocationConstraint(inputRequest)
 		if testCase.expectedCode != actualCode {
 			t.Errorf("Test %d: Expected the APIErrCode to be %d, but instead found %d", i+1, testCase.expectedCode, actualCode)
@@ -112,9 +116,9 @@ func TestValidateFormFieldSize(t *testing.T) {
 
 	// Run validate form field size check under all test cases.
 	for i, testCase := range testCases {
-		err := validateFormFieldSize(testCase.header)
+		err := validateFormFieldSize(context.Background(), testCase.header)
 		if err != nil {
-			if errorCause(err).Error() != testCase.err.Error() {
+			if err.Error() != testCase.err.Error() {
 				t.Errorf("Test %d: Expected error %s, got %s", i+1, testCase.err, err)
 			}
 		}
@@ -164,9 +168,19 @@ func TestExtractMetadataHeaders(t *testing.T) {
 				"x-amz-meta-appid": []string{"amz-meta"},
 			},
 			metadata: map[string]string{
-				"X-Amz-Meta-Appid": "amz-meta",
+				"x-amz-meta-appid": "amz-meta",
 			},
-			shouldFail: true,
+			shouldFail: false,
+		},
+		// Support multiple values
+		{
+			header: http.Header{
+				"x-amz-meta-key": []string{"amz-meta1", "amz-meta2"},
+			},
+			metadata: map[string]string{
+				"x-amz-meta-key": "amz-meta1,amz-meta2",
+			},
+			shouldFail: false,
 		},
 		// Empty header input returns empty metadata.
 		{
@@ -178,7 +192,8 @@ func TestExtractMetadataHeaders(t *testing.T) {
 
 	// Validate if the extracting headers.
 	for i, testCase := range testCases {
-		metadata, err := extractMetadataFromHeader(testCase.header)
+		metadata := make(map[string]string)
+		err := extractMetadataFromMap(context.Background(), testCase.header, metadata)
 		if err != nil && !testCase.shouldFail {
 			t.Fatalf("Test %d failed to extract metadata: %v", i+1, err)
 		}
@@ -187,6 +202,29 @@ func TestExtractMetadataHeaders(t *testing.T) {
 		}
 		if err == nil && !reflect.DeepEqual(metadata, testCase.metadata) {
 			t.Fatalf("Test %d failed: Expected \"%#v\", got \"%#v\"", i+1, testCase.metadata, metadata)
+		}
+	}
+}
+
+// Test getResource()
+func TestGetResource(t *testing.T) {
+	testCases := []struct {
+		p                string
+		host             string
+		domain           string
+		expectedResource string
+	}{
+		{"/a/b/c", "test.mydomain.com", "mydomain.com", "/test/a/b/c"},
+		{"/a/b/c", "test.mydomain.com", "notmydomain.com", "/a/b/c"},
+		{"/a/b/c", "test.mydomain.com", "", "/a/b/c"},
+	}
+	for i, test := range testCases {
+		gotResource, err := getResource(test.p, test.host, test.domain)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if gotResource != test.expectedResource {
+			t.Fatalf("test %d: expected %s got %s", i+1, test.expectedResource, gotResource)
 		}
 	}
 }

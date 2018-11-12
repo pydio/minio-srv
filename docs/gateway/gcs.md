@@ -8,7 +8,7 @@ Minio GCS Gateway adds Amazon S3 compatibility to Google Cloud Storage.
 3. On the Credentials page, select the __Create credentials__ drop-down, then select __Service account key__.
 4. From the __Service account__ drop-down, select __New service account__
 5. Fill up __Service account name__ and __Service account ID__
-6. For the __Role__, click the selec dropdown to choose __Storage__ -> __Storage Admin__ _(Full control of GCS resources)_
+6. For the __Role__, click the select dropdown to choose __Storage__ -> __Storage Admin__ _(Full control of GCS resources)_
 7. Click the __Create__ button. This will download a credentials file to your desktop. Let's call this credentials.json
 
 Note: Alternate ways to setup *Application Default Credentials* is explained [here](https://developers.google.com/identity/protocols/application-default-credentials)
@@ -20,7 +20,7 @@ docker run -p 9000:9000 --name gcs-s3 \
  -e "GOOGLE_APPLICATION_CREDENTIALS=/credentials.json" \
  -e "MINIO_ACCESS_KEY=minioaccountname" \
  -e "MINIO_SECRET_KEY=minioaccountkey" \
- pydio/minio-srv gateway gcs yourprojectid
+ minio/minio gateway gcs yourprojectid
 ```
 
 ### Using Binary
@@ -32,9 +32,9 @@ minio gateway gcs yourprojectid
 ```
 
 ## Test using Minio Browser
-Minio Gateway comes with an embedded web based object browser. Point your web browser to http://127.0.0.1:9000 ensure your server has started successfully.
+Minio Gateway comes with an embedded web based object browser. Point your web browser to http://127.0.0.1:9000 to ensure that your server has started successfully.
 
-![Screenshot](https://github.com/pydio/minio-srv/blob/master/docs/screenshots/minio-browser-gateway.png?raw=true)
+![Screenshot](https://github.com/minio/minio/blob/master/docs/screenshots/minio-browser-gateway.png?raw=true)
 
 ## Test using Minio Client `mc`
 `mc` provides a modern alternative to UNIX commands such as ls, cat, cp, mirror, diff etc. It supports filesystems and Amazon S3 compatible cloud storage services.
@@ -53,11 +53,17 @@ mc ls mygcs
 ```
 
 ### Known limitations
-[Limitations](https://github.com/pydio/minio-srv/blob/master/docs/gateway/gcs-limitations.md)
+Gateway inherits the following GCS limitations:
+
+- Only read-only or write-only bucket policy supported at bucket level, all other variations will return API Notimplemented error.
+- _List Multipart Uploads_ and _List Object parts_ always returns empty list. i.e Client will need to remember all the parts that it has uploaded and use it for _Complete Multipart Upload_
+
+Other limitations:
+
+- Bucket notification APIs are not supported.
 
 ## Explore Further
 - [`mc` command-line interface](https://docs.minio.io/docs/minio-client-quickstart-guide)
 - [`aws` command-line interface](https://docs.minio.io/docs/aws-cli-with-minio)
-- [`minfs` filesystem interface](http://docs.minio.io/docs/minfs-quickstart-guide)
 - [`minio-go` Go SDK](https://docs.minio.io/docs/golang-client-quickstart-guide)
 

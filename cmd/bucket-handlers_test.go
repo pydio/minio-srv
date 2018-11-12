@@ -1,5 +1,5 @@
 /*
- * Minio Cloud Storage, (C) 2016 Minio, Inc.
+ * Minio Cloud Storage, (C) 2016, 2017, 2018 Minio, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,12 +18,15 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"encoding/xml"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"testing"
+
+	"github.com/minio/minio/pkg/auth"
 )
 
 // Wrapper for calling GetBucketPolicy HTTP handler tests for both XL multiple disks and single node setup.
@@ -32,8 +35,7 @@ func TestGetBucketLocationHandler(t *testing.T) {
 }
 
 func testGetBucketLocationHandler(obj ObjectLayer, instanceType, bucketName string, apiRouter http.Handler,
-	credentials credential, t *testing.T) {
-	initBucketPolicies(obj)
+	credentials auth.Credentials, t *testing.T) {
 
 	// test cases with sample input and expected output.
 	testCases := []struct {
@@ -82,7 +84,7 @@ func testGetBucketLocationHandler(obj ObjectLayer, instanceType, bucketName stri
 		// initialize httptest Recorder, this records any mutations to response writer inside the handler.
 		rec := httptest.NewRecorder()
 		// construct HTTP request for Get bucket location.
-		req, err := newTestSignedRequestV4("GET", getBucketLocationURL("", testCase.bucketName), 0, nil, testCase.accessKey, testCase.secretKey)
+		req, err := newTestSignedRequestV4("GET", getBucketLocationURL("", testCase.bucketName), 0, nil, testCase.accessKey, testCase.secretKey, nil)
 		if err != nil {
 			t.Fatalf("Test %d: %s: Failed to create HTTP request for GetBucketLocationHandler: <ERROR> %v", i+1, instanceType, err)
 		}
@@ -114,7 +116,7 @@ func testGetBucketLocationHandler(obj ObjectLayer, instanceType, bucketName stri
 		// initialize HTTP NewRecorder, this records any mutations to response writer inside the handler.
 		recV2 := httptest.NewRecorder()
 		// construct HTTP request for PUT bucket policy endpoint.
-		reqV2, err := newTestSignedRequestV2("GET", getBucketLocationURL("", testCase.bucketName), 0, nil, testCase.accessKey, testCase.secretKey)
+		reqV2, err := newTestSignedRequestV2("GET", getBucketLocationURL("", testCase.bucketName), 0, nil, testCase.accessKey, testCase.secretKey, nil)
 
 		if err != nil {
 			t.Fatalf("Test %d: %s: Failed to create HTTP request for PutBucketPolicyHandler: <ERROR> %v", i+1, instanceType, err)
@@ -153,7 +155,7 @@ func testGetBucketLocationHandler(obj ObjectLayer, instanceType, bucketName stri
 	// ExecObjectLayerAPIAnonTest - Calls the HTTP API handler using the anonymous request, validates the ErrAccessDeniedResponse,
 	// sets the bucket policy using the policy statement generated from `getReadOnlyBucketStatement` so that the
 	// unsigned request goes through and its validated again.
-	ExecObjectLayerAPIAnonTest(t, "TestGetBucketLocationHandler", bucketName, "", instanceType, apiRouter, anonReq, getReadOnlyBucketStatement)
+	ExecObjectLayerAPIAnonTest(t, obj, "TestGetBucketLocationHandler", bucketName, "", instanceType, apiRouter, anonReq, getAnonReadOnlyBucketPolicy(bucketName))
 
 	// HTTP request for testing when `objectLayer` is set to `nil`.
 	// There is no need to use an existing bucket and valid input for creating the request
@@ -177,8 +179,7 @@ func TestHeadBucketHandler(t *testing.T) {
 }
 
 func testHeadBucketHandler(obj ObjectLayer, instanceType, bucketName string, apiRouter http.Handler,
-	credentials credential, t *testing.T) {
-	initBucketPolicies(obj)
+	credentials auth.Credentials, t *testing.T) {
 
 	// test cases with sample input and expected output.
 	testCases := []struct {
@@ -219,7 +220,7 @@ func testHeadBucketHandler(obj ObjectLayer, instanceType, bucketName string, api
 		// initialize HTTP NewRecorder, this records any mutations to response writer inside the handler.
 		rec := httptest.NewRecorder()
 		// construct HTTP request for HEAD bucket.
-		req, err := newTestSignedRequestV4("HEAD", getHEADBucketURL("", testCase.bucketName), 0, nil, testCase.accessKey, testCase.secretKey)
+		req, err := newTestSignedRequestV4("HEAD", getHEADBucketURL("", testCase.bucketName), 0, nil, testCase.accessKey, testCase.secretKey, nil)
 		if err != nil {
 			t.Fatalf("Test %d: %s: Failed to create HTTP request for HeadBucketHandler: <ERROR> %v", i+1, instanceType, err)
 		}
@@ -234,7 +235,7 @@ func testHeadBucketHandler(obj ObjectLayer, instanceType, bucketName string, api
 		// initialize HTTP NewRecorder, this records any mutations to response writer inside the handler.
 		recV2 := httptest.NewRecorder()
 		// construct HTTP request for PUT bucket policy endpoint.
-		reqV2, err := newTestSignedRequestV2("HEAD", getHEADBucketURL("", testCase.bucketName), 0, nil, testCase.accessKey, testCase.secretKey)
+		reqV2, err := newTestSignedRequestV2("HEAD", getHEADBucketURL("", testCase.bucketName), 0, nil, testCase.accessKey, testCase.secretKey, nil)
 
 		if err != nil {
 			t.Fatalf("Test %d: %s: Failed to create HTTP request for PutBucketPolicyHandler: <ERROR> %v", i+1, instanceType, err)
@@ -259,7 +260,7 @@ func testHeadBucketHandler(obj ObjectLayer, instanceType, bucketName string, api
 	// ExecObjectLayerAPIAnonTest - Calls the HTTP API handler using the anonymous request, validates the ErrAccessDeniedResponse,
 	// sets the bucket policy using the policy statement generated from `getReadOnlyBucketStatement` so that the
 	// unsigned request goes through and its validated again.
-	ExecObjectLayerAPIAnonTest(t, "TestHeadBucketHandler", bucketName, "", instanceType, apiRouter, anonReq, getReadOnlyBucketStatement)
+	ExecObjectLayerAPIAnonTest(t, obj, "TestHeadBucketHandler", bucketName, "", instanceType, apiRouter, anonReq, getAnonReadOnlyBucketPolicy(bucketName))
 
 	// HTTP request for testing when `objectLayer` is set to `nil`.
 	// There is no need to use an existing bucket and valid input for creating the request
@@ -284,8 +285,7 @@ func TestListMultipartUploadsHandler(t *testing.T) {
 
 // testListMultipartUploadsHandler - Tests validate listing of multipart uploads.
 func testListMultipartUploadsHandler(obj ObjectLayer, instanceType, bucketName string, apiRouter http.Handler,
-	credentials credential, t *testing.T) {
-	initBucketPolicies(obj)
+	credentials auth.Credentials, t *testing.T) {
 
 	// Collection of non-exhaustive ListMultipartUploads test cases, valid errors
 	// and success responses.
@@ -313,7 +313,7 @@ func testListMultipartUploadsHandler(obj ObjectLayer, instanceType, bucketName s
 			maxUploads:         "0",
 			accessKey:          credentials.AccessKey,
 			secretKey:          credentials.SecretKey,
-			expectedRespStatus: http.StatusBadRequest,
+			expectedRespStatus: http.StatusNotFound,
 			shouldPass:         false,
 		},
 		// Test case - 2.
@@ -437,7 +437,7 @@ func testListMultipartUploadsHandler(obj ObjectLayer, instanceType, bucketName s
 
 		// construct HTTP request for List multipart uploads endpoint.
 		u := getListMultipartUploadsURLWithParams("", testCase.bucket, testCase.prefix, testCase.keyMarker, testCase.uploadIDMarker, testCase.delimiter, testCase.maxUploads)
-		req, gerr := newTestSignedRequestV4("GET", u, 0, nil, testCase.accessKey, testCase.secretKey)
+		req, gerr := newTestSignedRequestV4("GET", u, 0, nil, testCase.accessKey, testCase.secretKey, nil)
 		if gerr != nil {
 			t.Fatalf("Test %d: %s: Failed to create HTTP request for ListMultipartUploadsHandler: <ERROR> %v", i+1, instanceType, gerr)
 		}
@@ -454,7 +454,7 @@ func testListMultipartUploadsHandler(obj ObjectLayer, instanceType, bucketName s
 		// construct HTTP request for PUT bucket policy endpoint.
 
 		// verify response for V2 signed HTTP request.
-		reqV2, err := newTestSignedRequestV2("GET", u, 0, nil, testCase.accessKey, testCase.secretKey)
+		reqV2, err := newTestSignedRequestV2("GET", u, 0, nil, testCase.accessKey, testCase.secretKey, nil)
 		if err != nil {
 			t.Fatalf("Test %d: %s: Failed to create HTTP request for PutBucketPolicyHandler: <ERROR> %v", i+1, instanceType, err)
 		}
@@ -471,7 +471,7 @@ func testListMultipartUploadsHandler(obj ObjectLayer, instanceType, bucketName s
 
 	// construct HTTP request for List multipart uploads endpoint.
 	u := getListMultipartUploadsURLWithParams("", bucketName, "", "", "", "", "")
-	req, err := newTestSignedRequestV4("GET", u, 0, nil, "", "") // Generate an anonymous request.
+	req, err := newTestSignedRequestV4("GET", u, 0, nil, "", "", nil) // Generate an anonymous request.
 	if err != nil {
 		t.Fatalf("Test %s: Failed to create HTTP request for ListMultipartUploadsHandler: <ERROR> %v", instanceType, err)
 	}
@@ -494,7 +494,7 @@ func testListMultipartUploadsHandler(obj ObjectLayer, instanceType, bucketName s
 	// ExecObjectLayerAPIAnonTest - Calls the HTTP API handler using the anonymous request, validates the ErrAccessDeniedResponse,
 	// sets the bucket policy using the policy statement generated from `getWriteOnlyBucketStatement` so that the
 	// unsigned request goes through and its validated again.
-	ExecObjectLayerAPIAnonTest(t, "TestListMultipartUploadsHandler", bucketName, "", instanceType, apiRouter, anonReq, getWriteOnlyBucketStatement)
+	ExecObjectLayerAPIAnonTest(t, obj, "TestListMultipartUploadsHandler", bucketName, "", instanceType, apiRouter, anonReq, getAnonWriteOnlyBucketPolicy(bucketName))
 
 	// HTTP request for testing when `objectLayer` is set to `nil`.
 	// There is no need to use an existing bucket and valid input for creating the request
@@ -522,7 +522,7 @@ func TestListBucketsHandler(t *testing.T) {
 
 // testListBucketsHandler - Tests validate listing of buckets.
 func testListBucketsHandler(obj ObjectLayer, instanceType, bucketName string, apiRouter http.Handler,
-	credentials credential, t *testing.T) {
+	credentials auth.Credentials, t *testing.T) {
 
 	testCases := []struct {
 		bucketName         string
@@ -551,7 +551,7 @@ func testListBucketsHandler(obj ObjectLayer, instanceType, bucketName string, ap
 	for i, testCase := range testCases {
 		// initialize HTTP NewRecorder, this records any mutations to response writer inside the handler.
 		rec := httptest.NewRecorder()
-		req, lerr := newTestSignedRequestV4("GET", getListBucketURL(""), 0, nil, testCase.accessKey, testCase.secretKey)
+		req, lerr := newTestSignedRequestV4("GET", getListBucketURL(""), 0, nil, testCase.accessKey, testCase.secretKey, nil)
 		if lerr != nil {
 			t.Fatalf("Test %d: %s: Failed to create HTTP request for ListBucketsHandler: <ERROR> %v", i+1, instanceType, lerr)
 		}
@@ -568,7 +568,7 @@ func testListBucketsHandler(obj ObjectLayer, instanceType, bucketName string, ap
 		// construct HTTP request for PUT bucket policy endpoint.
 
 		// verify response for V2 signed HTTP request.
-		reqV2, err := newTestSignedRequestV2("GET", getListBucketURL(""), 0, nil, testCase.accessKey, testCase.secretKey)
+		reqV2, err := newTestSignedRequestV2("GET", getListBucketURL(""), 0, nil, testCase.accessKey, testCase.secretKey, nil)
 
 		if err != nil {
 			t.Fatalf("Test %d: %s: Failed to create HTTP request for PutBucketPolicyHandler: <ERROR> %v", i+1, instanceType, err)
@@ -592,7 +592,7 @@ func testListBucketsHandler(obj ObjectLayer, instanceType, bucketName string, ap
 	// ExecObjectLayerAPIAnonTest - Calls the HTTP API handler using the anonymous request, validates the ErrAccessDeniedResponse,
 	// sets the bucket policy using the policy statement generated from `getWriteOnlyObjectStatement` so that the
 	// unsigned request goes through and its validated again.
-	ExecObjectLayerAPIAnonTest(t, "ListBucketsHandler", "", "", instanceType, apiRouter, anonReq, getWriteOnlyObjectStatement)
+	ExecObjectLayerAPIAnonTest(t, obj, "ListBucketsHandler", "", "", instanceType, apiRouter, anonReq, getAnonWriteOnlyBucketPolicy("*"))
 
 	// HTTP request for testing when `objectLayer` is set to `nil`.
 	// There is no need to use an existing bucket and valid input for creating the request
@@ -615,15 +615,9 @@ func TestAPIDeleteMultipleObjectsHandler(t *testing.T) {
 }
 
 func testAPIDeleteMultipleObjectsHandler(obj ObjectLayer, instanceType, bucketName string, apiRouter http.Handler,
-	credentials credential, t *testing.T) {
-	initBucketPolicies(obj)
+	credentials auth.Credentials, t *testing.T) {
 
 	var err error
-	// register event notifier.
-	err = initEventNotifier(obj)
-	if err != nil {
-		t.Fatal("Notifier initialization failed.")
-	}
 
 	contentBytes := []byte("hello")
 	sha256sum := ""
@@ -631,7 +625,7 @@ func testAPIDeleteMultipleObjectsHandler(obj ObjectLayer, instanceType, bucketNa
 	for i := 0; i < 10; i++ {
 		objectName := "test-object-" + strconv.Itoa(i)
 		// uploading the object.
-		_, err = obj.PutObject(bucketName, objectName, NewHashReader(bytes.NewBuffer(contentBytes), int64(len(contentBytes)), "", sha256sum), nil)
+		_, err = obj.PutObject(context.Background(), bucketName, objectName, mustGetHashReader(t, bytes.NewBuffer(contentBytes), int64(len(contentBytes)), "", sha256sum), nil, ObjectOptions{})
 		// if object upload fails stop the test.
 		if err != nil {
 			t.Fatalf("Put Object %d:  Error uploading object: <ERROR> %v", i, err)
@@ -751,7 +745,7 @@ func testAPIDeleteMultipleObjectsHandler(obj ObjectLayer, instanceType, bucketNa
 		// Generate a signed or anonymous request based on the testCase
 		if testCase.accessKey != "" {
 			req, err = newTestSignedRequestV4("POST", getDeleteMultipleObjectsURL("", bucketName),
-				int64(len(testCase.objects)), bytes.NewReader(testCase.objects), testCase.accessKey, testCase.secretKey)
+				int64(len(testCase.objects)), bytes.NewReader(testCase.objects), testCase.accessKey, testCase.secretKey, nil)
 		} else {
 			req, err = newTestRequest("POST", getDeleteMultipleObjectsURL("", bucketName),
 				int64(len(testCase.objects)), bytes.NewReader(testCase.objects))
@@ -791,44 +785,11 @@ func testAPIDeleteMultipleObjectsHandler(obj ObjectLayer, instanceType, bucketNa
 	nilBucket := "dummy-bucket"
 	nilObject := ""
 
-	nilReq, err := newTestSignedRequestV4("POST", getDeleteMultipleObjectsURL("", nilBucket), 0, nil, "", "")
+	nilReq, err := newTestSignedRequestV4("POST", getDeleteMultipleObjectsURL("", nilBucket), 0, nil, "", "", nil)
 	if err != nil {
 		t.Errorf("Minio %s: Failed to create HTTP request for testing the response when object Layer is set to `nil`.", instanceType)
 	}
 	// execute the object layer set to `nil` test.
 	// `ExecObjectLayerAPINilTest` manages the operation.
 	ExecObjectLayerAPINilTest(t, nilBucket, nilObject, instanceType, apiRouter, nilReq)
-}
-
-func TestIsBucketActionAllowed(t *testing.T) {
-	ExecObjectLayerAPITest(t, testIsBucketActionAllowedHandler, []string{"BucketLocation"})
-}
-
-func testIsBucketActionAllowedHandler(obj ObjectLayer, instanceType, bucketName string, apiRouter http.Handler,
-	credentials credential, t *testing.T) {
-
-	testCases := []struct {
-		// input.
-		action              string
-		bucket              string
-		prefix              string
-		isGlobalPoliciesNil bool
-		// flag indicating whether the test should pass.
-		shouldPass bool
-	}{
-		{"s3:GetBucketLocation", "mybucket", "abc", true, false},
-		{"s3:ListObject", "mybucket", "abc", false, false},
-	}
-	for i, testCase := range testCases {
-		if testCase.isGlobalPoliciesNil {
-			globalBucketPolicies = nil
-		} else {
-			initBucketPolicies(obj)
-		}
-		isAllowed := isBucketActionAllowed(testCase.action, testCase.bucket, testCase.prefix)
-		if isAllowed != testCase.shouldPass {
-			t.Errorf("Case %d: Expected the response status to be `%t`, but instead found `%t`", i+1, testCase.shouldPass, isAllowed)
-		}
-
-	}
 }

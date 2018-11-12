@@ -18,13 +18,14 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"io"
 	"os"
 	"testing"
 )
 
-var erasureDecodeTests = []struct {
+var erasureEncodeDecodeTests = []struct {
 	dataBlocks, parityBlocks   int
 	missingData, missingParity int
 	reconstructParity          bool
@@ -42,21 +43,20 @@ var erasureDecodeTests = []struct {
 	{dataBlocks: 8, parityBlocks: 4, missingData: 2, missingParity: 2, reconstructParity: false, shouldFail: false},
 }
 
-func TestErasureDecode(t *testing.T) {
+func TestErasureEncodeDecode(t *testing.T) {
 	data := make([]byte, 256)
 	if _, err := io.ReadFull(rand.Reader, data); err != nil {
 		t.Fatalf("Failed to read random data: %v", err)
 	}
-	for i, test := range erasureDecodeTests {
+	for i, test := range erasureEncodeDecodeTests {
 		buffer := make([]byte, len(data), 2*len(data))
 		copy(buffer, data)
 
-		disks := make([]StorageAPI, test.dataBlocks+test.parityBlocks)
-		storage, err := NewErasureStorage(disks, test.dataBlocks, test.parityBlocks)
+		erasure, err := NewErasure(context.Background(), test.dataBlocks, test.parityBlocks, blockSizeV1)
 		if err != nil {
-			t.Fatalf("Test %d: failed to create erasure storage: %v", i, err)
+			t.Fatalf("Test %d: failed to create erasure: %v", i, err)
 		}
-		encoded, err := storage.ErasureEncode(buffer)
+		encoded, err := erasure.EncodeData(context.Background(), buffer)
 		if err != nil {
 			t.Fatalf("Test %d: failed to encode data: %v", i, err)
 		}
@@ -69,9 +69,9 @@ func TestErasureDecode(t *testing.T) {
 		}
 
 		if test.reconstructParity {
-			err = storage.ErasureDecodeDataAndParityBlocks(encoded)
+			err = erasure.DecodeDataAndParityBlocks(context.Background(), encoded)
 		} else {
-			err = storage.ErasureDecodeDataBlocks(encoded)
+			err = erasure.DecodeDataBlocks(encoded)
 		}
 
 		if err == nil && test.shouldFail {
@@ -98,7 +98,7 @@ func TestErasureDecode(t *testing.T) {
 			}
 
 			decodedData := new(bytes.Buffer)
-			if _, err = writeDataBlocks(decodedData, decoded, test.dataBlocks, 0, int64(len(data))); err != nil {
+			if _, err = writeDataBlocks(context.Background(), decodedData, decoded, test.dataBlocks, 0, int64(len(data))); err != nil {
 				t.Errorf("Test %d: failed to write data blocks: %v", i, err)
 			}
 			if !bytes.Equal(decodedData.Bytes(), data) {

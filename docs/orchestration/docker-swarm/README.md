@@ -1,4 +1,4 @@
-# Deploy Minio on Docker Swarm [![Slack](https://slack.minio.io/slack?type=svg)](https://slack.minio.io) [![Go Report Card](https://goreportcard.com/badge/pydio/minio-srv)](https://goreportcard.com/report/pydio/minio-srv) [![Docker Pulls](https://img.shields.io/docker/pulls/pydio/minio-srv.svg?maxAge=604800)](https://hub.docker.com/r/pydio/minio-srv/) [![codecov](https://codecov.io/gh/pydio/minio-srv/branch/master/graph/badge.svg)](https://codecov.io/gh/pydio/minio-srv)
+# Deploy Minio on Docker Swarm [![Slack](https://slack.minio.io/slack?type=svg)](https://slack.minio.io) [![Go Report Card](https://goreportcard.com/badge/minio/minio)](https://goreportcard.com/report/minio/minio) [![Docker Pulls](https://img.shields.io/docker/pulls/minio/minio.svg?maxAge=604800)](https://hub.docker.com/r/minio/minio/) [![codecov](https://codecov.io/gh/minio/minio/branch/master/graph/badge.svg)](https://codecov.io/gh/minio/minio)
 
 Docker Engine provides cluster management and orchestration features in Swarm mode. Minio server can be easily deployed in distributed mode on Swarm to create a multi-tenant, highly-available and scalable object store.
 
@@ -34,7 +34,20 @@ echo "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY" | docker secret create secret_ke
 
 ## 4. Deploy distributed Minio services
 
-Download the [Docker Compose file](https://github.com/pydio/minio-srv/blob/master/docs/orchestration/docker-swarm/docker-compose-secrets.yaml?raw=true) on your Swarm master. Then execute the command
+The example Minio stack uses 4 Docker volumes, which are created automatically by deploying the stack. We have to make sure that the services in the stack are always (re)started on the same node, where the service is deployed the first time. 
+Otherwise Docker will create a new volume upon restart of the service on another Docker node, which is not in sync with the other volumes and the stack will fail to start healthy. 
+Before deploying the stack, add labels to the Docker nodes where you want the minio services to run:
+
+```
+docker node update --label-add minio1=true <DOCKER-NODE1>
+docker node update --label-add minio2=true <DOCKER-NODE2>
+docker node update --label-add minio3=true <DOCKER-NODE3>
+docker node update --label-add minio4=true <DOCKER-NODE4>
+```
+
+It is possible to run more than one minio service on one Docker Node. Set the labels accordingly.
+
+Download the [Docker Compose file](https://github.com/minio/minio/blob/master/docs/orchestration/docker-swarm/docker-compose-secrets.yaml?raw=true) on your Swarm master. Then execute the command
 
 ```shell
 docker stack deploy --compose-file=docker-compose-secrets.yaml minio_stack
@@ -51,20 +64,17 @@ Remove the distributed Minio services and related network by
 ```shell
 docker stack rm minio_stack
 ```
-Swarm doesn't automatically remove host volumes created for services. This may lead to corruption when a new Minio service is created in the swarm. So, we recommend removing all the volumes used by Minio, manually. To do this, go to each node in the swarm and list the volumes by 
+Swarm doesn't automatically remove host volumes created for services. This may lead to corruption when a new Minio service is created in the swarm. So, we recommend removing all the volumes used by Minio, manually. To do this, logon to each node in the swarm and run
 
 ```shell
-docker volume ls
+docker volume prune
 ```
-Then remove `minio_stack` volumes by 
+This will remove all the volumes not associated with any container.
 
-```shell
-docker volume rm volume_name 
-```
 
 ### Notes
 
-* By default the Docker Compose file uses the Docker image for latest Minio server release. You can change the image tag to pull a specific [Minio Docker image](https://hub.docker.com/r/pydio/minio-srv/).
+* By default the Docker Compose file uses the Docker image for latest Minio server release. You can change the image tag to pull a specific [Minio Docker image](https://hub.docker.com/r/minio/minio/).
 
 * There are 4 minio distributed instances created by default. You can add more Minio services (up to total 16) to your Minio Swarm deployment. To add a service
   * Replicate a service definition and change the name of the new service appropriately.

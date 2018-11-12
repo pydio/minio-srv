@@ -18,12 +18,16 @@ package cmd
 
 import (
 	"bytes"
+	"context"
+	"encoding/hex"
 	"fmt"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 
 	humanize "github.com/dustin/go-humanize"
+	"github.com/minio/minio/pkg/hash"
 )
 
 // Wrapper for calling NewMultipartUpload tests for both XL multiple disks and single node setup.
@@ -36,15 +40,15 @@ func testObjectNewMultipartUpload(obj ObjectLayer, instanceType string, t TestEr
 
 	bucket := "minio-bucket"
 	object := "minio-object"
-
-	_, err := obj.NewMultipartUpload("--", object, nil)
+	opts := ObjectOptions{}
+	_, err := obj.NewMultipartUpload(context.Background(), "--", object, nil, opts)
 	if err == nil {
 		t.Fatalf("%s: Expected to fail since bucket name is invalid.", instanceType)
 	}
 
 	errMsg := "Bucket not found: minio-bucket"
 	// opearation expected to fail since the bucket on which NewMultipartUpload is being initiated doesn't exist.
-	_, err = obj.NewMultipartUpload(bucket, object, nil)
+	_, err = obj.NewMultipartUpload(context.Background(), bucket, object, nil, opts)
 	if err == nil {
 		t.Fatalf("%s: Expected to fail since the NewMultipartUpload is intialized on a non-existent bucket.", instanceType)
 	}
@@ -53,23 +57,23 @@ func testObjectNewMultipartUpload(obj ObjectLayer, instanceType string, t TestEr
 	}
 
 	// Create bucket before intiating NewMultipartUpload.
-	err = obj.MakeBucketWithLocation(bucket, "")
+	err = obj.MakeBucketWithLocation(context.Background(), bucket, "")
 	if err != nil {
 		// failed to create newbucket, abort.
 		t.Fatalf("%s : %s", instanceType, err.Error())
 	}
 
-	_, err = obj.NewMultipartUpload(bucket, "\\", nil)
+	_, err = obj.NewMultipartUpload(context.Background(), bucket, "\\", nil, opts)
 	if err == nil {
 		t.Fatalf("%s: Expected to fail since object name is invalid.", instanceType)
 	}
 
-	uploadID, err := obj.NewMultipartUpload(bucket, object, nil)
+	uploadID, err := obj.NewMultipartUpload(context.Background(), bucket, object, nil, opts)
 	if err != nil {
 		t.Fatalf("%s : %s", instanceType, err.Error())
 	}
 
-	err = obj.AbortMultipartUpload(bucket, object, uploadID)
+	err = obj.AbortMultipartUpload(context.Background(), bucket, object, uploadID)
 	if err != nil {
 		switch err.(type) {
 		case InvalidUploadID:
@@ -90,15 +94,15 @@ func testObjectAbortMultipartUpload(obj ObjectLayer, instanceType string, t Test
 
 	bucket := "minio-bucket"
 	object := "minio-object"
-
+	opts := ObjectOptions{}
 	// Create bucket before intiating NewMultipartUpload.
-	err := obj.MakeBucketWithLocation(bucket, "")
+	err := obj.MakeBucketWithLocation(context.Background(), bucket, "")
 	if err != nil {
 		// failed to create newbucket, abort.
 		t.Fatalf("%s : %s", instanceType, err.Error())
 	}
 
-	uploadID, err := obj.NewMultipartUpload(bucket, object, nil)
+	uploadID, err := obj.NewMultipartUpload(context.Background(), bucket, object, nil, opts)
 	if err != nil {
 		t.Fatalf("%s : %s", instanceType, err.Error())
 	}
@@ -109,7 +113,7 @@ func testObjectAbortMultipartUpload(obj ObjectLayer, instanceType string, t Test
 		uploadID        string
 		expectedErrType error
 	}{
-		{"--", object, uploadID, BucketNameInvalid{}},
+		{"--", object, uploadID, BucketNotFound{}},
 		{bucket, "\\", uploadID, ObjectNameInvalid{}},
 		{"foo", object, uploadID, BucketNotFound{}},
 		{bucket, object, "foo-foo", InvalidUploadID{}},
@@ -117,11 +121,11 @@ func testObjectAbortMultipartUpload(obj ObjectLayer, instanceType string, t Test
 	}
 	// Iterating over creatPartCases to generate multipart chunks.
 	for i, testCase := range abortTestCases {
-		err = obj.AbortMultipartUpload(testCase.bucketName, testCase.objName, testCase.uploadID)
+		err = obj.AbortMultipartUpload(context.Background(), testCase.bucketName, testCase.objName, testCase.uploadID)
 		if testCase.expectedErrType == nil && err != nil {
 			t.Errorf("Test %d, unexpected err is received: %v, expected:%v\n", i+1, err, testCase.expectedErrType)
 		}
-		if testCase.expectedErrType != nil && !isSameType(errorCause(err), testCase.expectedErrType) {
+		if testCase.expectedErrType != nil && !isSameType(err, testCase.expectedErrType) {
 			t.Errorf("Test %d, unexpected err is received: %v, expected:%v\n", i+1, err, testCase.expectedErrType)
 		}
 	}
@@ -138,19 +142,18 @@ func testObjectAPIIsUploadIDExists(obj ObjectLayer, instanceType string, t TestE
 	object := "minio-object"
 
 	// Create bucket before intiating NewMultipartUpload.
-	err := obj.MakeBucketWithLocation(bucket, "")
+	err := obj.MakeBucketWithLocation(context.Background(), bucket, "")
 	if err != nil {
 		// Failed to create newbucket, abort.
 		t.Fatalf("%s : %s", instanceType, err.Error())
 	}
 
-	_, err = obj.NewMultipartUpload(bucket, object, nil)
+	_, err = obj.NewMultipartUpload(context.Background(), bucket, object, nil, ObjectOptions{})
 	if err != nil {
 		t.Fatalf("%s : %s", instanceType, err.Error())
 	}
 
-	err = obj.AbortMultipartUpload(bucket, object, "abc")
-	err = errorCause(err)
+	err = obj.AbortMultipartUpload(context.Background(), bucket, object, "abc")
 	switch err.(type) {
 	case InvalidUploadID:
 	default:
@@ -174,14 +177,14 @@ func testPutObjectPartDiskNotFound(obj ObjectLayer, instanceType string, disks [
 	// objectNames[0].
 	// uploadIds [0].
 	// Create bucket before intiating NewMultipartUpload.
-	err := obj.MakeBucketWithLocation(bucketNames[0], "")
+	err := obj.MakeBucketWithLocation(context.Background(), bucketNames[0], "")
 	if err != nil {
 		// Failed to create newbucket, abort.
 		t.Fatalf("%s : %s", instanceType, err.Error())
 	}
 
 	// Initiate Multipart Upload on the above created bucket.
-	uploadID, err := obj.NewMultipartUpload(bucketNames[0], objectNames[0], nil)
+	uploadID, err := obj.NewMultipartUpload(context.Background(), bucketNames[0], objectNames[0], nil, ObjectOptions{})
 	if err != nil {
 		// Failed to create NewMultipartUpload, abort.
 		t.Fatalf("%s : %s", instanceType, err.Error())
@@ -218,7 +221,7 @@ func testPutObjectPartDiskNotFound(obj ObjectLayer, instanceType string, disks [
 	sha256sum := ""
 	// Iterating over creatPartCases to generate multipart chunks.
 	for _, testCase := range createPartCases {
-		_, err = obj.PutObjectPart(testCase.bucketName, testCase.objName, testCase.uploadID, testCase.PartID, NewHashReader(bytes.NewBufferString(testCase.inputReaderData), testCase.intputDataSize, testCase.inputMd5, sha256sum))
+		_, err = obj.PutObjectPart(context.Background(), testCase.bucketName, testCase.objName, testCase.uploadID, testCase.PartID, mustGetHashReader(t, bytes.NewBufferString(testCase.inputReaderData), testCase.intputDataSize, testCase.inputMd5, sha256sum), ObjectOptions{})
 		if err != nil {
 			t.Fatalf("%s : %s", instanceType, err.Error())
 		}
@@ -232,11 +235,12 @@ func testPutObjectPartDiskNotFound(obj ObjectLayer, instanceType string, disks [
 
 	// Object part upload should fail with quorum not available.
 	testCase := createPartCases[len(createPartCases)-1]
-	_, err = obj.PutObjectPart(testCase.bucketName, testCase.objName, testCase.uploadID, testCase.PartID, NewHashReader(bytes.NewBufferString(testCase.inputReaderData), testCase.intputDataSize, testCase.inputMd5, sha256sum))
+	_, err = obj.PutObjectPart(context.Background(), testCase.bucketName, testCase.objName, testCase.uploadID, testCase.PartID, mustGetHashReader(t, bytes.NewBufferString(testCase.inputReaderData), testCase.intputDataSize, testCase.inputMd5, sha256sum), ObjectOptions{})
 	if err == nil {
 		t.Fatalf("Test %s: expected to fail but passed instead", instanceType)
 	}
-	expectedErr := InsufficientWriteQuorum{}
+	// as majority of xl.json are not available, we expect InsufficientReadQuorum while trying to fetch the object quorum
+	expectedErr := InsufficientReadQuorum{}
 	if err.Error() != expectedErr.Error() {
 		t.Fatalf("Test %s: expected error %s, got %s instead.", instanceType, expectedErr, err)
 	}
@@ -252,21 +256,21 @@ func testObjectAPIPutObjectPart(obj ObjectLayer, instanceType string, t TestErrH
 	// Generating cases for which the PutObjectPart fails.
 	bucket := "minio-bucket"
 	object := "minio-object"
-
+	opts := ObjectOptions{}
 	// Create bucket before intiating NewMultipartUpload.
-	err := obj.MakeBucketWithLocation(bucket, "")
+	err := obj.MakeBucketWithLocation(context.Background(), bucket, "")
 	if err != nil {
 		// Failed to create newbucket, abort.
 		t.Fatalf("%s : %s", instanceType, err.Error())
 	}
 	// Initiate Multipart Upload on the above created bucket.
-	uploadID, err := obj.NewMultipartUpload(bucket, object, nil)
+	uploadID, err := obj.NewMultipartUpload(context.Background(), bucket, object, nil, opts)
 	if err != nil {
 		// Failed to create NewMultipartUpload, abort.
 		t.Fatalf("%s : %s", instanceType, err.Error())
 	}
 	// Creating a dummy bucket for tests.
-	err = obj.MakeBucketWithLocation("unused-bucket", "")
+	err = obj.MakeBucketWithLocation(context.Background(), "unused-bucket", "")
 	if err != nil {
 		// Failed to create newbucket, abort.
 		t.Fatalf("%s : %s", instanceType, err.Error())
@@ -291,11 +295,11 @@ func testObjectAPIPutObjectPart(obj ObjectLayer, instanceType string, t TestErrH
 	}{
 		// Test case  1-4.
 		// Cases with invalid bucket name.
-		{".test", "obj", "", 1, "", "", "", 0, false, "", fmt.Errorf("%s", "Bucket name invalid: .test")},
-		{"------", "obj", "", 1, "", "", "", 0, false, "", fmt.Errorf("%s", "Bucket name invalid: ------")},
+		{".test", "obj", "", 1, "", "", "", 0, false, "", fmt.Errorf("%s", "Bucket not found: .test")},
+		{"------", "obj", "", 1, "", "", "", 0, false, "", fmt.Errorf("%s", "Bucket not found: ------")},
 		{"$this-is-not-valid-too", "obj", "", 1, "", "", "", 0, false, "",
-			fmt.Errorf("%s", "Bucket name invalid: $this-is-not-valid-too")},
-		{"a", "obj", "", 1, "", "", "", 0, false, "", fmt.Errorf("%s", "Bucket name invalid: a")},
+			fmt.Errorf("%s", "Bucket not found: $this-is-not-valid-too")},
+		{"a", "obj", "", 1, "", "", "", 0, false, "", fmt.Errorf("%s", "Bucket not found: a")},
 		// Test case - 5.
 		// Case with invalid object names.
 		{bucket, "", "", 1, "", "", "", 0, false, "", fmt.Errorf("%s", "Object name invalid: minio-bucket#")},
@@ -324,18 +328,21 @@ func testObjectAPIPutObjectPart(obj ObjectLayer, instanceType string, t TestErrH
 		{bucket, "none-object", uploadID, 1, "", "", "", 0, false, "", fmt.Errorf("%s", "Invalid upload id "+uploadID)},
 		// Test case - 12.
 		// Input to replicate Md5 mismatch.
-		{bucket, object, uploadID, 1, "", "a35", "", 0, false, "",
-			fmt.Errorf("%s", "Bad digest: Expected a35 is not valid with what we calculated "+"d41d8cd98f00b204e9800998ecf8427e")},
+		{bucket, object, uploadID, 1, "", "d41d8cd98f00b204e9800998ecf8427f", "", 0, false, "",
+			hash.BadDigest{"d41d8cd98f00b204e9800998ecf8427f", "d41d8cd98f00b204e9800998ecf8427e"}},
 		// Test case - 13.
 		// When incorrect sha256 is provided.
-		{bucket, object, uploadID, 1, "", "", "incorrect-sha256", 0, false, "", SHA256Mismatch{}},
+		{bucket, object, uploadID, 1, "", "", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b854", 0, false, "",
+			hash.SHA256Mismatch{"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b854",
+				"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}},
 		// Test case - 14.
 		// Input with size more than the size of actual data inside the reader.
-		{bucket, object, uploadID, 1, "abcd", "a35", "", int64(len("abcd") + 1), false, "", IncompleteBody{}},
+		{bucket, object, uploadID, 1, "abcd", "e2fc714c4727ee9395f324cd2e7f3335", "", int64(len("abcd") + 1), false, "",
+			hash.BadDigest{"e2fc714c4727ee9395f324cd2e7f3335", "e2fc714c4727ee9395f324cd2e7f331f"}},
 		// Test case - 15.
 		// Input with size less than the size of actual data inside the reader.
-		{bucket, object, uploadID, 1, "abcd", "a35", "", int64(len("abcd") - 1), false, "",
-			fmt.Errorf("%s", "Bad digest: Expected a35 is not valid with what we calculated 900150983cd24fb0d6963f7d28e17f72")},
+		{bucket, object, uploadID, 1, "abcd", "900150983cd24fb0d6963f7d28e17f73", "", int64(len("abcd") - 1), false, "",
+			hash.BadDigest{"900150983cd24fb0d6963f7d28e17f73", "900150983cd24fb0d6963f7d28e17f72"}},
 
 		// Test case - 16-19.
 		// Validating for success cases.
@@ -347,7 +354,7 @@ func testObjectAPIPutObjectPart(obj ObjectLayer, instanceType string, t TestErrH
 
 	// Validate all the test cases.
 	for i, testCase := range testCases {
-		actualInfo, actualErr := obj.PutObjectPart(testCase.bucketName, testCase.objName, testCase.uploadID, testCase.PartID, NewHashReader(bytes.NewBufferString(testCase.inputReaderData), testCase.intputDataSize, testCase.inputMd5, testCase.inputSHA256))
+		actualInfo, actualErr := obj.PutObjectPart(context.Background(), testCase.bucketName, testCase.objName, testCase.uploadID, testCase.PartID, mustGetHashReader(t, bytes.NewBufferString(testCase.inputReaderData), testCase.intputDataSize, testCase.inputMd5, testCase.inputSHA256), opts)
 		// All are test cases above are expected to fail.
 		if actualErr != nil && testCase.shouldPass {
 			t.Errorf("Test %d: %s: Expected to pass, but failed with: <ERROR> %s.", i+1, instanceType, actualErr.Error())
@@ -382,18 +389,18 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 	bucketNames := []string{"minio-bucket", "minio-2-bucket", "minio-3-bucket"}
 	objectNames := []string{"minio-object-1.txt", "minio-object.txt", "neymar-1.jpeg", "neymar.jpeg", "parrot-1.png", "parrot.png"}
 	uploadIDs := []string{}
-
+	opts := ObjectOptions{}
 	// bucketnames[0].
 	// objectNames[0].
 	// uploadIds [0].
 	// Create bucket before initiating NewMultipartUpload.
-	err := obj.MakeBucketWithLocation(bucketNames[0], "")
+	err := obj.MakeBucketWithLocation(context.Background(), bucketNames[0], "")
 	if err != nil {
 		// Failed to create newbucket, abort.
 		t.Fatalf("%s : %s", instanceType, err.Error())
 	}
 	// Initiate Multipart Upload on the above created bucket.
-	uploadID, err := obj.NewMultipartUpload(bucketNames[0], objectNames[0], nil)
+	uploadID, err := obj.NewMultipartUpload(context.Background(), bucketNames[0], objectNames[0], nil, opts)
 	if err != nil {
 		// Failed to create NewMultipartUpload, abort.
 		t.Fatalf("%s : %s", instanceType, err.Error())
@@ -405,7 +412,7 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 	// objectNames[0].
 	// uploadIds [1-3].
 	// Bucket to test for mutiple upload Id's for a given object.
-	err = obj.MakeBucketWithLocation(bucketNames[1], "")
+	err = obj.MakeBucketWithLocation(context.Background(), bucketNames[1], "")
 	if err != nil {
 		// Failed to create newbucket, abort.
 		t.Fatalf("%s : %s", instanceType, err.Error())
@@ -413,7 +420,7 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 	for i := 0; i < 3; i++ {
 		// Initiate Multipart Upload on bucketNames[1] for the same object 3 times.
 		//  Used to test the listing for the case of multiple uploadID's for a given object.
-		uploadID, err = obj.NewMultipartUpload(bucketNames[1], objectNames[0], nil)
+		uploadID, err = obj.NewMultipartUpload(context.Background(), bucketNames[1], objectNames[0], nil, opts)
 		if err != nil {
 			// Failed to create NewMultipartUpload, abort.
 			t.Fatalf("%s : %s", instanceType, err.Error())
@@ -426,7 +433,7 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 	// bucketnames[2].
 	// objectNames[0-2].
 	// uploadIds [4-9].
-	err = obj.MakeBucketWithLocation(bucketNames[2], "")
+	err = obj.MakeBucketWithLocation(context.Background(), bucketNames[2], "")
 	if err != nil {
 		// Failed to create newbucket, abort.
 		t.Fatalf("%s : %s", instanceType, err.Error())
@@ -435,7 +442,7 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 	//  Used to test the listing for the case of multiple objects for a given bucket.
 	for i := 0; i < 6; i++ {
 		var uploadID string
-		uploadID, err = obj.NewMultipartUpload(bucketNames[2], objectNames[i], nil)
+		uploadID, err = obj.NewMultipartUpload(context.Background(), bucketNames[2], objectNames[i], nil, opts)
 		if err != nil {
 			// Failed to create NewMultipartUpload, abort.
 			t.Fatalf("%s : %s", instanceType, err.Error())
@@ -481,7 +488,7 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 	sha256sum := ""
 	// Iterating over creatPartCases to generate multipart chunks.
 	for _, testCase := range createPartCases {
-		_, err := obj.PutObjectPart(testCase.bucketName, testCase.objName, testCase.uploadID, testCase.PartID, NewHashReader(bytes.NewBufferString(testCase.inputReaderData), testCase.intputDataSize, testCase.inputMd5, sha256sum))
+		_, err := obj.PutObjectPart(context.Background(), testCase.bucketName, testCase.objName, testCase.uploadID, testCase.PartID, mustGetHashReader(t, bytes.NewBufferString(testCase.inputReaderData), testCase.intputDataSize, testCase.inputMd5, sha256sum), opts)
 		if err != nil {
 			t.Fatalf("%s : %s", instanceType, err.Error())
 		}
@@ -495,7 +502,7 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 		// ListMultipartUploads doesn't list the parts.
 		{
 			MaxUploads: 100,
-			Uploads: []uploadMetadata{
+			Uploads: []MultipartInfo{
 				{
 					Object:   objectNames[0],
 					UploadID: uploadIDs[0],
@@ -511,7 +518,7 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 			KeyMarker:  "minio-object-1.txt",
 		},
 		// listMultipartResults - 3.
-		// `KeyMarker` is set, no uploadMetadata expected.
+		// `KeyMarker` is set, no MultipartInfo expected.
 		// ListMultipartUploads doesn't list the parts.
 		// `Maxupload` value is asserted.
 		{
@@ -519,7 +526,7 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 			KeyMarker:  "orange",
 		},
 		// listMultipartResults - 4.
-		// `KeyMarker` is set, no uploadMetadata expected.
+		// `KeyMarker` is set, no MultipartInfo expected.
 		// Maxupload value is asserted.
 		{
 			MaxUploads: 1,
@@ -527,12 +534,12 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 		},
 		// listMultipartResults - 5.
 		// `KeyMarker` is set. It contains part of the objectname as `KeyPrefix`.
-		// Expecting the result to contain one uploadMetadata entry and Istruncated to be false.
+		// Expecting the result to contain one MultipartInfo entry and Istruncated to be false.
 		{
 			MaxUploads:  10,
 			KeyMarker:   "min",
 			IsTruncated: false,
-			Uploads: []uploadMetadata{
+			Uploads: []MultipartInfo{
 				{
 					Object:   objectNames[0],
 					UploadID: uploadIDs[0],
@@ -542,12 +549,12 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 		// listMultipartResults - 6.
 		// `KeyMarker` is set. It contains part of the objectname as `KeyPrefix`.
 		// `MaxUploads` is set equal to the number of meta data entries in the result, the result contains only one entry.
-		// Expecting the result to contain one uploadMetadata entry and IsTruncated to be false.
+		// Expecting the result to contain one MultipartInfo entry and IsTruncated to be false.
 		{
 			MaxUploads:  1,
 			KeyMarker:   "min",
 			IsTruncated: false,
-			Uploads: []uploadMetadata{
+			Uploads: []MultipartInfo{
 				{
 					Object:   objectNames[0],
 					UploadID: uploadIDs[0],
@@ -557,7 +564,7 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 		// listMultipartResults - 7.
 		// `KeyMarker` is set. It contains part of the objectname as `KeyPrefix`.
 		// Testing for the case with `MaxUploads` set to 0.
-		// Expecting the result to contain no uploadMetadata entry since `MaxUploads` is set to 0.
+		// Expecting the result to contain no MultipartInfo entry since `MaxUploads` is set to 0.
 		// Expecting `IsTruncated` to be true.
 		{
 			MaxUploads:  0,
@@ -567,7 +574,7 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 		// listMultipartResults - 8.
 		// `KeyMarker` is set. It contains part of the objectname as KeyPrefix.
 		// Testing for the case with `MaxUploads` set to 0.
-		// Expecting the result to contain no uploadMetadata entry since `MaxUploads` is set to 0.
+		// Expecting the result to contain no MultipartInfo entry since `MaxUploads` is set to 0.
 		// Expecting `isTruncated` to be true.
 		{
 			MaxUploads:  0,
@@ -577,12 +584,12 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 		// listMultipartResults - 9.
 		// `KeyMarker` is set. It contains part of the objectname as KeyPrefix.
 		// `KeyMarker` is set equal to the object name in the result.
-		// Expecting the result to contain one uploadMetadata entry and IsTruncated to be false.
+		// Expecting the result to contain one MultipartInfo entry and IsTruncated to be false.
 		{
 			MaxUploads:  2,
 			KeyMarker:   "minio-object",
 			IsTruncated: false,
-			Uploads: []uploadMetadata{
+			Uploads: []MultipartInfo{
 				{
 					Object:   objectNames[0],
 					UploadID: uploadIDs[0],
@@ -592,12 +599,12 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 		// listMultipartResults - 10.
 		// Prefix is set. It is set equal to the object name.
 		// MaxUploads is set more than number of meta data entries in the result.
-		// Expecting the result to contain one uploadMetadata entry and IsTruncated to be false.
+		// Expecting the result to contain one MultipartInfo entry and IsTruncated to be false.
 		{
 			MaxUploads:  2,
 			Prefix:      "minio-object-1.txt",
 			IsTruncated: false,
-			Uploads: []uploadMetadata{
+			Uploads: []MultipartInfo{
 				{
 					Object:   objectNames[0],
 					UploadID: uploadIDs[0],
@@ -607,12 +614,12 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 		// listMultipartResults - 11.
 		// Setting `Prefix` to contain the object name as its prefix.
 		// MaxUploads is set more than number of meta data entries in the result.
-		// Expecting the result to contain one uploadMetadata entry and IsTruncated to be false.
+		// Expecting the result to contain one MultipartInfo entry and IsTruncated to be false.
 		{
 			MaxUploads:  2,
 			Prefix:      "min",
 			IsTruncated: false,
-			Uploads: []uploadMetadata{
+			Uploads: []MultipartInfo{
 				{
 					Object:   objectNames[0],
 					UploadID: uploadIDs[0],
@@ -622,12 +629,12 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 		// listMultipartResults - 12.
 		// Setting `Prefix` to contain the object name as its prefix.
 		// MaxUploads is set equal to number of meta data entries in the result.
-		// Expecting the result to contain one uploadMetadata entry and IsTruncated to be false.
+		// Expecting the result to contain one MultipartInfo entry and IsTruncated to be false.
 		{
 			MaxUploads:  1,
 			Prefix:      "min",
 			IsTruncated: false,
-			Uploads: []uploadMetadata{
+			Uploads: []MultipartInfo{
 				{
 					Object:   objectNames[0],
 					UploadID: uploadIDs[0],
@@ -655,13 +662,13 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 		// listMultipartResults - 15.
 		// Setting `Delimiter`.
 		// MaxUploads is set more than number of meta data entries in the result.
-		// Expecting the result to contain one uploadMetadata entry and IsTruncated to be false.
+		// Expecting the result to contain one MultipartInfo entry and IsTruncated to be false.
 		{
 			MaxUploads:  2,
 			Delimiter:   "/",
 			Prefix:      "",
 			IsTruncated: false,
-			Uploads: []uploadMetadata{
+			Uploads: []MultipartInfo{
 				{
 					Object:   objectNames[0],
 					UploadID: uploadIDs[0],
@@ -673,7 +680,7 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 		// Will be used to list on bucketNames[1].
 		{
 			MaxUploads: 100,
-			Uploads: []uploadMetadata{
+			Uploads: []MultipartInfo{
 				{
 					Object:   objectNames[0],
 					UploadID: uploadIDs[1],
@@ -699,7 +706,7 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 			KeyMarker:      "minio-object-1.txt",
 			UploadIDMarker: uploadIDs[1],
 			IsTruncated:    false,
-			Uploads: []uploadMetadata{
+			Uploads: []MultipartInfo{
 				{
 					Object:   objectNames[0],
 					UploadID: uploadIDs[2],
@@ -721,7 +728,7 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 			KeyMarker:      "minio-object-1.txt",
 			UploadIDMarker: uploadIDs[2],
 			IsTruncated:    false,
-			Uploads: []uploadMetadata{
+			Uploads: []MultipartInfo{
 				{
 					Object:   objectNames[0],
 					UploadID: uploadIDs[3],
@@ -730,7 +737,7 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 		},
 		// listMultipartResults - 19.
 		// Testing for listing of 3 uploadID's for a given object, setting maxKeys to be 2.
-		// There are 3 uploadMetadata in the result (uploadIDs[1-3]), it should be truncated to 2.
+		// There are 3 MultipartInfo in the result (uploadIDs[1-3]), it should be truncated to 2.
 		// Since there is only single object for bucketNames[1], the NextKeyMarker is set to its name.
 		// The last entry in the result, uploadIDs[2], that is should be set as NextUploadIDMarker.
 		// Will be used to list on bucketNames[1].
@@ -739,7 +746,7 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 			IsTruncated:        true,
 			NextKeyMarker:      objectNames[0],
 			NextUploadIDMarker: uploadIDs[2],
-			Uploads: []uploadMetadata{
+			Uploads: []MultipartInfo{
 				{
 					Object:   objectNames[0],
 					UploadID: uploadIDs[1],
@@ -752,7 +759,7 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 		},
 		// listMultipartResults - 20.
 		// Testing for listing of 3 uploadID's for a given object, setting maxKeys to be 1.
-		// There are 3 uploadMetadata in the result (uploadIDs[1-3]), it should be truncated to 1.
+		// There are 3 MultipartInfo in the result (uploadIDs[1-3]), it should be truncated to 1.
 		// The last entry in the result, uploadIDs[1], that is should be set as NextUploadIDMarker.
 		// Will be used to list on bucketNames[1].
 		{
@@ -760,7 +767,7 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 			IsTruncated:        true,
 			NextKeyMarker:      objectNames[0],
 			NextUploadIDMarker: uploadIDs[1],
-			Uploads: []uploadMetadata{
+			Uploads: []MultipartInfo{
 				{
 					Object:   objectNames[0],
 					UploadID: uploadIDs[1],
@@ -769,13 +776,13 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 		},
 		// listMultipartResults - 21.
 		// Testing for listing of 3 uploadID's for a given object, setting maxKeys to be 3.
-		// There are 3 uploadMetadata in the result (uploadIDs[1-3]), hence no truncation is expected.
-		// Since all the uploadMetadata is listed, expecting no values for NextUploadIDMarker and NextKeyMarker.
+		// There are 3 MultipartInfo in the result (uploadIDs[1-3]), hence no truncation is expected.
+		// Since all the MultipartInfo is listed, expecting no values for NextUploadIDMarker and NextKeyMarker.
 		// Will be used to list on bucketNames[1].
 		{
 			MaxUploads:  3,
 			IsTruncated: false,
-			Uploads: []uploadMetadata{
+			Uploads: []MultipartInfo{
 				{
 					Object:   objectNames[0],
 					UploadID: uploadIDs[1],
@@ -797,7 +804,7 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 			MaxUploads:  10,
 			IsTruncated: false,
 			Prefix:      "min",
-			Uploads: []uploadMetadata{
+			Uploads: []MultipartInfo{
 				{
 					Object:   objectNames[0],
 					UploadID: uploadIDs[1],
@@ -840,7 +847,7 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 			IsTruncated:    false,
 			Prefix:         "min",
 			UploadIDMarker: uploadIDs[1],
-			Uploads: []uploadMetadata{
+			Uploads: []MultipartInfo{
 				{
 					Object:   objectNames[0],
 					UploadID: uploadIDs[2],
@@ -859,7 +866,7 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 			MaxUploads:  100,
 			IsTruncated: false,
 
-			Uploads: []uploadMetadata{
+			Uploads: []MultipartInfo{
 				{
 					Object:   objectNames[0],
 					UploadID: uploadIDs[4],
@@ -892,7 +899,7 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 			MaxUploads:  100,
 			IsTruncated: false,
 			Prefix:      "min",
-			Uploads: []uploadMetadata{
+			Uploads: []MultipartInfo{
 				{
 					Object:   objectNames[0],
 					UploadID: uploadIDs[4],
@@ -909,7 +916,7 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 			MaxUploads:  100,
 			IsTruncated: false,
 			Prefix:      "ney",
-			Uploads: []uploadMetadata{
+			Uploads: []MultipartInfo{
 				{
 					Object:   objectNames[2],
 					UploadID: uploadIDs[6],
@@ -926,7 +933,7 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 			MaxUploads:  100,
 			IsTruncated: false,
 			Prefix:      "parrot",
-			Uploads: []uploadMetadata{
+			Uploads: []MultipartInfo{
 				{
 					Object:   objectNames[4],
 					UploadID: uploadIDs[8],
@@ -944,7 +951,7 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 			MaxUploads:  100,
 			IsTruncated: false,
 			Prefix:      "neymar.jpeg",
-			Uploads: []uploadMetadata{
+			Uploads: []MultipartInfo{
 				{
 					Object:   objectNames[3],
 					UploadID: uploadIDs[7],
@@ -961,7 +968,7 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 			IsTruncated:        true,
 			NextUploadIDMarker: uploadIDs[6],
 			NextKeyMarker:      objectNames[2],
-			Uploads: []uploadMetadata{
+			Uploads: []MultipartInfo{
 				{
 					Object:   objectNames[0],
 					UploadID: uploadIDs[4],
@@ -983,7 +990,7 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 		{
 			MaxUploads:  6,
 			IsTruncated: false,
-			Uploads: []uploadMetadata{
+			Uploads: []MultipartInfo{
 				{
 					Object:   objectNames[0],
 					UploadID: uploadIDs[4],
@@ -1016,7 +1023,7 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 			MaxUploads:     10,
 			IsTruncated:    false,
 			UploadIDMarker: uploadIDs[6],
-			Uploads: []uploadMetadata{
+			Uploads: []MultipartInfo{
 				{
 					Object:   objectNames[3],
 					UploadID: uploadIDs[7],
@@ -1037,7 +1044,7 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 			MaxUploads:  10,
 			IsTruncated: false,
 			KeyMarker:   objectNames[3],
-			Uploads: []uploadMetadata{
+			Uploads: []MultipartInfo{
 				{
 					Object:   objectNames[4],
 					UploadID: uploadIDs[8],
@@ -1050,7 +1057,7 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 		},
 		// listMultipartResults - 35.
 		// Checking listing with `Prefix` and `KeyMarker`.
-		// No upload uploadMetadata in the result expected since KeyMarker is set to last Key in the result.
+		// No upload MultipartInfo in the result expected since KeyMarker is set to last Key in the result.
 		{
 			MaxUploads:  10,
 			IsTruncated: false,
@@ -1064,7 +1071,7 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 			IsTruncated:    false,
 			Prefix:         "minio",
 			UploadIDMarker: uploadIDs[4],
-			Uploads: []uploadMetadata{
+			Uploads: []MultipartInfo{
 				{
 					Object:   objectNames[1],
 					UploadID: uploadIDs[5],
@@ -1098,10 +1105,10 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 		shouldPass bool
 	}{
 		// Test cases with invalid bucket names ( Test number 1-4 ).
-		{".test", "", "", "", "", 0, ListMultipartsInfo{}, BucketNameInvalid{Bucket: ".test"}, false},
-		{"Test", "", "", "", "", 0, ListMultipartsInfo{}, BucketNameInvalid{Bucket: "Test"}, false},
-		{"---", "", "", "", "", 0, ListMultipartsInfo{}, BucketNameInvalid{Bucket: "---"}, false},
-		{"ad", "", "", "", "", 0, ListMultipartsInfo{}, BucketNameInvalid{Bucket: "ad"}, false},
+		{".test", "", "", "", "", 0, ListMultipartsInfo{}, BucketNotFound{Bucket: ".test"}, false},
+		{"Test", "", "", "", "", 0, ListMultipartsInfo{}, BucketNotFound{Bucket: "Test"}, false},
+		{"---", "", "", "", "", 0, ListMultipartsInfo{}, BucketNotFound{Bucket: "---"}, false},
+		{"ad", "", "", "", "", 0, ListMultipartsInfo{}, BucketNotFound{Bucket: "ad"}, false},
 		// Valid bucket names, but they donot exist (Test number 5-7).
 		{"volatile-bucket-1", "", "", "", "", 0, ListMultipartsInfo{}, BucketNotFound{Bucket: "volatile-bucket-1"}, false},
 		{"volatile-bucket-2", "", "", "", "", 0, ListMultipartsInfo{}, BucketNotFound{Bucket: "volatile-bucket-2"}, false},
@@ -1156,11 +1163,11 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 		{bucketNames[1], "", "minio-object-1.txt", uploadIDs[1], "", 100, listMultipartResults[16], nil, true},
 		{bucketNames[1], "", "minio-object-1.txt", uploadIDs[2], "", 100, listMultipartResults[17], nil, true},
 		// Test cases with multiple uploadID listing for a given object (Test number 31-32).
-		// MaxKeys set to values lesser than the number of entries in the uploadMetadata.
+		// MaxKeys set to values lesser than the number of entries in the MultipartInfo.
 		// IsTruncated is expected to be true.
 		{bucketNames[1], "", "", "", "", 2, listMultipartResults[18], nil, true},
 		{bucketNames[1], "", "", "", "", 1, listMultipartResults[19], nil, true},
-		// MaxKeys set to the value which is equal to no of entries in the uploadMetadata (Test number 33).
+		// MaxKeys set to the value which is equal to no of entries in the MultipartInfo (Test number 33).
 		// In case of bucketNames[1], there are 3 entries.
 		// Since all available entries are listed, IsTruncated is expected to be false
 		// and NextMarkers are expected to empty.
@@ -1209,7 +1216,7 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 
 	for i, testCase := range testCases {
 		// fmt.Println(i+1, testCase) // uncomment to peek into the test cases.
-		actualResult, actualErr := obj.ListMultipartUploads(testCase.bucket, testCase.prefix, testCase.keyMarker, testCase.uploadIDMarker, testCase.delimiter, testCase.maxUploads)
+		actualResult, actualErr := obj.ListMultipartUploads(context.Background(), testCase.bucket, testCase.prefix, testCase.keyMarker, testCase.uploadIDMarker, testCase.delimiter, testCase.maxUploads)
 		if actualErr != nil && testCase.shouldPass {
 			t.Errorf("Test %d: %s: Expected to pass, but failed with: <ERROR> %s", i+1, instanceType, actualErr.Error())
 		}
@@ -1241,41 +1248,6 @@ func testListMultipartUploads(obj ObjectLayer, instanceType string, t TestErrHan
 			if actualResult.KeyMarker != expectedResult.KeyMarker {
 				t.Errorf("Test %d: %s: Expected keyMarker to be \"%s\", but instead found it to be \"%s\"", i+1, instanceType, expectedResult.KeyMarker, actualResult.KeyMarker)
 			}
-
-			// ListMultipartUploads returns empty respsonse always in FS mode
-			if instanceType != FSTestStr {
-				// Asserting IsTruncated.
-				if actualResult.IsTruncated != testCase.expectedResult.IsTruncated {
-					t.Errorf("Test %d: %s: Expected Istruncated to be \"%v\", but found it to \"%v\"", i+1, instanceType, expectedResult.IsTruncated, actualResult.IsTruncated)
-					continue
-				}
-				// Asserting NextUploadIDMarker.
-				if actualResult.NextUploadIDMarker != expectedResult.NextUploadIDMarker {
-					t.Errorf("Test %d: %s: Expected NextUploadIDMarker to be \"%s\", but instead found it to be \"%s\"", i+1, instanceType, expectedResult.NextUploadIDMarker, actualResult.NextUploadIDMarker)
-					continue
-				}
-				// Asserting NextKeyMarker.
-				if actualResult.NextKeyMarker != expectedResult.NextKeyMarker {
-					t.Errorf("Test %d: %s: Expected NextKeyMarker to be \"%s\", but instead found it to be \"%s\"", i+1, instanceType, expectedResult.NextKeyMarker, actualResult.NextKeyMarker)
-					continue
-				}
-				// Asserting the number of upload Metadata info.
-				if len(expectedResult.Uploads) != len(actualResult.Uploads) {
-					t.Errorf("Test %d: %s: Expected the result to contain info of %d Multipart Uploads, but found %d instead", i+1, instanceType, len(expectedResult.Uploads), len(actualResult.Uploads))
-					continue
-				}
-				// Iterating over the uploads Metadata and asserting the fields.
-				for j, actualMetaData := range actualResult.Uploads {
-					//  Asserting the object name in the upload Metadata.
-					if actualMetaData.Object != expectedResult.Uploads[j].Object {
-						t.Errorf("Test %d: %s: Metadata %d: Expected Metadata Object to be \"%s\", but instead found \"%s\"", i+1, instanceType, j+1, expectedResult.Uploads[j].Object, actualMetaData.Object)
-					}
-					//  Asserting the uploadID in the upload Metadata.
-					if actualMetaData.UploadID != expectedResult.Uploads[j].UploadID {
-						t.Errorf("Test %d: %s: Metadata %d: Expected Metadata UploadID to be \"%s\", but instead found \"%s\"", i+1, instanceType, j+1, expectedResult.Uploads[j].UploadID, actualMetaData.UploadID)
-					}
-				}
-			}
 		}
 	}
 }
@@ -1296,13 +1268,14 @@ func testListObjectPartsDiskNotFound(obj ObjectLayer, instanceType string, disks
 	// objectNames[0].
 	// uploadIds [0].
 	// Create bucket before intiating NewMultipartUpload.
-	err := obj.MakeBucketWithLocation(bucketNames[0], "")
+	err := obj.MakeBucketWithLocation(context.Background(), bucketNames[0], "")
 	if err != nil {
 		// Failed to create newbucket, abort.
 		t.Fatalf("%s : %s", instanceType, err.Error())
 	}
+	opts := ObjectOptions{}
 	// Initiate Multipart Upload on the above created bucket.
-	uploadID, err := obj.NewMultipartUpload(bucketNames[0], objectNames[0], nil)
+	uploadID, err := obj.NewMultipartUpload(context.Background(), bucketNames[0], objectNames[0], nil, opts)
 	if err != nil {
 		// Failed to create NewMultipartUpload, abort.
 		t.Fatalf("%s : %s", instanceType, err.Error())
@@ -1336,7 +1309,7 @@ func testListObjectPartsDiskNotFound(obj ObjectLayer, instanceType string, disks
 	sha256sum := ""
 	// Iterating over creatPartCases to generate multipart chunks.
 	for _, testCase := range createPartCases {
-		_, err := obj.PutObjectPart(testCase.bucketName, testCase.objName, testCase.uploadID, testCase.PartID, NewHashReader(bytes.NewBufferString(testCase.inputReaderData), testCase.intputDataSize, testCase.inputMd5, sha256sum))
+		_, err := obj.PutObjectPart(context.Background(), testCase.bucketName, testCase.objName, testCase.uploadID, testCase.PartID, mustGetHashReader(t, bytes.NewBufferString(testCase.inputReaderData), testCase.intputDataSize, testCase.inputMd5, sha256sum), opts)
 		if err != nil {
 			t.Fatalf("%s : %s", instanceType, err.Error())
 		}
@@ -1403,11 +1376,12 @@ func testListObjectPartsDiskNotFound(obj ObjectLayer, instanceType string, disks
 		},
 		// partinfos - 2.
 		{
-			Bucket:      bucketNames[0],
-			Object:      objectNames[0],
-			MaxParts:    2,
-			IsTruncated: false,
-			UploadID:    uploadIDs[0],
+			Bucket:           bucketNames[0],
+			Object:           objectNames[0],
+			MaxParts:         2,
+			IsTruncated:      false,
+			UploadID:         uploadIDs[0],
+			PartNumberMarker: 3,
 			Parts: []PartInfo{
 				{
 					PartNumber: 4,
@@ -1433,10 +1407,10 @@ func testListObjectPartsDiskNotFound(obj ObjectLayer, instanceType string, disks
 		shouldPass bool
 	}{
 		// Test cases with invalid bucket names (Test number 1-4).
-		{".test", "", "", 0, 0, ListPartsInfo{}, BucketNameInvalid{Bucket: ".test"}, false},
-		{"Test", "", "", 0, 0, ListPartsInfo{}, BucketNameInvalid{Bucket: "Test"}, false},
-		{"---", "", "", 0, 0, ListPartsInfo{}, BucketNameInvalid{Bucket: "---"}, false},
-		{"ad", "", "", 0, 0, ListPartsInfo{}, BucketNameInvalid{Bucket: "ad"}, false},
+		{".test", "", "", 0, 0, ListPartsInfo{}, BucketNotFound{Bucket: ".test"}, false},
+		{"Test", "", "", 0, 0, ListPartsInfo{}, BucketNotFound{Bucket: "Test"}, false},
+		{"---", "", "", 0, 0, ListPartsInfo{}, BucketNotFound{Bucket: "---"}, false},
+		{"ad", "", "", 0, 0, ListPartsInfo{}, BucketNotFound{Bucket: "ad"}, false},
 		// Test cases for listing uploadID with single part.
 		// Valid bucket names, but they donot exist (Test number 5-7).
 		{"volatile-bucket-1", "", "", 0, 0, ListPartsInfo{}, BucketNotFound{Bucket: "volatile-bucket-1"}, false},
@@ -1455,7 +1429,7 @@ func testListObjectPartsDiskNotFound(obj ObjectLayer, instanceType string, disks
 	}
 
 	for i, testCase := range testCases {
-		actualResult, actualErr := obj.ListObjectParts(testCase.bucket, testCase.object, testCase.uploadID, testCase.partNumberMarker, testCase.maxParts)
+		actualResult, actualErr := obj.ListObjectParts(context.Background(), testCase.bucket, testCase.object, testCase.uploadID, testCase.partNumberMarker, testCase.maxParts)
 		if actualErr != nil && testCase.shouldPass {
 			t.Errorf("Test %d: %s: Expected to pass, but failed with: <ERROR> %s", i+1, instanceType, actualErr.Error())
 		}
@@ -1534,18 +1508,18 @@ func testListObjectParts(obj ObjectLayer, instanceType string, t TestErrHandler)
 	bucketNames := []string{"minio-bucket", "minio-2-bucket"}
 	objectNames := []string{"minio-object-1.txt"}
 	uploadIDs := []string{}
-
+	opts := ObjectOptions{}
 	// bucketnames[0].
 	// objectNames[0].
 	// uploadIds [0].
 	// Create bucket before intiating NewMultipartUpload.
-	err := obj.MakeBucketWithLocation(bucketNames[0], "")
+	err := obj.MakeBucketWithLocation(context.Background(), bucketNames[0], "")
 	if err != nil {
 		// Failed to create newbucket, abort.
 		t.Fatalf("%s : %s", instanceType, err.Error())
 	}
 	// Initiate Multipart Upload on the above created bucket.
-	uploadID, err := obj.NewMultipartUpload(bucketNames[0], objectNames[0], nil)
+	uploadID, err := obj.NewMultipartUpload(context.Background(), bucketNames[0], objectNames[0], nil, opts)
 	if err != nil {
 		// Failed to create NewMultipartUpload, abort.
 		t.Fatalf("%s : %s", instanceType, err.Error())
@@ -1576,7 +1550,7 @@ func testListObjectParts(obj ObjectLayer, instanceType string, t TestErrHandler)
 	sha256sum := ""
 	// Iterating over creatPartCases to generate multipart chunks.
 	for _, testCase := range createPartCases {
-		_, err := obj.PutObjectPart(testCase.bucketName, testCase.objName, testCase.uploadID, testCase.PartID, NewHashReader(bytes.NewBufferString(testCase.inputReaderData), testCase.intputDataSize, testCase.inputMd5, sha256sum))
+		_, err := obj.PutObjectPart(context.Background(), testCase.bucketName, testCase.objName, testCase.uploadID, testCase.PartID, mustGetHashReader(t, bytes.NewBufferString(testCase.inputReaderData), testCase.intputDataSize, testCase.inputMd5, sha256sum), opts)
 		if err != nil {
 			t.Fatalf("%s : %s", instanceType, err.Error())
 		}
@@ -1640,11 +1614,12 @@ func testListObjectParts(obj ObjectLayer, instanceType string, t TestErrHandler)
 		},
 		// partinfos - 2.
 		{
-			Bucket:      bucketNames[0],
-			Object:      objectNames[0],
-			MaxParts:    2,
-			IsTruncated: false,
-			UploadID:    uploadIDs[0],
+			Bucket:           bucketNames[0],
+			Object:           objectNames[0],
+			MaxParts:         2,
+			IsTruncated:      false,
+			UploadID:         uploadIDs[0],
+			PartNumberMarker: 3,
 			Parts: []PartInfo{
 				{
 					PartNumber: 4,
@@ -1670,10 +1645,10 @@ func testListObjectParts(obj ObjectLayer, instanceType string, t TestErrHandler)
 		shouldPass bool
 	}{
 		// Test cases with invalid bucket names (Test number 1-4).
-		{".test", "", "", 0, 0, ListPartsInfo{}, BucketNameInvalid{Bucket: ".test"}, false},
-		{"Test", "", "", 0, 0, ListPartsInfo{}, BucketNameInvalid{Bucket: "Test"}, false},
-		{"---", "", "", 0, 0, ListPartsInfo{}, BucketNameInvalid{Bucket: "---"}, false},
-		{"ad", "", "", 0, 0, ListPartsInfo{}, BucketNameInvalid{Bucket: "ad"}, false},
+		{".test", "", "", 0, 0, ListPartsInfo{}, BucketNotFound{Bucket: ".test"}, false},
+		{"Test", "", "", 0, 0, ListPartsInfo{}, BucketNotFound{Bucket: "Test"}, false},
+		{"---", "", "", 0, 0, ListPartsInfo{}, BucketNotFound{Bucket: "---"}, false},
+		{"ad", "", "", 0, 0, ListPartsInfo{}, BucketNotFound{Bucket: "ad"}, false},
 		// Test cases for listing uploadID with single part.
 		// Valid bucket names, but they donot exist (Test number 5-7).
 		{"volatile-bucket-1", "", "", 0, 0, ListPartsInfo{}, BucketNotFound{Bucket: "volatile-bucket-1"}, false},
@@ -1692,7 +1667,7 @@ func testListObjectParts(obj ObjectLayer, instanceType string, t TestErrHandler)
 	}
 
 	for i, testCase := range testCases {
-		actualResult, actualErr := obj.ListObjectParts(testCase.bucket, testCase.object, testCase.uploadID, testCase.partNumberMarker, testCase.maxParts)
+		actualResult, actualErr := obj.ListObjectParts(context.Background(), testCase.bucket, testCase.object, testCase.uploadID, testCase.partNumberMarker, testCase.maxParts)
 		if actualErr != nil && testCase.shouldPass {
 			t.Errorf("Test %d: %s: Expected to pass, but failed with: <ERROR> %s", i+1, instanceType, actualErr.Error())
 		}
@@ -1784,13 +1759,14 @@ func testObjectCompleteMultipartUpload(obj ObjectLayer, instanceType string, t T
 	// objectNames[0].
 	// uploadIds [0].
 	// Create bucket before intiating NewMultipartUpload.
-	err = obj.MakeBucketWithLocation(bucketNames[0], "")
+	err = obj.MakeBucketWithLocation(context.Background(), bucketNames[0], "")
 	if err != nil {
 		// Failed to create newbucket, abort.
 		t.Fatalf("%s : %s", instanceType, err)
 	}
+	opts := ObjectOptions{}
 	// Initiate Multipart Upload on the above created bucket.
-	uploadID, err = obj.NewMultipartUpload(bucketNames[0], objectNames[0], map[string]string{"X-Amz-Meta-Id": "id"})
+	uploadID, err = obj.NewMultipartUpload(context.Background(), bucketNames[0], objectNames[0], map[string]string{"X-Amz-Meta-Id": "id"}, opts)
 	if err != nil {
 		// Failed to create NewMultipartUpload, abort.
 		t.Fatalf("%s : %s", instanceType, err)
@@ -1825,26 +1801,26 @@ func testObjectCompleteMultipartUpload(obj ObjectLayer, instanceType string, t T
 	sha256sum := ""
 	// Iterating over creatPartCases to generate multipart chunks.
 	for _, part := range parts {
-		_, err = obj.PutObjectPart(part.bucketName, part.objName, part.uploadID, part.PartID, NewHashReader(bytes.NewBufferString(part.inputReaderData), part.intputDataSize, part.inputMd5, sha256sum))
+		_, err = obj.PutObjectPart(context.Background(), part.bucketName, part.objName, part.uploadID, part.PartID, mustGetHashReader(t, bytes.NewBufferString(part.inputReaderData), part.intputDataSize, part.inputMd5, sha256sum), opts)
 		if err != nil {
 			t.Fatalf("%s : %s", instanceType, err)
 		}
 	}
 	// Parts to be sent as input for CompleteMultipartUpload.
 	inputParts := []struct {
-		parts []completePart
+		parts []CompletePart
 	}{
 		// inputParts - 0.
 		// Case for replicating ETag mismatch.
 		{
-			[]completePart{
+			[]CompletePart{
 				{ETag: "abcd", PartNumber: 1},
 			},
 		},
 		// inputParts - 1.
 		// should error out with part too small.
 		{
-			[]completePart{
+			[]CompletePart{
 				{ETag: "e2fc714c4727ee9395f324cd2e7f331f", PartNumber: 1},
 				{ETag: "1f7690ebdd9b4caf8fab49ca1757bf27", PartNumber: 2},
 			},
@@ -1852,7 +1828,7 @@ func testObjectCompleteMultipartUpload(obj ObjectLayer, instanceType string, t T
 		// inputParts - 2.
 		// Case with invalid Part number.
 		{
-			[]completePart{
+			[]CompletePart{
 				{ETag: "e2fc714c4727ee9395f324cd2e7f331f", PartNumber: 10},
 			},
 		},
@@ -1860,7 +1836,7 @@ func testObjectCompleteMultipartUpload(obj ObjectLayer, instanceType string, t T
 		// Case with valid part.
 		// Part size greater than 5MB.
 		{
-			[]completePart{
+			[]CompletePart{
 				{ETag: validPartMD5, PartNumber: 5},
 			},
 		},
@@ -1868,12 +1844,12 @@ func testObjectCompleteMultipartUpload(obj ObjectLayer, instanceType string, t T
 		// Used to verify that the other remaining parts are deleted after
 		// a successful call to CompleteMultipartUpload.
 		{
-			[]completePart{
+			[]CompletePart{
 				{ETag: validPartMD5, PartNumber: 6},
 			},
 		},
 	}
-	s3MD5, err := getCompleteMultipartMD5(inputParts[3].parts)
+	s3MD5, err := getCompleteMultipartMD5(context.Background(), inputParts[3].parts)
 	if err != nil {
 		t.Fatalf("Obtaining S3MD5 failed")
 	}
@@ -1883,7 +1859,7 @@ func testObjectCompleteMultipartUpload(obj ObjectLayer, instanceType string, t T
 		bucket   string
 		object   string
 		uploadID string
-		parts    []completePart
+		parts    []CompletePart
 		// Expected output of CompleteMultipartUpload.
 		expectedS3MD5 string
 		expectedErr   error
@@ -1891,28 +1867,28 @@ func testObjectCompleteMultipartUpload(obj ObjectLayer, instanceType string, t T
 		shouldPass bool
 	}{
 		// Test cases with invalid bucket names (Test number 1-4).
-		{".test", "", "", []completePart{}, "", BucketNameInvalid{Bucket: ".test"}, false},
-		{"Test", "", "", []completePart{}, "", BucketNameInvalid{Bucket: "Test"}, false},
-		{"---", "", "", []completePart{}, "", BucketNameInvalid{Bucket: "---"}, false},
-		{"ad", "", "", []completePart{}, "", BucketNameInvalid{Bucket: "ad"}, false},
+		{".test", "", "", []CompletePart{}, "", BucketNotFound{Bucket: ".test"}, false},
+		{"Test", "", "", []CompletePart{}, "", BucketNotFound{Bucket: "Test"}, false},
+		{"---", "", "", []CompletePart{}, "", BucketNotFound{Bucket: "---"}, false},
+		{"ad", "", "", []CompletePart{}, "", BucketNotFound{Bucket: "ad"}, false},
 		// Test cases for listing uploadID with single part.
 		// Valid bucket names, but they donot exist (Test number 5-7).
-		{"volatile-bucket-1", "", "", []completePart{}, "", BucketNotFound{Bucket: "volatile-bucket-1"}, false},
-		{"volatile-bucket-2", "", "", []completePart{}, "", BucketNotFound{Bucket: "volatile-bucket-2"}, false},
-		{"volatile-bucket-3", "", "", []completePart{}, "", BucketNotFound{Bucket: "volatile-bucket-3"}, false},
+		{"volatile-bucket-1", "", "", []CompletePart{}, "", BucketNotFound{Bucket: "volatile-bucket-1"}, false},
+		{"volatile-bucket-2", "", "", []CompletePart{}, "", BucketNotFound{Bucket: "volatile-bucket-2"}, false},
+		{"volatile-bucket-3", "", "", []CompletePart{}, "", BucketNotFound{Bucket: "volatile-bucket-3"}, false},
 		// Test case for Asserting for invalid objectName (Test number 8).
-		{bucketNames[0], "", "", []completePart{}, "", ObjectNameInvalid{Bucket: bucketNames[0]}, false},
+		{bucketNames[0], "", "", []CompletePart{}, "", ObjectNameInvalid{Bucket: bucketNames[0]}, false},
 		// Asserting for Invalid UploadID (Test number 9).
-		{bucketNames[0], objectNames[0], "abc", []completePart{}, "", InvalidUploadID{UploadID: "abc"}, false},
+		{bucketNames[0], objectNames[0], "abc", []CompletePart{}, "", InvalidUploadID{UploadID: "abc"}, false},
 		// Test case with invalid Part Etag (Test number 10-11).
-		{bucketNames[0], objectNames[0], uploadIDs[0], []completePart{{ETag: "abc"}}, "", fmt.Errorf("encoding/hex: odd length hex string"), false},
-		{bucketNames[0], objectNames[0], uploadIDs[0], []completePart{{ETag: "abcz"}}, "", fmt.Errorf("encoding/hex: invalid byte: U+007A 'z'"), false},
+		{bucketNames[0], objectNames[0], uploadIDs[0], []CompletePart{{ETag: "abc"}}, "", hex.ErrLength, false},
+		{bucketNames[0], objectNames[0], uploadIDs[0], []CompletePart{{ETag: "abcz"}}, "", hex.InvalidByteError(00), false},
 		// Part number 0 doesn't exist, expecting InvalidPart error (Test number 12).
-		{bucketNames[0], objectNames[0], uploadIDs[0], []completePart{{ETag: "abcd", PartNumber: 0}}, "", InvalidPart{}, false},
+		{bucketNames[0], objectNames[0], uploadIDs[0], []CompletePart{{ETag: "abcd", PartNumber: 0}}, "", InvalidPart{}, false},
 		// // Upload and PartNumber exists, But a deliberate ETag mismatch is introduced (Test number 13).
 		{bucketNames[0], objectNames[0], uploadIDs[0], inputParts[0].parts, "", InvalidPart{}, false},
 		// Test case with non existent object name (Test number 14).
-		{bucketNames[0], "my-object", uploadIDs[0], []completePart{{ETag: "abcd", PartNumber: 1}}, "", InvalidUploadID{UploadID: uploadIDs[0]}, false},
+		{bucketNames[0], "my-object", uploadIDs[0], []CompletePart{{ETag: "abcd", PartNumber: 1}}, "", InvalidUploadID{UploadID: uploadIDs[0]}, false},
 		// Testing for Part being too small (Test number 15).
 		{bucketNames[0], objectNames[0], uploadIDs[0], inputParts[1].parts, "", PartTooSmall{PartNumber: 1}, false},
 		// TestCase with invalid Part Number (Test number 16).
@@ -1920,7 +1896,7 @@ func testObjectCompleteMultipartUpload(obj ObjectLayer, instanceType string, t T
 		{bucketNames[0], objectNames[0], uploadIDs[0], inputParts[2].parts, "", InvalidPart{}, false},
 		// Test case with unsorted parts (Test number 17).
 		{bucketNames[0], objectNames[0], uploadIDs[0], inputParts[3].parts, s3MD5, nil, true},
-		// The other parts will be flushed after a successful completePart (Test number 18).
+		// The other parts will be flushed after a successful CompletePart (Test number 18).
 		// the case above successfully completes CompleteMultipartUpload, the remaining Parts will be flushed.
 		// Expecting to fail with Invalid UploadID.
 		{bucketNames[0], objectNames[0], uploadIDs[0], inputParts[4].parts, "", InvalidUploadID{UploadID: uploadIDs[0]}, false},
@@ -1928,7 +1904,7 @@ func testObjectCompleteMultipartUpload(obj ObjectLayer, instanceType string, t T
 	}
 
 	for i, testCase := range testCases {
-		actualResult, actualErr := obj.CompleteMultipartUpload(testCase.bucket, testCase.object, testCase.uploadID, testCase.parts)
+		actualResult, actualErr := obj.CompleteMultipartUpload(context.Background(), testCase.bucket, testCase.object, testCase.uploadID, testCase.parts)
 		if actualErr != nil && testCase.shouldPass {
 			t.Errorf("Test %d: %s: Expected to pass, but failed with: <ERROR> %s", i+1, instanceType, actualErr)
 		}
@@ -1937,7 +1913,7 @@ func testObjectCompleteMultipartUpload(obj ObjectLayer, instanceType string, t T
 		}
 		// Failed as expected, but does it fail for the expected reason.
 		if actualErr != nil && !testCase.shouldPass {
-			if !strings.Contains(actualErr.Error(), testCase.expectedErr.Error()) {
+			if reflect.TypeOf(actualErr) != reflect.TypeOf(testCase.expectedErr) {
 				t.Errorf("Test %d: %s: Expected to fail with error \"%s\", but instead failed with error \"%s\"", i+1, instanceType, testCase.expectedErr, actualErr)
 			}
 		}

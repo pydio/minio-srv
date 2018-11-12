@@ -19,7 +19,20 @@ package cmd
 import (
 	"strings"
 	"testing"
+
+	"github.com/minio/cli"
 )
+
+// Test RegisterGatewayCommand
+func TestRegisterGatewayCommand(t *testing.T) {
+	var err error
+
+	cmd := cli.Command{Name: "test"}
+	err = RegisterGatewayCommand(cmd)
+	if err != nil {
+		t.Errorf("RegisterGatewayCommand got unexpected error: %s", err)
+	}
+}
 
 // Test parseGatewayEndpoint
 func TestParseGatewayEndpoint(t *testing.T) {
@@ -39,7 +52,7 @@ func TestParseGatewayEndpoint(t *testing.T) {
 	}
 
 	for i, test := range testCases {
-		endPoint, secure, err := parseGatewayEndpoint(test.arg)
+		endPoint, secure, err := ParseGatewayEndpoint(test.arg)
 		errReturned := err != nil
 
 		if endPoint != test.endPoint ||
@@ -74,7 +87,7 @@ func TestValidateGatewayArguments(t *testing.T) {
 		{":9000", nonLoopBackIP + ":9000", false},
 	}
 	for i, test := range testCases {
-		err := validateGatewayArguments(test.serverAddr, test.endpointAddr)
+		err := ValidateGatewayArguments(test.serverAddr, test.endpointAddr)
 		if test.valid && err != nil {
 			t.Errorf("Test %d expected not to return error but got %s", i+1, err)
 		}

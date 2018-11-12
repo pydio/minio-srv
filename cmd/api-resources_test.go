@@ -18,7 +18,6 @@ package cmd
 
 import (
 	"net/url"
-	"strings"
 	"testing"
 )
 
@@ -30,6 +29,7 @@ func TestListObjectsV2Resources(t *testing.T) {
 		fetchOwner                           bool
 		maxKeys                              int
 		encodingType                         string
+		errCode                              APIErrorCode
 	}{
 		{
 			values: url.Values{
@@ -48,6 +48,7 @@ func TestListObjectsV2Resources(t *testing.T) {
 			fetchOwner:   true,
 			maxKeys:      100,
 			encodingType: "gzip",
+			errCode:      ErrNone,
 		},
 		{
 			values: url.Values{
@@ -65,11 +66,34 @@ func TestListObjectsV2Resources(t *testing.T) {
 			fetchOwner:   true,
 			maxKeys:      1000,
 			encodingType: "gzip",
+			errCode:      ErrNone,
+		},
+		{
+			values: url.Values{
+				"prefix":             []string{"photos/"},
+				"continuation-token": []string{""},
+				"start-after":        []string{"start-after"},
+				"delimiter":          []string{"/"},
+				"fetch-owner":        []string{"true"},
+				"encoding-type":      []string{"gzip"},
+			},
+			prefix:       "",
+			token:        "",
+			startAfter:   "",
+			delimiter:    "",
+			fetchOwner:   false,
+			maxKeys:      0,
+			encodingType: "",
+			errCode:      ErrIncorrectContinuationToken,
 		},
 	}
 
 	for i, testCase := range testCases {
-		prefix, token, startAfter, delimiter, fetchOwner, maxKeys, encodingType := getListObjectsV2Args(testCase.values)
+		prefix, token, startAfter, delimiter, fetchOwner, maxKeys, encodingType, errCode := getListObjectsV2Args(testCase.values)
+
+		if errCode != testCase.errCode {
+			t.Errorf("Test %d: Expected error code:%d, got %d", i+1, testCase.errCode, errCode)
+		}
 		if prefix != testCase.prefix {
 			t.Errorf("Test %d: Expected %s, got %s", i+1, testCase.prefix, prefix)
 		}
@@ -132,7 +156,10 @@ func TestListObjectsV1Resources(t *testing.T) {
 	}
 
 	for i, testCase := range testCases {
-		prefix, marker, delimiter, maxKeys, encodingType := getListObjectsV1Args(testCase.values)
+		prefix, marker, delimiter, maxKeys, encodingType, argsErr := getListObjectsV1Args(testCase.values)
+		if argsErr != ErrNone {
+			t.Errorf("Test %d: argument parsing failed, got %v", i+1, argsErr)
+		}
 		if prefix != testCase.prefix {
 			t.Errorf("Test %d: Expected %s, got %s", i+1, testCase.prefix, prefix)
 		}
@@ -174,7 +201,10 @@ func TestGetObjectsResources(t *testing.T) {
 	}
 
 	for i, testCase := range testCases {
-		uploadID, partNumberMarker, maxParts, encodingType := getObjectResources(testCase.values)
+		uploadID, partNumberMarker, maxParts, encodingType, argsErr := getObjectResources(testCase.values)
+		if argsErr != ErrNone {
+			t.Errorf("Test %d: argument parsing failed, got %v", i+1, argsErr)
+		}
 		if uploadID != testCase.uploadID {
 			t.Errorf("Test %d: Expected %s, got %s", i+1, testCase.uploadID, uploadID)
 		}
@@ -186,41 +216,6 @@ func TestGetObjectsResources(t *testing.T) {
 		}
 		if encodingType != testCase.encodingType {
 			t.Errorf("Test %d: Expected %s, got %s", i+1, testCase.encodingType, encodingType)
-		}
-	}
-}
-
-// Validates if filter values are correct
-func TestValidateFilterValues(t *testing.T) {
-	testCases := []struct {
-		values        []string
-		expectedError APIErrorCode
-	}{
-		{
-			values:        []string{""},
-			expectedError: ErrNone,
-		},
-		{
-			values:        []string{"", "prefix"},
-			expectedError: ErrNone,
-		},
-		{
-			values:        []string{strings.Repeat("a", 1025)},
-			expectedError: ErrFilterValueInvalid,
-		},
-		{
-			values:        []string{"a\\b"},
-			expectedError: ErrFilterValueInvalid,
-		},
-		{
-			values:        []string{string([]byte{0xff, 0xfe, 0xfd})},
-			expectedError: ErrFilterValueInvalid,
-		},
-	}
-
-	for i, testCase := range testCases {
-		if actualError := validateFilterValues(testCase.values); actualError != testCase.expectedError {
-			t.Errorf("Test %d: Expected %d, got %d", i+1, testCase.expectedError, actualError)
 		}
 	}
 }

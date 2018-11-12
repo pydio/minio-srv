@@ -18,7 +18,6 @@ package madmin
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -71,6 +70,8 @@ type AdminClient struct {
 const (
 	libraryName    = "madmin-go"
 	libraryVersion = "0.0.1"
+
+	libraryAdminURLPrefix = "/minio/admin"
 )
 
 // User Agent should always following the below style.
@@ -91,18 +92,6 @@ func New(endpoint string, accessKeyID, secretAccessKey string, secure bool) (*Ad
 	return clnt, nil
 }
 
-// redirectHeaders copies all headers when following a redirect URL.
-// This won't be needed anymore from go 1.8 (https://github.com/golang/go/issues/4800)
-func redirectHeaders(req *http.Request, via []*http.Request) error {
-	if len(via) == 0 {
-		return nil
-	}
-	for key, val := range via[0].Header {
-		req.Header[key] = val
-	}
-	return nil
-}
-
 func privateNew(endpoint, accessKeyID, secretAccessKey string, secure bool) (*AdminClient, error) {
 	// construct endpoint.
 	endpointURL, err := getEndpointURL(endpoint, secure)
@@ -120,8 +109,7 @@ func privateNew(endpoint, accessKeyID, secretAccessKey string, secure bool) (*Ad
 		endpointURL: *endpointURL,
 		// Instantiate http client and bucket location cache.
 		httpClient: &http.Client{
-			Transport:     http.DefaultTransport,
-			CheckRedirect: redirectHeaders,
+			Transport: http.DefaultTransport,
 		},
 	}
 
@@ -188,11 +176,8 @@ func (c *AdminClient) TraceOff() {
 type requestData struct {
 	customHeaders http.Header
 	queryValues   url.Values
-
-	contentBody        io.Reader
-	contentLength      int64
-	contentSHA256Bytes []byte
-	contentMD5Bytes    []byte
+	relPath       string // URL path relative to admin API base endpoint
+	content       []byte
 }
 
 // Filter out signature value from Authorization header.
@@ -397,11 +382,11 @@ func (c AdminClient) newRequest(method string, reqData requestData) (req *http.R
 		method = "POST"
 	}
 
-	// Default all requests to "us-east-1"
-	location := "us-east-1"
+	// Default all requests to ""
+	location := ""
 
 	// Construct a new target URL.
-	targetURL, err := c.makeTargetURL(reqData.queryValues)
+	targetURL, err := c.makeTargetURL(reqData)
 	if err != nil {
 		return nil, err
 	}
@@ -412,57 +397,31 @@ func (c AdminClient) newRequest(method string, reqData requestData) (req *http.R
 		return nil, err
 	}
 
-	// Set content body if available.
-	if reqData.contentBody != nil {
-		req.Body = ioutil.NopCloser(reqData.contentBody)
-	}
-
-	// Set 'User-Agent' header for the request.
 	c.setUserAgent(req)
-
-	// Set all headers.
 	for k, v := range reqData.customHeaders {
 		req.Header.Set(k, v[0])
 	}
-
-	// set incoming content-length.
-	if reqData.contentLength > 0 {
-		req.ContentLength = reqData.contentLength
+	if length := len(reqData.content); length > 0 {
+		req.ContentLength = int64(length)
 	}
+	req.Header.Set("X-Amz-Content-Sha256", hex.EncodeToString(sum256(reqData.content)))
+	req.Body = ioutil.NopCloser(bytes.NewReader(reqData.content))
 
-	shaHeader := unsignedPayload
-	if !c.secure {
-		if reqData.contentSHA256Bytes == nil {
-			shaHeader = hex.EncodeToString(sum256([]byte{}))
-		} else {
-			shaHeader = hex.EncodeToString(reqData.contentSHA256Bytes)
-		}
-	}
-	req.Header.Set("X-Amz-Content-Sha256", shaHeader)
-
-	// set md5Sum for content protection.
-	if reqData.contentMD5Bytes != nil {
-		req.Header.Set("Content-Md5", base64.StdEncoding.EncodeToString(reqData.contentMD5Bytes))
-	}
-
-	// Add signature version '4' authorization header.
 	req = s3signer.SignV4(*req, c.accessKeyID, c.secretAccessKey, "", location)
-
-	// Return request.
 	return req, nil
 }
 
 // makeTargetURL make a new target url.
-func (c AdminClient) makeTargetURL(queryValues url.Values) (*url.URL, error) {
+func (c AdminClient) makeTargetURL(r requestData) (*url.URL, error) {
 
 	host := c.endpointURL.Host
 	scheme := c.endpointURL.Scheme
 
-	urlStr := scheme + "://" + host + "/"
+	urlStr := scheme + "://" + host + libraryAdminURLPrefix + r.relPath
 
 	// If there are any query values, add them to the end.
-	if len(queryValues) > 0 {
-		urlStr = urlStr + "?" + s3utils.QueryEncode(queryValues)
+	if len(r.queryValues) > 0 {
+		urlStr = urlStr + "?" + s3utils.QueryEncode(r.queryValues)
 	}
 	u, err := url.Parse(urlStr)
 	if err != nil {
