@@ -28,6 +28,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/minio/cli"
+	"github.com/pydio/cells/common/service/context"
 	xhttp "github.com/pydio/minio-srv/cmd/http"
 	"github.com/pydio/minio-srv/cmd/logger"
 	"github.com/pydio/minio-srv/pkg/certs"
@@ -97,7 +98,7 @@ func ValidateGatewayArguments(serverAddr, endpointAddr string) error {
 }
 
 // StartGateway - handler for 'minio gateway <name>'.
-func StartGateway(ctx *cli.Context, gw Gateway) {
+func StartGateway(ctx *cli.Context, gw Gateway, masterPydioGateway ...bool) {
 	if gw == nil {
 		logger.FatalIf(errUnexpected, "Gateway implementation not initialized")
 	}
@@ -199,8 +200,14 @@ func StartGateway(ctx *cli.Context, gw Gateway) {
 	if globalTLSCerts != nil {
 		getCert = globalTLSCerts.GetCertificate
 	}
+	var handlers []HandlerFunc
+	handlers = append(handlers, globalHandlers...)
 
-	globalHTTPServer = xhttp.NewServer([]string{gatewayAddr}, criticalErrorHandler{registerHandlers(router, globalHandlers...)}, getCert)
+	if len(masterPydioGateway) == 0 {
+		handlers = append(handlers, getPydioAuthHandlerFunc(false), servicecontext.HttpSpanHandlerWrapper)
+	}
+
+	globalHTTPServer = xhttp.NewServer([]string{gatewayAddr}, criticalErrorHandler{registerHandlers(router, handlers...)}, getCert)
 	globalHTTPServer.UpdateBytesReadFunc = globalConnStats.incInputBytes
 	globalHTTPServer.UpdateBytesWrittenFunc = globalConnStats.incOutputBytes
 	go func() {
@@ -288,5 +295,7 @@ func StartGateway(ctx *cli.Context, gw Gateway) {
 		printGatewayStartupMessage(getAPIEndpoints(gatewayAddr), gatewayName)
 	}
 
-	handleSignals()
+	if len(masterPydioGateway) == 0 {
+		handleSignals()
+	}
 }

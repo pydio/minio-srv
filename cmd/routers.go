@@ -126,6 +126,8 @@ func configureServerHandler(endpoints EndpointList) (http.Handler, error) {
 	// Add API router.
 	registerAPIRouter(router)
 
+	globalHandlers = append(globalHandlers, getPydioAuthHandlerFunc(false))
+
 	// Register rest of the handlers.
 	return registerHandlers(router, globalHandlers...), nil
 }
