@@ -27,6 +27,7 @@ import (
 	"net/url"
 	"strings"
 
+	context2 "github.com/pydio/cells/common/utils/context"
 	"github.com/pydio/minio-srv/cmd/logger"
 	"github.com/pydio/minio-srv/pkg/handlers"
 	httptracer "github.com/pydio/minio-srv/pkg/handlers"
@@ -193,12 +194,18 @@ func extractReqParams(r *http.Request) map[string]string {
 
 	region := globalServerConfig.GetRegion()
 	// Success.
-	return map[string]string{
+	meta := map[string]string{
 		"region":          region,
 		"accessKey":       getReqAccessKey(r, region),
 		"sourceIPAddress": handlers.GetSourceIP(r),
 		// Add more fields here.
 	}
+	if pydioMeta, ok := context2.ContextMetadata(r.Context()); ok {
+		for k, v := range pydioMeta {
+			meta[k] = v
+		}
+	}
+	return meta
 }
 
 // Extract response elements to be sent with event notifiation.
