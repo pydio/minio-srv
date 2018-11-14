@@ -243,7 +243,7 @@ func (l *pydioObjects) ListObjectsV2(ctx context.Context, bucket, prefix, contin
 // GetObjectInfo reads object info and replies back ObjectInfo
 func (l *pydioObjects) GetObjectInfo(ctx context.Context, bucket string, object string, opts minio.ObjectOptions) (objInfo minio.ObjectInfo, err error) {
 
-	// log.Println("[GetObjectInfo]" + object)
+	//fmt.Println("[Gateway:GetObjectInfo]" + object)
 
 	path := strings.TrimLeft(object, "/")
 	node := &tree.Node{
@@ -254,11 +254,19 @@ func (l *pydioObjects) GetObjectInfo(ctx context.Context, bucket string, object 
 	}
 	readNodeResponse, err := l.Router.ReadNode(ctx, &tree.ReadNodeRequest{Node: node})
 	if err != nil {
+		if strings.Contains(err.Error(), "Forbidden") {
+			err = minio.PrefixAccessDenied{
+				Bucket: bucket,
+				Object: object,
+			}
+			return minio.ObjectInfo{}, minio.ErrorRespToObjectError(err, bucket, object)
+		}
 		return minio.ObjectInfo{}, minio.ErrorRespToObjectError(err, bucket, object)
 	}
 
 	if !readNodeResponse.Node.IsLeaf() {
-		return minio.ObjectInfo{}, errors.New("S3 API Cannot send object info for folder")
+		e := errors.New("S3 API Cannot send object info for folder")
+		return minio.ObjectInfo{}, e
 	}
 
 	return fromPydioNodeObjectInfo(bucket, readNodeResponse.Node), nil
