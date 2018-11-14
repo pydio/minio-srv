@@ -33,6 +33,13 @@ import (
 	"github.com/pydio/minio-srv/pkg/policy"
 )
 
+type PolicySysProvider interface {
+	Set(bucketName string, policy policy.Policy)
+	Remove(bucketName string)
+	IsAllowed(args policy.Args) bool
+	Init(objAPI ObjectLayer) error
+}
+
 // PolicySys - policy subsystem.
 type PolicySys struct {
 	sync.RWMutex

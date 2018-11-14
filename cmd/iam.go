@@ -52,6 +52,22 @@ const (
 	iamPolicyFile = "policy.json"
 )
 
+type IAMSysProvider interface {
+	Load(objAPI ObjectLayer) error
+	Init(objAPI ObjectLayer) error
+	DeleteCannedPolicy(policyName string) error
+	ListCannedPolicies() (map[string][]byte, error)
+	SetCannedPolicy(policyName string, p iampolicy.Policy) error
+	SetUserPolicy(accessKey, policyName string) error
+	DeleteUser(accessKey string) error
+	SetTempUser(accessKey string, cred auth.Credentials, policyName string) error
+	ListUsers() (map[string]madmin.UserInfo, error)
+	SetUserStatus(accessKey string, status madmin.AccountStatus) error
+	SetUser(accessKey string, uinfo madmin.UserInfo) error
+	GetUser(accessKey string) (cred auth.Credentials, ok bool)
+	IsAllowed(args iampolicy.Args) bool
+}
+
 // IAMSys - config system.
 type IAMSys struct {
 	sync.RWMutex

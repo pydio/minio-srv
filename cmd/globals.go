@@ -135,8 +135,8 @@ var (
 	globalConfigSys *ConfigSys
 
 	globalNotificationSys *NotificationSys
-	globalPolicySys       *PolicySys
-	globalIAMSys          *IAMSys
+	globalPolicySys       PolicySysProvider
+	globalIAMSys          IAMSysProvider
 
 	// CA root certificates, a nil value means system certs pool will be used
 	globalRootCAs *x509.CertPool
