@@ -313,6 +313,10 @@ func (api objectAPIHandlers) GetObjectHandler(w http.ResponseWriter, r *http.Req
 	bucket := vars["bucket"]
 	object := vars["object"]
 	var opts ObjectOptions
+	versionId := r.URL.Query().Get("versionId")
+	if versionId != "" {
+		opts.VersionID = versionId
+	}
 
 	// Check for auth type to return S3 compatible error.
 	// type to return the correct error (NoSuchKey vs AccessDenied)
@@ -672,6 +676,14 @@ func (api objectAPIHandlers) CopyObjectHandler(w http.ResponseWriter, r *http.Re
 		// Save unescaped string as is.
 		cpSrcPath = r.Header.Get("X-Amz-Copy-Source")
 	}
+	// Remove ?versionId= in source
+	var versionId string
+	cleanPath := cpSrcPath
+	if strings.Contains(cpSrcPath, "?versionId=") {
+		parts := strings.Split(cpSrcPath, "?versionId=")
+		cleanPath = parts[0]
+		versionId = parts[1]
+	}
 
 	srcBucket, srcObject := path2BucketAndObject(cpSrcPath)
 	// If source object is empty or bucket is empty, reply back invalid copy source.
@@ -679,6 +691,7 @@ func (api objectAPIHandlers) CopyObjectHandler(w http.ResponseWriter, r *http.Re
 		writeErrorResponse(w, ErrInvalidCopySource, r.URL)
 		return
 	}
+	_, cleanSrcObject := path2BucketAndObject(cleanPath)
 
 	if s3Error := checkRequestAuthType(ctx, r, policy.GetObjectAction, srcBucket, srcObject); s3Error != ErrNone {
 		writeErrorResponse(w, s3Error, r.URL)
@@ -713,8 +726,12 @@ func (api objectAPIHandlers) CopyObjectHandler(w http.ResponseWriter, r *http.Re
 		lock = readLock
 	}
 
+	if versionId != "" {
+		srcOpts.VersionID = versionId
+	}
+
 	var rs *HTTPRangeSpec
-	gr, err := getObjectNInfo(ctx, srcBucket, srcObject, rs, r.Header, lock, srcOpts)
+	gr, err := getObjectNInfo(ctx, srcBucket, cleanSrcObject, rs, r.Header, lock, srcOpts)
 	if err != nil {
 		writeErrorResponse(w, toAPIErrorCode(err), r.URL)
 		return
