@@ -360,7 +360,8 @@ func FatalIf(err error, msg string, data ...interface{}) {
 	if err == nil {
 		return
 	}
-	fatal(err, msg, data...)
+	fmt.Println(err, msg)
+	//fatal(err, msg, data...)
 }
 
 // Fatal prints only fatal error message without no stack trace
