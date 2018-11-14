@@ -31,6 +31,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"crypto/md5"
+	"fmt"
+
 	"github.com/pydio/minio-srv/cmd/logger"
 	"github.com/pydio/minio-srv/pkg/hash"
 	"github.com/pydio/minio-srv/pkg/lock"
@@ -695,6 +698,41 @@ func (fs *FSObjects) defaultFsJSON(object string) fsMetaV1 {
 	return fsMeta
 }
 
+func (fs *FSObjects) computeFsJSONFromChecksum(bucket, object string) (fsMeta fsMetaV1, err error) {
+
+	fsMeta = newFSMetaV1()
+	fsMetaPath := pathJoin(fs.fsPath, minioMetaBucket, bucketMetaPrefix, bucket, object, fs.metaJSONFile)
+	fsObjPath := pathJoin(fs.fsPath, bucket, object)
+	reader, size, err := fsOpenFile(context.Background(), fsObjPath, 0)
+	if err != nil {
+		return fsMeta, err
+	}
+	defer reader.Close()
+	bufSize := int64(readSizeV1)
+	if size > 0 && bufSize > size {
+		bufSize = size
+	}
+	buf := make([]byte, int(bufSize))
+	md5Writer := md5.New()
+	io.CopyBuffer(md5Writer, reader, buf)
+	mD5Hex := hex.EncodeToString(md5Writer.Sum(nil))
+
+	fmt.Println("Computing Etag for unknown file : ", object)
+	fsMeta.Meta = map[string]string{"etag": mD5Hex}
+	contentType := mimedb.TypeByExtension(path.Ext(object))
+	fsMeta.Meta["content-type"] = contentType
+
+	wlk, err2 := fs.rwPool.Create(fsMetaPath)
+	if err2 != nil {
+		return fsMeta, err2
+	}
+	defer wlk.Close()
+	fsMeta.WriteTo(wlk)
+
+	return fsMeta, nil
+
+}
+
 // getObjectInfo - wrapper for reading object metadata and constructs ObjectInfo.
 func (fs *FSObjects) getObjectInfo(ctx context.Context, bucket, object string) (oi ObjectInfo, e error) {
 	fsMeta := fsMetaV1{}
@@ -724,13 +762,21 @@ func (fs *FSObjects) getObjectInfo(ctx context.Context, bucket, object string) (
 				return oi, rerr
 			}
 			// Set Default ETag, if fs.json is empty
-			fsMeta = fs.defaultFsJSON(object)
+			if newMeta, e := fs.computeFsJSONFromChecksum(bucket, object); e == nil {
+				fsMeta = newMeta
+			} else {
+				fsMeta = fs.defaultFsJSON(object)
+			}
 		}
 	}
 
 	// Return a default etag and content-type based on the object's extension.
 	if err == errFileNotFound {
-		fsMeta = fs.defaultFsJSON(object)
+		if newMeta, e := fs.computeFsJSONFromChecksum(bucket, object); e == nil {
+			fsMeta = newMeta
+		} else {
+			fsMeta = fs.defaultFsJSON(object)
+		}
 	}
 
 	// Ignore if `fs.json` is not available, this is true for pre-existing data.
