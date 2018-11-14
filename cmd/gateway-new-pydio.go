@@ -2,119 +2,46 @@ package cmd
 
 import (
 	"context"
-	"path/filepath"
+	"flag"
+
+	"fmt"
 
 	"github.com/minio/cli"
-
+	"github.com/pydio/cells/common/service/context"
 	"github.com/pydio/minio-srv/cmd/logger"
+	"github.com/pydio/minio-srv/pkg/auth"
 )
 
-func StartPydioGateway(ctx context.Context, gw Gateway, gatewayAddr string, configDir string, certFile string, certKey string) {
+func StartPydioGateway(ctx context.Context, gw Gateway, gatewayAddr string, accessKey string, secretKey string, log logger.PydioLogger, certFile string, certKey string) {
 
-	// Disallow relative paths, figure out absolute paths.
-	configDirAbs, err := filepath.Abs(configDir)
-	logger.FatalIf(err, "Unable to fetch absolute path for config directory %s", configDir)
+	target := logger.NewPydioTarget(log)
+	logger.AddTarget(target)
 
-	setConfigDir(configDirAbs)
+	set := &flag.FlagSet{}
+	set.String("address", gatewayAddr, "")
+	set.Bool("quiet", true, "")
+	cliContext := cli.NewContext(cli.NewApp(), set, nil)
 
-	cliContext := &cli.Context{}
-	cliContext.Set("address", gatewayAddr)
+	cred, _ := auth.CreateCredentials(accessKey, secretKey)
+	globalIsEnvCreds = true
+	globalActiveCred = cred
 
-	StartGateway(cliContext, gw)
+	globalHandlers = append(globalHandlers,
+		getPydioAuthHandlerFunc(true),
+		servicecontext.HttpSpanHandlerWrapper,
+	)
 
-	/*
-		// Initialize gateway config.
-		initConfig()
+	StartGateway(cliContext, gw, true)
 
-		// Enable loggers as per configuration file.
-		logger.EnableQuiet()
-		enableLoggers()
-
-		// Init the error tracing module.
-		initError()
-
-		// Check and load SSL certificates.
-		globalPublicCerts, globalRootCAs, globalTLSCerts, globalIsSSL, err = getSSLConfig()
-		fatalIf(err, "Invalid SSL certificate file")
-
-		if certFile != "" && certKey != "" {
-			var cert tls.Certificate
-			cert, err = tls.LoadX509KeyPair(certFile, certKey)
-			fatalIf(err, "Cannot load SSL certificate files")
-			globalTLSCertificate = &cert
-			globalIsSSL = true
-		}
-
-		initNSLock(false) // Enable local namespace lock.
-
-		newObject, err := newPydioGateway()
-		// if err != nil {
-		// 	return err
-		// }
-
-		router := mux.NewRouter().SkipClean(true)
-
-		registerGatewayPydioAPIRouter(router, newObject)
-
-		var handlerFns = []HandlerFunc{
-			// Validate all the incoming paths.
-			setPathValidityHandler,
-			// Limits all requests size to a maximum fixed limit
-			setRequestSizeLimitHandler,
-			// Adds 'crossdomain.xml' policy handler to serve legacy flash clients.
-			setCrossDomainPolicy,
-			// Validates all incoming requests to have a valid date header.
-			// Redirect some pre-defined browser request paths to a static location prefix.
-			setBrowserRedirectHandler,
-			// Validates if incoming request is for restricted buckets.
-			setReservedBucketHandler,
-			// Adds cache control for all browser requests.
-			setBrowserCacheControlHandler,
-			// Validates all incoming requests to have a valid date header.
-			setTimeValidityHandler,
-			// CORS setting for all browser API requests.
-			setCorsHandler,
-			// Validates all incoming URL resources, for invalid/unsupported
-			// resources client receives a HTTP error.
-			setIgnoreResourcesHandler,
-			// Auth handler verifies incoming authorization headers and
-			// routes them accordingly. Client receives a HTTP error for
-			// invalid/unsupported signatures.
-			setAuthHandler,
-			// Add new handlers here.
-			getPydioAuthHandlerFunc(true),
-			// Add Span Handler
-			servicecontext.HttpSpanHandlerWrapper,
-		}
-
-		globalHTTPServer = http.NewServer([]string{gatewayAddr}, registerHandlers(router, handlerFns...), globalTLSCertificate)
-
-		// Start server, automatically configures TLS if certs are available.
-		go func() {
-			globalHTTPServerErrorCh <- globalHTTPServer.Start()
-		}()
-
-		signal.Notify(globalOSSignalCh, os.Interrupt, syscall.SIGTERM)
-
-		// Once endpoints are finalized, initialize the new object api.
-		globalObjLayerMutex.Lock()
-		globalObjectAPI = newObject
-		globalObjLayerMutex.Unlock()
-
-		// Prints the formatted startup message once object layer is initialized.
-		printGatewayStartupMessage(getAPIEndpoints(gatewayAddr), pydioBackend)
-	*/
+	globalIAMSys = NewJwtIAMSys()
+	globalPolicySys = NewMemoryPolicySys()
 
 	stopProcess := func() bool {
 		var err error
-		logger.Info("Shutting down Minio Server")
+		fmt.Println("Shutting down Minio Server")
 		err = globalHTTPServer.Shutdown()
-		logger.Info("Unable to shutdown http server " + err.Error())
-
-		//oerr = newObject.Shutdown()
-		//errorIf(oerr, "Unable to shutdown object layer")
+		fmt.Println("Unable to shutdown http server ", err)
 		return true
-
 	}
 
 	select {
