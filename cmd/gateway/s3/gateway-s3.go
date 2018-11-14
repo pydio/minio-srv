@@ -189,12 +189,14 @@ func newS3(url string) (*miniogo.Core, error) {
 	//  - Static credentials provided by user (i.e. MINIO_ACCESS_KEY)
 	creds := credentials.NewChainCredentials([]credentials.Provider{
 		&credentials.EnvAWS{},
-		&credentials.IAM{
-			Client: &http.Client{
-				Transport: minio.NewCustomHTTPTransport(),
+		/*
+			&credentials.IAM{
+				Client: &http.Client{
+					Transport: minio.NewCustomHTTPTransport(),
+				},
 			},
-		},
-		&credentials.FileAWSCredentials{},
+			&credentials.FileAWSCredentials{},
+		*/
 		&credentials.EnvMinio{},
 	})
 
@@ -555,4 +557,9 @@ func (l *s3Objects) DeleteBucketPolicy(ctx context.Context, bucket string) error
 // IsCompressionSupported returns whether compression is applicable for this layer.
 func (l *s3Objects) IsCompressionSupported() bool {
 	return false
+}
+
+// IsNotificationSupported returns whether bucket notification is applicable for this layer.
+func (l *s3Objects) IsNotificationSupported() bool {
+	return true
 }
