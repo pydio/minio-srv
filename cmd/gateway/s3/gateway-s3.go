@@ -342,11 +342,7 @@ func (l *s3Objects) ListObjects(ctx context.Context, bucket string, prefix strin
 	if err != nil {
 		return loi, minio.ErrorRespToObjectError(err, bucket)
 	}
-	for i, oi := range result.Contents {
-		if oo, changed := l.updateListingEntry(bucket, oi); changed {
-			result.Contents[i] = oo
-		}
-	}
+	result.Contents = l.updateListingResults(bucket, result.Contents)
 	return minio.FromMinioClientListBucketResult(bucket, result), nil
 }
 
@@ -356,11 +352,7 @@ func (l *s3Objects) ListObjectsV2(ctx context.Context, bucket, prefix, continuat
 	if err != nil {
 		return loi, minio.ErrorRespToObjectError(err, bucket)
 	}
-	for i, oi := range result.Contents {
-		if oo, changed := l.updateListingEntry(bucket, oi); changed {
-			result.Contents[i] = oo
-		}
-	}
+	result.Contents = l.updateListingResults(bucket, result.Contents)
 	return minio.FromMinioClientListBucketV2Result(bucket, result), nil
 }
 

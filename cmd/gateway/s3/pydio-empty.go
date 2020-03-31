@@ -18,17 +18,43 @@ const (
 	metaFolderUUID = "X-Amz-Meta-Cells-Folder-Uuid"
 )
 
+func (l *s3Objects) updateListingResults(bucket string, contents []minio.ObjectInfo) (output []minio.ObjectInfo) {
+	output = make([]minio.ObjectInfo, len(contents))
+
+	existingPydios := make(map[string]minio.ObjectInfo)
+	for _, o := range contents {
+		if e, t := l.hiddenToEmpty(o.Key); t {
+			existingPydios[e] = o
+		}
+	}
+	for _, oi := range contents {
+		oo, changed, ignore := l.updateListingEntry(bucket, oi, existingPydios);
+		if ignore {
+			continue
+		}
+		if changed {
+			output = append(output, oo)
+		} else {
+			output = append(output, oi)
+		}
+	}
+	return
+}
+
 // updateListingEntry tries does two things : transform on-the-fly empty objects with Uuid meta to fake .pydio,
 // and if a .pydio does really exists, get the Uuid from its content and attach it to an empty object, then delete it (migration).
-func (l *s3Objects) updateListingEntry(bucket string, oi minio.ObjectInfo) (minio.ObjectInfo, bool) {
+func (l *s3Objects) updateListingEntry(bucket string, oi minio.ObjectInfo, pydios map[string]minio.ObjectInfo) (minio.ObjectInfo, bool, bool) {
 	if h, ok := l.emptyToHidden(oi.Key); ok {
 		emptyOi, err := l.Client.StatObject(bucket, oi.Key, minio.StatObjectOptions{})
 		if err != nil {
-			return oi, false
+			return oi, false, false
 		}
 		var uid string
 		if id, has := emptyOi.Metadata[metaFolderUUID]; has {
 			uid = strings.Join(id, "")
+		} else if _, hasP := pydios[oi.Key]; hasP {
+			// This will be migrated at next step, return ignore
+			return oi, false, true
 		} else {
 			// Create an Uuid and attach it as meta to existing empty folder object
 			uid = uuid.New()
@@ -45,7 +71,7 @@ func (l *s3Objects) updateListingEntry(bucket string, oi minio.ObjectInfo) (mini
 		mH.Write([]byte(uid))
 		oi.ETag = fmt.Sprintf("%x", mH.Sum(nil))
 		oi.Key = h
-		return oi, true
+		return oi, true, false
 	} else if empty, o2 := l.hiddenToEmpty(oi.Key); o2 {
 		// This is an existing .pydio - migrate it to empty folder with meta instead, and let it go through the listing
 		fmt.Println("[INFO] Migrating .pydio to S3 empty object")
@@ -74,7 +100,7 @@ func (l *s3Objects) updateListingEntry(bucket string, oi minio.ObjectInfo) (mini
 			}
 		}
 	}
-	return oi, false
+	return oi, false, false
 }
 
 func (l *s3Objects) putContentAsEmptyMeta(bucket, object, emptyKey string, data io.Reader, metadata map[string]string, sse encrypt.ServerSide) (minio.ObjectInfo, error) {
