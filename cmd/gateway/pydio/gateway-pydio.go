@@ -24,15 +24,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/minio/cli"
-	"github.com/pydio/cells/common/proto/tree"
-	"github.com/pydio/cells/common/views"
+	microerrors "github.com/micro/go-micro/errors"
 	miniogo "github.com/pydio/minio-go"
-
 	minio "github.com/pydio/minio-srv/cmd"
 	"github.com/pydio/minio-srv/pkg/auth"
 	"github.com/pydio/minio-srv/pkg/hash"
-	microerrors "github.com/micro/go-micro/errors"
+
+	"github.com/minio/cli"
+	"github.com/pydio/cells/common"
+	"github.com/pydio/cells/common/log"
+	"github.com/pydio/cells/common/proto/tree"
+	"github.com/pydio/cells/common/views"
 )
 
 const (
@@ -91,6 +93,9 @@ func pydioGatewayMain(ctx *cli.Context) {
 func fromPydioNodeObjectInfo(bucket string, node *tree.Node) minio.ObjectInfo {
 
 	cType := "application/octet-stream"
+	if c := node.GetStringMeta(common.MetaNamespaceMime); c != "" {
+		cType = c
+	}
 	userDefined := map[string]string{
 		"Content-Type": cType,
 	}
@@ -364,8 +369,10 @@ func (l *pydioObjects) PutObject(ctx context.Context, bucket string, object stri
 		Size:      data.Size(),
 		Sha256Sum: data.SHA256(),
 		Md5Sum:    data.MD5(),
+		Metadata: requestMetadata,
 	})
 	if err != nil {
+		log.Logger(ctx).Error("Error while putting object:" + err.Error())
 		return objInfo, pydioToMinioError(err, bucket, object)
 	}
 	// TODO : PutObject should return more info about written node
