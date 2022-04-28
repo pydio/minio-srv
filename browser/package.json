@@ -29,7 +29,7 @@
   },
   "homepage": "https://github.com/pydio/minio-srv",
   "devDependencies": {
-    "async": "^1.5.2",
+    "async": "^2.6.4",
     "babel-cli": "^6.14.0",
     "babel-core": "^6.14.0",
     "babel-jest": "^22.1.0",
